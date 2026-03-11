@@ -1,3 +1,4 @@
+// @ts-nocheck — Supabase types are `never` without generated DB types
 /**
  * Sprint 1-2 Integration Test
  *
@@ -15,6 +16,7 @@ import { join } from 'path';
 import { validateUpload, MasterDataContext } from '../../src/lib/uploadValidator';
 import { calculateAll } from '../../src/lib/formulaEngine';
 import { parse } from 'csv-parse/sync';
+import type { FileType } from '../../src/types/otb';
 
 // Skip if no Supabase credentials
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
