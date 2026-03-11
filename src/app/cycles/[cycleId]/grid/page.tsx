@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import OtbGrid from '@/components/OtbGrid';
 import { useFormulaEngine } from '@/hooks/useFormulaEngine';
+import { useAutoSave } from '@/hooks/useAutoSave';
 import { getLockedMonths } from '@/lib/monthLockout';
 import type { PlanRow, OtbCycle } from '@/types/otb';
 
@@ -84,6 +85,12 @@ export default function GridPage() {
       setSaveStatus('error');
     }
   }, [cycleId, dirtyRows, rows, months, lockedMonths]);
+
+  // Auto-save every 30s when dirty (with 2s debounce)
+  useAutoSave({
+    dirtyCount: dirtyRows.size,
+    onSave: handleSave,
+  });
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
 
