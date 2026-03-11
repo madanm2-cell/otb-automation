@@ -8,6 +8,7 @@ import { useParams } from 'next/navigation';
 import OtbGrid from '@/components/OtbGrid';
 import { useFormulaEngine } from '@/hooks/useFormulaEngine';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { getLockedMonths } from '@/lib/monthLockout';
 import type { PlanRow, OtbCycle } from '@/types/otb';
 
@@ -40,11 +41,27 @@ export default function GridPage() {
 
   const isEditable = cycle?.status === 'Filling';
 
+  // Undo/redo: apply a value change (from undo/redo stack)
+  const handleUndoRedoApply = useCallback((rowId: string, month: string, field: string, value: number | null) => {
+    setRows(prev => applyChange(prev, months, { rowId, month, field, value: value ?? 0 }));
+    setDirtyRows(prev => new Set(prev).add(rowId));
+    setSaveStatus('idle');
+  }, [applyChange, months]);
+
+  const { pushUndo, undo, redo, canUndo, canRedo } = useUndoRedo(handleUndoRedoApply);
+
   const handleCellValueChanged = useCallback((params: { rowId: string; month: string; field: string; value: number }) => {
+    // Get old value before applying change
+    const row = rows.find(r => r.id === params.rowId);
+    const oldValue = row?.months[params.month]?.[params.field as keyof typeof row.months[string]] as number | null ?? null;
+
     setRows(prev => applyChange(prev, months, params));
     setDirtyRows(prev => new Set(prev).add(params.rowId));
     setSaveStatus('idle');
-  }, [applyChange, months]);
+
+    // Push to undo stack
+    pushUndo({ rowId: params.rowId, month: params.month, field: params.field, oldValue, newValue: params.value });
+  }, [applyChange, months, rows, pushUndo]);
 
   const handleSave = useCallback(async () => {
     if (dirtyRows.size === 0) return;
@@ -119,6 +136,8 @@ export default function GridPage() {
           </span>
           {isEditable && (
             <>
+              <Button size="small" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)">Undo</Button>
+              <Button size="small" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Y)">Redo</Button>
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
