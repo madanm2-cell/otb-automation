@@ -1,0 +1,13 @@
+sub_brand,sub_category,gender,channel,month,gmv
+bewakoof,T-Shirts,Male,myntra_sor,2025-01-01,700000
+bewakoof,T-Shirts,Male,myntra_sor,2025-02-01,650000
+bewakoof,T-Shirts,Male,myntra_sor,2025-03-01,680000
+bewakoof,T-Shirts,Male,amazon_cocoblu,2025-01-01,400000
+bewakoof,T-Shirts,Male,amazon_cocoblu,2025-02-01,380000
+bewakoof,T-Shirts,Male,amazon_cocoblu,2025-03-01,420000
+bewakoof,T-Shirts,Female,myntra_sor,2025-01-01,250000
+bewakoof,T-Shirts,Female,myntra_sor,2025-02-01,230000
+bewakoof,T-Shirts,Female,myntra_sor,2025-03-01,260000
+bewakoof air,Jeans,Male,flipkart_sor,2025-01-01,300000
+bewakoof air,Jeans,Male,flipkart_sor,2025-02-01,280000
+bewakoof air,Jeans,Male,flipkart_sor,2025-03-01,310000
