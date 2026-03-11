@@ -1,4 +1,4 @@
-sub_category,channel,sellex_pct
-T-Shirts,myntra_sor,8
-T-Shirts,amazon_cocoblu,10
-Jeans,flipkart_sor,7
+sub_brand,sub_category,channel,sellex_pct
+bewakoof,T-Shirts,myntra_sor,8
+bewakoof,T-Shirts,amazon_cocoblu,10
+bewakoof air,Jeans,flipkart_sor,7

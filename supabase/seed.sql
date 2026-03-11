@@ -11,15 +11,17 @@ SELECT sb.name, b.id FROM
   brands b WHERE b.name = 'Bewakoof'
 ON CONFLICT (brand_id, name) DO NOTHING;
 
--- Sub Categories
+-- Sub Categories (expanded with real-world data)
 INSERT INTO sub_categories (name) VALUES
   ('T-Shirts'), ('Jeans'), ('Hoodies'), ('Joggers'), ('Shorts'),
-  ('Shirts'), ('Trousers'), ('Jackets'), ('Sweatshirts'), ('Pyjamas')
+  ('Shirts'), ('Trousers'), ('Jackets'), ('Sweatshirts'), ('Pyjamas'),
+  ('Pants'), ('Sweaters'), ('Blazers'), ('Others')
 ON CONFLICT (name) DO NOTHING;
 
--- Channels (PRD 4.1)
+-- Channels (expanded with real-world data)
 INSERT INTO channels (name) VALUES
-  ('amazon_cocoblu'), ('flipkart_sor'), ('myntra_sor'), ('Offline'), ('Others')
+  ('amazon_cocoblu'), ('flipkart_sor'), ('myntra_sor'), ('Offline'), ('Others'),
+  ('unicommerce'), ('wondersoft'), ('shoppers stop'), ('zepto')
 ON CONFLICT (name) DO NOTHING;
 
 -- Genders
@@ -30,6 +32,5 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO master_mappings (mapping_type, raw_value, standard_value, brand) VALUES
   ('sub_brand', 'bob', 'bewakoof', 'Bewakoof'),
   ('sub_brand', 'BOB', 'bewakoof', 'Bewakoof'),
-  ('channel', 'unicommerce', 'Others', NULL),
-  ('channel', 'website', 'Others', NULL)
+  ('channel', 'website', 'others', NULL)
 ON CONFLICT (mapping_type, raw_value, brand) DO NOTHING;

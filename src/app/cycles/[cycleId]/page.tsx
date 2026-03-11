@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin } from 'antd';
-import { UploadOutlined, TableOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin, Input } from 'antd';
+import { UploadOutlined, TableOutlined, UserAddOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { OtbCycle, FileUpload } from '@/types/otb';
@@ -23,6 +23,8 @@ export default function CycleDetailPage() {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState(false);
+  const [gdName, setGdName] = useState('');
+  const [assigningGd, setAssigningGd] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -34,6 +36,30 @@ export default function CycleDetailPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [cycleId]);
+
+  const handleAssignGd = async () => {
+    if (!gdName.trim()) return;
+    setAssigningGd(true);
+    try {
+      const res = await fetch(`/api/cycles/${cycleId}/assign-gd`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gd_name: gdName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        message.error(data.error || 'Failed to assign GD');
+        return;
+      }
+      setCycle(data);
+      setGdName('');
+      message.success('GD assigned successfully');
+    } catch {
+      message.error('Network error');
+    } finally {
+      setAssigningGd(false);
+    }
+  };
 
   const handleActivate = async () => {
     setActivating(true);
@@ -84,7 +110,31 @@ export default function CycleDetailPage() {
           <Descriptions.Item label="Brand">{cycle.brands?.name || '-'}</Descriptions.Item>
           <Descriptions.Item label="Quarter">{cycle.planning_quarter}</Descriptions.Item>
           <Descriptions.Item label="Period">{cycle.planning_period_start} to {cycle.planning_period_end}</Descriptions.Item>
-          <Descriptions.Item label="GD Assigned">{cycle.assigned_gd_id || 'Not assigned'}</Descriptions.Item>
+          <Descriptions.Item label="GD Assigned">
+            {cycle.assigned_gd_id ? (
+              <Tag color="blue" icon={<UserAddOutlined />}>{cycle.assigned_gd_id}</Tag>
+            ) : cycle.status === 'Draft' ? (
+              <Space.Compact>
+                <Input
+                  placeholder="Enter GD name"
+                  value={gdName}
+                  onChange={e => setGdName(e.target.value)}
+                  style={{ width: 180 }}
+                  onPressEnter={handleAssignGd}
+                />
+                <Button
+                  type="primary"
+                  onClick={handleAssignGd}
+                  loading={assigningGd}
+                  disabled={!gdName.trim()}
+                >
+                  Assign
+                </Button>
+              </Space.Compact>
+            ) : (
+              'Not assigned'
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="Wear Types">
             <Space size={4}>{cycle.wear_types.map(t => <Tag key={t}>{t}</Tag>)}</Space>
           </Descriptions.Item>

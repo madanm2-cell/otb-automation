@@ -35,7 +35,7 @@ describe('Upload Validator (V-001 to V-007)', () => {
 
   it('V-002: percentage > 100 fails', () => {
     const rows = [
-      { sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 150 },
+      { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 150 },
     ];
     const result = validateUpload('return_pct', rows, masterData);
     expect(result.valid).toBe(false);
@@ -44,7 +44,7 @@ describe('Upload Validator (V-001 to V-007)', () => {
 
   it('V-002: percentage within 0-100 passes', () => {
     const rows = [
-      { sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 25.5 },
+      { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 25.5 },
     ];
     const result = validateUpload('return_pct', rows, masterData);
     expect(result.valid).toBe(true);
@@ -95,14 +95,15 @@ describe('Upload Validator (V-001 to V-007)', () => {
     expect(result.errors.some(e => e.rule === 'V-005')).toBe(true);
   });
 
-  it('V-006: duplicate dimension combo fails', () => {
+  it('V-006: duplicate dimension combos are aggregated (summed)', () => {
     const rows = [
       { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', quantity: 100 },
       { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', quantity: 200 },
     ];
     const result = validateUpload('opening_stock', rows, masterData);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.rule === 'V-006')).toBe(true);
+    expect(result.valid).toBe(true);
+    expect(result.normalizedRows).toHaveLength(1); // Aggregated into 1 row
+    expect(result.normalizedRows[0].quantity).toBe(300); // 100 + 200
   });
 
   it('V-007: empty file fails', () => {
@@ -113,7 +114,7 @@ describe('Upload Validator (V-001 to V-007)', () => {
 
   it('channel mapping: unicommerce → others', () => {
     const rows = [
-      { sub_category: 'T-Shirts', channel: 'unicommerce', return_pct: 20 },
+      { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'unicommerce', return_pct: 20 },
     ];
     const result = validateUpload('return_pct', rows, masterData);
     expect(result.valid).toBe(true);

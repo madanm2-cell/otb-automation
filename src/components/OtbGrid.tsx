@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams } from 'ag-grid-community';
+import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
 import type { PlanRow } from '@/types/otb';
 import { formatCrore, formatPct, formatQty, formatCurrency } from '@/lib/formatting';
 
@@ -87,17 +87,91 @@ const pctFormatter = (p: ValueFormatterParams) => formatPct(p.value);
 const qtyFormatter = (p: ValueFormatterParams) => formatQty(p.value);
 const currencyFormatter = (p: ValueFormatterParams) => formatCurrency(p.value);
 
+// Fields that GD can edit (used for paste mapping)
+const GD_FIELDS = ['nsq', 'inwards_qty', 'perf_marketing_pct'];
+
 export default function OtbGrid({ rows, months, editable = false, lockedMonths = {}, onCellValueChanged }: OtbGridProps) {
+  const gridRef = useRef<AgGridReact>(null);
   const flatRows = useMemo(() => flattenRows(rows, months), [rows, months]);
 
+  // Custom paste handler for Excel copy-paste support
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (!editable || !onCellValueChanged) return;
+
+    const api: GridApi | undefined = gridRef.current?.api;
+    if (!api) return;
+
+    const focusedCell = api.getFocusedCell();
+    if (!focusedCell) return;
+
+    const clipboardText = e.clipboardData.getData('text/plain');
+    if (!clipboardText) return;
+
+    // Parse field from focused column (e.g. "2026-01-01_nsq")
+    const focusedField = focusedCell.column.getColId();
+    const underscoreIdx = focusedField.indexOf('_');
+    if (underscoreIdx === -1) return;
+
+    const focusedMonth = focusedField.substring(0, 10); // "2026-01-01"
+    const focusedFieldName = focusedField.substring(11); // "nsq", "inwards_qty", etc.
+
+    // Only allow paste into GD input fields
+    if (!GD_FIELDS.includes(focusedFieldName)) return;
+
+    e.preventDefault();
+
+    // Parse TSV rows from clipboard
+    const pastedRows = clipboardText.trim().split('\n').map(line =>
+      line.split('\t').map(cell => cell.trim())
+    );
+
+    // Determine which columns to paste into (starting from focused GD field)
+    const gdFieldStartIdx = GD_FIELDS.indexOf(focusedFieldName);
+    const sortedMonths = [...months].sort();
+    const monthStartIdx = sortedMonths.indexOf(focusedMonth);
+    if (monthStartIdx === -1) return;
+
+    // Build target columns: iterate months × GD fields from focus point
+    const targetCols: { month: string; field: string }[] = [];
+    for (let mi = monthStartIdx; mi < sortedMonths.length; mi++) {
+      const startField = mi === monthStartIdx ? gdFieldStartIdx : 0;
+      for (let fi = startField; fi < GD_FIELDS.length; fi++) {
+        targetCols.push({ month: sortedMonths[mi], field: GD_FIELDS[fi] });
+      }
+    }
+
+    // Get visible row nodes starting from focused row
+    const allRowNodes: { id: string }[] = [];
+    api.forEachNodeAfterFilterAndSort(node => {
+      if (node.data?.id) allRowNodes.push({ id: node.data.id });
+    });
+
+    const startRowIdx = allRowNodes.findIndex(n => n.id === api.getDisplayedRowAtIndex(focusedCell.rowIndex)?.data?.id);
+    if (startRowIdx === -1) return;
+
+    // Apply pasted values
+    for (let r = 0; r < pastedRows.length && (startRowIdx + r) < allRowNodes.length; r++) {
+      const rowId = allRowNodes[startRowIdx + r].id;
+      for (let c = 0; c < pastedRows[r].length && c < targetCols.length; c++) {
+        const { month, field } = targetCols[c];
+        if (lockedMonths[month]) continue;
+
+        const val = parseFloat(pastedRows[r][c]);
+        if (isNaN(val)) continue;
+
+        onCellValueChanged({ rowId, month, field, value: val });
+      }
+    }
+  }, [editable, onCellValueChanged, months, lockedMonths]);
+
   const columnDefs = useMemo((): (ColDef | ColGroupDef)[] => {
-    // Dimension columns (row grouping)
+    // Dimension columns — all visible, pinned left, using Community text filter
     const dimCols: ColDef[] = [
-      { field: 'sub_brand', headerName: 'Sub Brand', rowGroup: true, hide: true, width: 130 },
-      { field: 'wear_type', headerName: 'Wear Type', rowGroup: true, hide: true, width: 100 },
-      { field: 'sub_category', headerName: 'Sub Category', rowGroup: true, hide: true, width: 120 },
-      { field: 'gender', headerName: 'Gender', rowGroup: true, hide: true, width: 80 },
-      { field: 'channel', headerName: 'Channel', width: 140, pinned: 'left' },
+      { field: 'sub_brand', headerName: 'Sub Brand', pinned: 'left', width: 130 },
+      { field: 'sub_category', headerName: 'Sub Category', pinned: 'left', width: 120 },
+      { field: 'wear_type', headerName: 'Wear Type', pinned: 'left', width: 100 },
+      { field: 'gender', headerName: 'Gender', pinned: 'left', width: 80 },
+      { field: 'channel', headerName: 'Channel', pinned: 'left', width: 140 },
     ];
 
     // Per-month column groups
@@ -174,26 +248,15 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
     suppressMovable: true,
   }), []);
 
-  const autoGroupColumnDef = useMemo((): ColDef => ({
-    headerName: 'Hierarchy',
-    width: 250,
-    pinned: 'left',
-    cellRendererParams: {
-      suppressCount: false,
-    },
-  }), []);
-
   return (
-    <div style={{ width: '100%', height: 'calc(100vh - 140px)' }}>
+    <div style={{ width: '100%', height: 'calc(100vh - 140px)' }} onPaste={handlePaste}>
       <AgGridReact
+        ref={gridRef}
         rowData={flatRows}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        autoGroupColumnDef={autoGroupColumnDef}
-        groupDefaultExpanded={1}
         animateRows={false}
         getRowId={(params) => params.data.id}
-        grandTotalRow="bottom"
         onCellValueChanged={(event) => {
           if (!onCellValueChanged || !event.colDef.field) return;
           const field = event.colDef.field;

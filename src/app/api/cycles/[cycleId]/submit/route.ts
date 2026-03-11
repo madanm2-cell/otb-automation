@@ -1,0 +1,69 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
+
+type Params = { params: Promise<{ cycleId: string }> };
+
+// POST /api/cycles/:cycleId/submit — transition Filling → InReview
+export async function POST(_req: NextRequest, { params }: Params) {
+  const { cycleId } = await params;
+  const supabase = createServerClient();
+
+  // Get cycle
+  const { data: cycle } = await supabase
+    .from('otb_cycles')
+    .select('*')
+    .eq('id', cycleId)
+    .single();
+
+  if (!cycle) {
+    return NextResponse.json({ error: 'Cycle not found' }, { status: 404 });
+  }
+  if (cycle.status !== 'Filling') {
+    return NextResponse.json(
+      { error: `Cannot submit cycle in ${cycle.status} status. Must be in Filling status.` },
+      { status: 400 }
+    );
+  }
+
+  // Pre-submit validation: check that plan data exists and has GD inputs
+  const { data: planRows } = await supabase
+    .from('otb_plan_rows')
+    .select('id')
+    .eq('cycle_id', cycleId);
+
+  if (!planRows || planRows.length === 0) {
+    return NextResponse.json(
+      { error: 'No plan rows found. Generate template first.' },
+      { status: 400 }
+    );
+  }
+
+  // Check at least some NSQ values are filled (not all zero)
+  const { data: planData } = await supabase
+    .from('otb_plan_data')
+    .select('nsq')
+    .eq('cycle_id', cycleId)
+    .gt('nsq', 0)
+    .limit(1);
+
+  if (!planData || planData.length === 0) {
+    return NextResponse.json(
+      { error: 'No NSQ values have been entered. Please fill in GD inputs before submitting.' },
+      { status: 400 }
+    );
+  }
+
+  // Transition: Filling → InReview
+  const { data, error } = await supabase
+    .from('otb_cycles')
+    .update({
+      status: 'InReview',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cycleId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}

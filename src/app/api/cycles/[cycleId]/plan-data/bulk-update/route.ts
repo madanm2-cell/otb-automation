@@ -162,6 +162,45 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   }
 
+  // Create version snapshot
+  try {
+    // Get current max version
+    const { data: latestVersion } = await supabase
+      .from('version_history')
+      .select('version_number')
+      .eq('cycle_id', cycleId)
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextVersion = (latestVersion?.version_number ?? 0) + 1;
+
+    // Build snapshot from affected rows
+    const snapshot = rowIds.map(rowId => {
+      const rowMonths = dataMap.get(rowId);
+      if (!rowMonths) return null;
+      return {
+        rowId,
+        months: Object.fromEntries(
+          [...rowMonths.entries()].map(([month, data]) => [month, {
+            nsq: data.nsq, inwards_qty: data.inwards_qty, perf_marketing_pct: data.perf_marketing_pct,
+            sales_plan_gmv: data.sales_plan_gmv, closing_stock_qty: data.closing_stock_qty,
+          }])
+        ),
+      };
+    }).filter(Boolean);
+
+    await supabase.from('version_history').insert({
+      cycle_id: cycleId,
+      version_number: nextVersion,
+      snapshot: JSON.stringify(snapshot),
+      change_summary: `Updated ${updates.length} cells across ${rowIds.length} rows`,
+      created_by: 'gd_user', // placeholder until auth
+    });
+  } catch {
+    // Version history is non-critical — don't fail the save
+  }
+
   return NextResponse.json({
     success: true,
     updatedCount: dbUpdates.length,

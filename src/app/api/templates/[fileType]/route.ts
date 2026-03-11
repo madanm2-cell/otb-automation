@@ -22,24 +22,24 @@ const SAMPLE_DATA: Record<FileType, Record<string, unknown>[]> = {
     { sub_brand: 'bewakoof air', sub_category: 'Jeans', doh: 60 },
   ],
   ly_sales: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-01-01', gmv: 700000 },
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-02-01', gmv: 650000 },
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-01-01', nsq: 1000 },
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-02-01', nsq: 950 },
   ],
   recent_sales: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', nsq: 1200 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', gender: 'Female', nsq: 800 },
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-10-01', nsq: 1100 },
+    { sub_brand: 'bewakoof air', sub_category: 'Jeans', gender: 'Female', channel: 'flipkart_sor', month: '2025-11-01', nsq: 800 },
   ],
   return_pct: [
-    { sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 25.5 },
-    { sub_category: 'Jeans', channel: 'amazon_cocoblu', return_pct: 18.0 },
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 25.5 },
+    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', return_pct: 18.0 },
   ],
   tax_pct: [
-    { sub_category: 'T-Shirts', channel: 'myntra_sor', tax_pct: 12 },
-    { sub_category: 'Jeans', channel: 'amazon_cocoblu', tax_pct: 12 },
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', tax_pct: 12 },
+    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', tax_pct: 12 },
   ],
   sellex_pct: [
-    { sub_category: 'T-Shirts', channel: 'myntra_sor', sellex_pct: 8 },
-    { sub_category: 'Jeans', channel: 'amazon_cocoblu', sellex_pct: 10 },
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', sellex_pct: 8 },
+    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', sellex_pct: 10 },
   ],
   soft_forecast: [
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', nsq: 1100 },

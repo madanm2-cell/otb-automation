@@ -1,4 +1,10 @@
-sub_brand,sub_category,gender,nsq
-bewakoof,T-Shirts,Male,1200
-bewakoof,T-Shirts,Female,600
-bewakoof air,Jeans,Male,450
+sub_brand,sub_category,gender,channel,month,nsq
+bewakoof,T-Shirts,Male,myntra_sor,2025-10-01,1100
+bewakoof,T-Shirts,Male,myntra_sor,2025-11-01,1050
+bewakoof,T-Shirts,Male,myntra_sor,2025-12-01,1200
+bewakoof,T-Shirts,Female,myntra_sor,2025-10-01,400
+bewakoof,T-Shirts,Female,myntra_sor,2025-11-01,380
+bewakoof,T-Shirts,Female,myntra_sor,2025-12-01,420
+bewakoof air,Jeans,Male,flipkart_sor,2025-10-01,450
+bewakoof air,Jeans,Male,flipkart_sor,2025-11-01,430
+bewakoof air,Jeans,Male,flipkart_sor,2025-12-01,470

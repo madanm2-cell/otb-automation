@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Spin, Typography, Button, Space, Tag } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import { Spin, Typography, Button, Space, Tag, Modal, message } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import OtbGrid from '@/components/OtbGrid';
+import BulkEditModal from '@/components/BulkEditModal';
+import ImportGdModal from '@/components/ImportGdModal';
 import { useFormulaEngine } from '@/hooks/useFormulaEngine';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
@@ -22,6 +24,9 @@ export default function GridPage() {
   const [loading, setLoading] = useState(true);
   const [dirtyRows, setDirtyRows] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const { applyChange } = useFormulaEngine();
 
@@ -63,6 +68,18 @@ export default function GridPage() {
     pushUndo({ rowId: params.rowId, month: params.month, field: params.field, oldValue, newValue: params.value });
   }, [applyChange, months, rows, pushUndo]);
 
+  const handleBulkApply = useCallback((changes: { rowId: string; month: string; field: string; value: number }[]) => {
+    let updated = rows;
+    const dirty = new Set(dirtyRows);
+    for (const change of changes) {
+      updated = applyChange(updated, months, change);
+      dirty.add(change.rowId);
+    }
+    setRows(updated);
+    setDirtyRows(dirty);
+    setSaveStatus('idle');
+  }, [rows, dirtyRows, applyChange, months]);
+
   const handleSave = useCallback(async () => {
     if (dirtyRows.size === 0) return;
 
@@ -103,6 +120,37 @@ export default function GridPage() {
     }
   }, [cycleId, dirtyRows, rows, months, lockedMonths]);
 
+  const handleSubmit = useCallback(async () => {
+    // Save first if there are unsaved changes
+    if (dirtyRows.size > 0) {
+      await handleSave();
+    }
+
+    Modal.confirm({
+      title: 'Submit for Review',
+      content: 'Are you sure you want to submit this OTB plan for review? The plan will become read-only after submission.',
+      okText: 'Submit',
+      okType: 'primary',
+      onOk: async () => {
+        setSubmitting(true);
+        try {
+          const res = await fetch(`/api/cycles/${cycleId}/submit`, { method: 'POST' });
+          const data = await res.json();
+          if (!res.ok) {
+            message.error(data.error || 'Submission failed');
+            return;
+          }
+          setCycle(data);
+          message.success('Plan submitted for review successfully!');
+        } catch {
+          message.error('Network error');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+    });
+  }, [cycleId, dirtyRows.size, handleSave]);
+
   // Auto-save every 30s when dirty (with 2s debounce)
   useAutoSave({
     dirtyCount: dirtyRows.size,
@@ -136,6 +184,8 @@ export default function GridPage() {
           </span>
           {isEditable && (
             <>
+              <Button size="small" icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>Import Excel</Button>
+              <Button size="small" icon={<EditOutlined />} onClick={() => setBulkEditOpen(true)}>Bulk Edit</Button>
               <Button size="small" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)">Undo</Button>
               <Button size="small" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Y)">Redo</Button>
               <Button
@@ -146,6 +196,15 @@ export default function GridPage() {
                 disabled={dirtyRows.size === 0}
               >
                 Save Draft
+              </Button>
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={handleSubmit}
+                loading={submitting}
+                danger
+              >
+                Submit for Review
               </Button>
               <span style={{
                 fontSize: 12,
@@ -164,6 +223,24 @@ export default function GridPage() {
         lockedMonths={lockedMonths}
         onCellValueChanged={isEditable ? handleCellValueChanged : undefined}
       />
+      {isEditable && (
+        <>
+          <BulkEditModal
+            open={bulkEditOpen}
+            onClose={() => setBulkEditOpen(false)}
+            rows={rows}
+            months={months}
+            lockedMonths={lockedMonths}
+            onApply={handleBulkApply}
+          />
+          <ImportGdModal
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            cycleId={cycleId}
+            onApply={handleBulkApply}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -41,36 +41,36 @@ export const FILE_SCHEMAS: Record<FileType, FileSchema> = {
   },
   ly_sales: {
     fileType: 'ly_sales',
-    requiredColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month', 'gmv'],
+    requiredColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month', 'nsq'],
     dimensionColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month'],
-    numericColumns: ['gmv'],
+    numericColumns: ['nsq'],
     percentColumns: [],
   },
   recent_sales: {
     fileType: 'recent_sales',
-    requiredColumns: ['sub_brand', 'sub_category', 'gender', 'nsq'],
-    dimensionColumns: ['sub_brand', 'sub_category', 'gender'],
+    requiredColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month', 'nsq'],
+    dimensionColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month'],
     numericColumns: ['nsq'],
     percentColumns: [],
   },
   return_pct: {
     fileType: 'return_pct',
-    requiredColumns: ['sub_category', 'channel', 'return_pct'],
-    dimensionColumns: ['sub_category', 'channel'],
+    requiredColumns: ['sub_brand', 'sub_category', 'channel', 'return_pct'],
+    dimensionColumns: ['sub_brand', 'sub_category', 'channel'],
     numericColumns: [],
     percentColumns: ['return_pct'],
   },
   tax_pct: {
     fileType: 'tax_pct',
-    requiredColumns: ['sub_category', 'channel', 'tax_pct'],
-    dimensionColumns: ['sub_category', 'channel'],
+    requiredColumns: ['sub_brand', 'sub_category', 'channel', 'tax_pct'],
+    dimensionColumns: ['sub_brand', 'sub_category', 'channel'],
     numericColumns: [],
     percentColumns: ['tax_pct'],
   },
   sellex_pct: {
     fileType: 'sellex_pct',
-    requiredColumns: ['sub_category', 'channel', 'sellex_pct'],
-    dimensionColumns: ['sub_category', 'channel'],
+    requiredColumns: ['sub_brand', 'sub_category', 'channel', 'sellex_pct'],
+    dimensionColumns: ['sub_brand', 'sub_category', 'channel'],
     numericColumns: [],
     percentColumns: ['sellex_pct'],
   },
@@ -132,8 +132,9 @@ export function validateUpload(
     return { valid: false, errors, normalizedRows };
   }
 
-  // Track dimension combos for duplicate detection (V-006)
-  const seenKeys = new Set<string>();
+  // Track dimension combos for duplicate aggregation (V-006)
+  // Instead of rejecting duplicates, we aggregate numeric columns (sum them)
+  const seenKeys = new Map<string, number>(); // dimKey → index in normalizedRows
 
   for (let i = 0; i < rows.length; i++) {
     const rowNum = i + 2; // 1-indexed + header row
@@ -208,14 +209,27 @@ export function validateUpload(
       }
     }
 
-    // V-006: Duplicate dimension combination check
+    // V-006: Duplicate handling — aggregate numeric columns by summing
     const dimKey = schema.dimensionColumns.map(col => normalizeValue(normalizedRow[col] ?? row[col])).join('|');
     if (seenKeys.has(dimKey)) {
-      errors.push({ row: rowNum, field: '', rule: 'V-006', message: `Duplicate dimension combination: ${dimKey}` });
+      // Aggregate: sum numeric columns into the existing row
+      const existingIdx = seenKeys.get(dimKey)!;
+      const existing = normalizedRows[existingIdx];
+      for (const col of [...schema.numericColumns, ...(schema.aspColumn ? [] : [])]) {
+        const oldVal = Number(existing[col]) || 0;
+        const newVal = Number(normalizedRow[col]) || 0;
+        existing[col] = oldVal + newVal;
+      }
+      // For quantity-like columns not in numericColumns, also aggregate
+      if (normalizedRow['quantity'] !== undefined && !schema.numericColumns.includes('quantity')) {
+        const oldVal = Number(existing['quantity']) || 0;
+        const newVal = Number(normalizedRow['quantity']) || 0;
+        existing['quantity'] = oldVal + newVal;
+      }
+    } else {
+      seenKeys.set(dimKey, normalizedRows.length);
+      normalizedRows.push(normalizedRow);
     }
-    seenKeys.add(dimKey);
-
-    normalizedRows.push(normalizedRow);
   }
 
   return { valid: errors.length === 0, errors, normalizedRows };

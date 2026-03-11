@@ -1,4 +1,4 @@
-sub_category,channel,return_pct
-T-Shirts,myntra_sor,25.5
-T-Shirts,amazon_cocoblu,22.0
-Jeans,flipkart_sor,18.0
+sub_brand,sub_category,channel,return_pct
+bewakoof,T-Shirts,myntra_sor,25.5
+bewakoof,T-Shirts,amazon_cocoblu,22.0
+bewakoof air,Jeans,flipkart_sor,18.0
