@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getLockedMonths } from '../../src/lib/monthLockout';
 
 describe('monthLockout (PRD FR-3.4)', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => { vi.useRealTimers(); });
 
   it('Jan 10: Jan locked, Feb-Mar editable', () => {
     vi.setSystemTime(new Date('2026-01-10T10:00:00+05:30'));
