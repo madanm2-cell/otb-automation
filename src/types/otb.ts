@@ -160,3 +160,16 @@ export interface PlanDataResponse {
   months: string[];
   rows: PlanRow[];
 }
+
+export type Role = 'Admin' | 'Planning' | 'GD' | 'Finance' | 'CXO' | 'ReadOnly';
+
+export interface UserProfile {
+  id: string;            // auth.users.id
+  email: string;
+  full_name: string;
+  role: Role;
+  assigned_brands: string[];  // brand IDs (for GDs)
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
