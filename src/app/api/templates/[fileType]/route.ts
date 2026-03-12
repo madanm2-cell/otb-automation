@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth/withAuth';
 import { ALL_FILE_TYPES, FILE_TYPE_LABELS, FileType } from '@/types/otb';
 import { FILE_SCHEMAS } from '@/lib/uploadValidator';
 
@@ -48,7 +49,7 @@ const SAMPLE_DATA: Record<FileType, Record<string, unknown>[]> = {
 };
 
 // GET /api/templates/:fileType — download sample CSV
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withAuth(null, async (req: NextRequest, auth, { params }: Params) => {
   const { fileType } = await params;
 
   if (!ALL_FILE_TYPES.includes(fileType as FileType)) {
@@ -74,4 +75,4 @@ export async function GET(_req: NextRequest, { params }: Params) {
       'Content-Disposition': `attachment; filename="${label}_template.csv"`,
     },
   });
-}
+});

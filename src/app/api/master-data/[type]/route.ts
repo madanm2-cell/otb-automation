@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 
 const VALID_TYPES = ['brands', 'sub_brands', 'sub_categories', 'channels', 'genders', 'master_mappings'];
 
-export async function GET(
+export const GET = withAuth(null, async (
   req: NextRequest,
+  auth,
   { params }: { params: Promise<{ type: string }> }
-) {
+) => {
   const { type } = await params;
 
   if (!VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: `Invalid type: ${type}` }, { status: 400 });
   }
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   let query = supabase.from(type).select('*');
 
   // Order by name for tables that have it
@@ -36,4 +38,4 @@ export async function GET(
   }
 
   return NextResponse.json(data);
-}
+});

@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 import { REQUIRED_FILE_TYPES } from '@/types/otb';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
 // POST /api/cycles/:cycleId/activate — transition Draft → Filling
-export async function POST(_req: NextRequest, { params }: Params) {
+export const POST = withAuth('create_cycle', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Get cycle
   const { data: cycle } = await supabase
@@ -72,4 +73,4 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
-}
+});

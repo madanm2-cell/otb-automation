@@ -31,7 +31,7 @@ function makeKey(d: DimensionKey): string {
  * Called after all uploads are validated, when cycle is activated.
  */
 export async function generateTemplate(cycleId: string): Promise<{ rowCount: number }> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Get cycle details
   const { data: cycle } = await supabase
@@ -190,7 +190,7 @@ function buildMonthLookup(
 }
 
 async function loadAllUploadedData(
-  supabase: ReturnType<typeof createServerClient>,
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
   cycleId: string
 ): Promise<UploadedData> {
   const { data: uploads } = await supabase

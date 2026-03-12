@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 import { calculateAll } from '@/lib/formulaEngine';
 import { getLockedMonths } from '@/lib/monthLockout';
 import type { BulkUpdateItem } from '@/types/otb';
@@ -7,7 +8,7 @@ import type { BulkUpdateItem } from '@/types/otb';
 type Params = { params: Promise<{ cycleId: string }> };
 
 // POST /api/cycles/:cycleId/plan-data/bulk-update
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
   const body = await req.json();
   const updates: BulkUpdateItem[] = body.updates;
@@ -16,18 +17,25 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
   }
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Verify cycle status
   const { data: cycle } = await supabase
     .from('otb_cycles')
-    .select('status, planning_period_start, planning_period_end')
+    .select('status, planning_period_start, planning_period_end, brand_id')
     .eq('id', cycleId)
     .single();
 
   if (!cycle) return NextResponse.json({ error: 'Cycle not found' }, { status: 404 });
   if (cycle.status !== 'Filling') {
     return NextResponse.json({ error: `Cannot edit cycle in ${cycle.status} status` }, { status: 400 });
+  }
+
+  // GD brand-scoping check
+  if (auth.profile.role === 'GD') {
+    if (!auth.profile.assigned_brands || !auth.profile.assigned_brands.includes(cycle.brand_id)) {
+      return NextResponse.json({ error: 'You are not assigned to this brand' }, { status: 403 });
+    }
   }
 
   // Get all months for lockout check
@@ -195,7 +203,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       version_number: nextVersion,
       snapshot: JSON.stringify(snapshot),
       change_summary: `Updated ${updates.length} cells across ${rowIds.length} rows`,
-      created_by: 'gd_user', // placeholder until auth
+      created_by: auth.user.id,
     });
   } catch {
     // Version history is non-critical — don't fail the save
@@ -205,7 +213,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     success: true,
     updatedCount: dbUpdates.length,
   });
-}
+});
 
 function getMonthsInRange(start: string, end: string): string[] {
   const months: string[] = [];

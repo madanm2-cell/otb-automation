@@ -1,19 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
 // POST /api/cycles/:cycleId/assign-gd — assign GD to a cycle
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withAuth('assign_gd', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
   const body = await req.json();
-  const { gd_name } = body;
+  const { gd_id } = body;
 
-  if (!gd_name || typeof gd_name !== 'string' || gd_name.trim().length === 0) {
-    return NextResponse.json({ error: 'GD name is required' }, { status: 400 });
+  if (!gd_id || typeof gd_id !== 'string' || gd_id.trim().length === 0) {
+    return NextResponse.json({ error: 'gd_id (UUID) is required' }, { status: 400 });
   }
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Get cycle
   const { data: cycle } = await supabase
@@ -33,11 +34,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  // Update cycle with GD assignment
+  // Update cycle with GD assignment (UUID)
   const { data, error } = await supabase
     .from('otb_cycles')
     .update({
-      assigned_gd_id: gd_name.trim(),
+      assigned_gd_id: gd_id.trim(),
       updated_at: new Date().toISOString(),
     })
     .eq('id', cycleId)
@@ -46,4 +47,4 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
-}
+});
