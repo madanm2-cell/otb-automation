@@ -11,12 +11,20 @@ export async function createServerClient() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          const all = cookieStore.getAll();
+          console.log('[createServerClient] cookies found:', all.map(c => c.name));
+          return all;
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // setAll can fail in Server Components or Route Handlers
+            // where the response is already streaming. This is expected —
+            // the middleware handles session refresh instead.
+          }
         },
       },
     }

@@ -24,8 +24,9 @@ export function withAuth(permission: Permission | null, handler: HandlerFn) {
     const supabase = await createServerClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[withAuth] getUser result:', { user: user?.id, email: user?.email, error: authError?.message });
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized', detail: authError?.message }, { status: 401 });
     }
 
     const { data: profile, error: profileError } = await supabase

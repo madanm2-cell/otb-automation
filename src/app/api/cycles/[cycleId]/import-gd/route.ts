@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import ExcelJS from 'exceljs';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
@@ -120,6 +121,17 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
       unmatched.push(row);
     }
   }
+
+  await logAudit({
+    entityType: 'plan_data',
+    entityId: cycleId,
+    action: 'UPDATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { source: 'import-gd', rows_imported: matched.length, unmatched: unmatched.length },
+    ipAddress: getClientIp(req.headers),
+  });
 
   return NextResponse.json({
     totalParsed: parsedRows.length,

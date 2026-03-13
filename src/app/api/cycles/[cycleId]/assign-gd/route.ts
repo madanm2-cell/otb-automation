@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
@@ -46,5 +47,17 @@ export const POST = withAuth('assign_gd', async (req, auth, { params }: Params) 
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    entityType: 'cycle',
+    entityId: cycleId,
+    action: 'ASSIGN',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { gd_id: gd_id.trim() },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json(data);
 });

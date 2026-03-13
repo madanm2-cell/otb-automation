@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { createAdminClient } from '@/lib/supabase/server';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 // GET: List all users with profiles
 export const GET = withAuth('manage_users', async (req, auth) => {
@@ -42,6 +43,17 @@ export const POST = withAuth('manage_users', async (req, auth) => {
     .select('*')
     .eq('id', authData.user.id)
     .single();
+
+  await logAudit({
+    entityType: 'user',
+    entityId: authData.user.id,
+    action: 'CREATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { email, role },
+    ipAddress: getClientIp(req.headers),
+  });
 
   return NextResponse.json(profile, { status: 201 });
 });

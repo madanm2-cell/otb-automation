@@ -26,7 +26,8 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Refresh session if expired
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log('[middleware]', request.nextUrl.pathname, { user: user?.id, error: userError?.message });
 
   // Redirect unauthenticated users to login (except login page and auth callback)
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login')

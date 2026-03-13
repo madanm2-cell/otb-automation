@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/auth/withAuth';
 import { parseUploadedFile } from '@/lib/fileParser';
 import { validateUpload, MasterDataContext } from '@/lib/uploadValidator';
 import { ALL_FILE_TYPES, FileType } from '@/types/otb';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string; fileType: string }> };
 
@@ -83,6 +84,17 @@ export const POST = withAuth('upload_data', async (req, auth, { params }: Params
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
+
+    await logAudit({
+      entityType: 'file_upload',
+      entityId: cycleId,
+      action: 'UPLOAD',
+      userId: auth.user.id,
+      userEmail: auth.user.email!,
+      userRole: auth.profile.role,
+      details: { file_type: fileType, file_name: file.name, row_count: rows.length, valid: result.valid },
+      ipAddress: getClientIp(req.headers),
+    });
 
     return NextResponse.json({
       valid: result.valid,

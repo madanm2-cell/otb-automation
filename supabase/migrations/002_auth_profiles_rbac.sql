@@ -37,23 +37,53 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Update assigned_gd_id in otb_cycles to reference profiles
--- (Sprint 1-4 used text; now it's a proper UUID)
-alter table otb_cycles
-  alter column assigned_gd_id type uuid using assigned_gd_id::uuid;
+-- Add assigned_gd_id and created_by to otb_cycles (UUID references to profiles)
+-- Idempotent: handles both fresh DB and DB with text columns from Sprint 1-4
+do $$
+begin
+  -- assigned_gd_id: drop text column if it exists, then add as uuid
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'otb_cycles'
+      and column_name = 'assigned_gd_id' and data_type = 'text'
+  ) then
+    alter table otb_cycles drop column assigned_gd_id;
+  end if;
 
-alter table otb_cycles
-  add constraint fk_assigned_gd foreign key (assigned_gd_id) references profiles(id);
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'otb_cycles'
+      and column_name = 'assigned_gd_id'
+  ) then
+    alter table otb_cycles add column assigned_gd_id uuid references profiles(id);
+  end if;
 
--- Add created_by to otb_cycles
-alter table otb_cycles add column if not exists created_by uuid references profiles(id);
+  -- created_by on otb_cycles
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'otb_cycles'
+      and column_name = 'created_by'
+  ) then
+    alter table otb_cycles add column created_by uuid references profiles(id);
+  end if;
 
--- Add user references to version_history
-alter table version_history
-  alter column created_by type uuid using created_by::uuid;
+  -- version_history.created_by: drop text column if exists, add as uuid
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'version_history'
+      and column_name = 'created_by' and data_type = 'text'
+  ) then
+    alter table version_history drop column created_by;
+  end if;
 
-alter table version_history
-  add constraint fk_version_created_by foreign key (created_by) references profiles(id);
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'version_history'
+      and column_name = 'created_by'
+  ) then
+    alter table version_history add column created_by uuid references profiles(id);
+  end if;
+end $$;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)

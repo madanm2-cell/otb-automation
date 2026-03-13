@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { createAdminClient } from '@/lib/supabase/server';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ userId: string }> };
 
@@ -25,6 +26,18 @@ export const PUT = withAuth('manage_users', async (req, auth, { params }: Params
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    entityType: 'user',
+    entityId: userId,
+    action: 'UPDATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { changed_fields: Object.keys(updates).filter(k => k !== 'updated_at') },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json(data);
 });
 
@@ -44,5 +57,17 @@ export const DELETE = withAuth('manage_users', async (req, auth, { params }: Par
     .eq('id', userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    entityType: 'user',
+    entityId: userId,
+    action: 'DELETE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { deactivated: true },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json({ success: true });
 });
