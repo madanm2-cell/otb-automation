@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { AuthProvider } from "@/components/AuthProvider";
+import { AppLayout } from "@/components/AppLayout";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AntdRegistry>{children}</AntdRegistry>
+        <AntdRegistry>
+          <AuthProvider>
+            <AppLayout>{children}</AppLayout>
+          </AuthProvider>
+        </AntdRegistry>
       </body>
     </html>
   );

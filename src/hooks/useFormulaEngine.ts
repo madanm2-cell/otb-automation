@@ -66,7 +66,7 @@ export function useFormulaEngine() {
           asp: d.asp,
           cogs: d.cogs,
           openingStockQty: d.opening_stock_qty,
-          lySalesGmv: d.ly_sales_gmv,
+          lySalesNsq: d.ly_sales_nsq,
           returnPct: d.return_pct,
           taxPct: d.tax_pct,
           sellexPct: d.sellex_pct,

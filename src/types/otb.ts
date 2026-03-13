@@ -93,7 +93,7 @@ export interface PlanMonthData {
   asp: number | null;
   cogs: number | null;
   opening_stock_qty: number | null;
-  ly_sales_gmv: number | null;
+  ly_sales_nsq: number | null;
   recent_sales_nsq: number | null;
   soft_forecast_nsq: number | null;
   return_pct: number | null;
@@ -125,7 +125,7 @@ export interface FormulaInputs {
   asp: number | null;
   cogs: number | null;
   openingStockQty: number | null;
-  lySalesGmv: number | null;
+  lySalesNsq: number | null;
   returnPct: number | null;
   taxPct: number | null;
   sellexPct: number | null;
@@ -159,4 +159,17 @@ export interface BulkUpdateItem {
 export interface PlanDataResponse {
   months: string[];
   rows: PlanRow[];
+}
+
+export type Role = 'Admin' | 'Planning' | 'GD' | 'Finance' | 'CXO' | 'ReadOnly';
+
+export interface UserProfile {
+  id: string;            // auth.users.id
+  email: string;
+  full_name: string;
+  role: Role;
+  assigned_brands: string[];  // brand IDs (for GDs)
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }

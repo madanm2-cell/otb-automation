@@ -5,6 +5,7 @@ import { Card, Upload, Button, Tag, Typography, message, Space, Spin } from 'ant
 import { InboxOutlined, DownloadOutlined, ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import type { FileUpload, FileType, ValidationError } from '@/types/otb';
 import { ALL_FILE_TYPES, REQUIRED_FILE_TYPES, FILE_TYPE_LABELS } from '@/types/otb';
 import ValidationReport from '@/components/ValidationReport';
@@ -77,6 +78,7 @@ export default function UploadPage() {
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
 
   return (
+    <ProtectedRoute permission="upload_data">
     <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
       <Space style={{ marginBottom: 16 }}>
         <Link href={`/cycles/${cycleId}`}>
@@ -168,5 +170,6 @@ export default function UploadPage() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

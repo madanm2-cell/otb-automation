@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
 // GET /api/cycles/:cycleId/upload-status
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withAuth('upload_data', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from('file_uploads')
@@ -16,4 +17,4 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
-}
+});

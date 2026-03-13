@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { getQuarterDates } from '@/lib/quarterUtils';
 
 interface UploadedData {
@@ -30,8 +30,9 @@ function makeKey(d: DimensionKey): string {
  * Generate plan rows + monthly data from uploaded reference files.
  * Called after all uploads are validated, when cycle is activated.
  */
-export async function generateTemplate(cycleId: string): Promise<{ rowCount: number }> {
-  const supabase = createServerClient();
+export async function generateTemplate(cycleId: string): Promise<{ rowCount: number; warnings?: string[] }> {
+  const supabase = await createServerClient();
+  const adminDb = createAdminClient(); // bypasses RLS for insert/delete operations
 
   // Get cycle details
   const { data: cycle } = await supabase
@@ -52,29 +53,57 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   // For MVP, we'll re-parse from storage.
   const uploadedData = await loadAllUploadedData(supabase, cycleId);
 
+  // Load wear_type mappings (sub_brand × sub_category → wear_type)
+  const { data: wearTypeMappings } = await adminDb
+    .from('wear_type_mappings')
+    .select('sub_brand, sub_category, wear_type');
+
+  const wearTypeMap = new Map<string, string>();
+  for (const m of wearTypeMappings || []) {
+    wearTypeMap.set(`${m.sub_brand}|${m.sub_category}`, m.wear_type);
+  }
+
   // Determine unique dimension combinations from opening_stock (primary source)
   const dimensionCombos: DimensionKey[] = [];
   const seenKeys = new Set<string>();
+  const warnings: string[] = [];
+  const missingWearTypes = new Set<string>();
 
-  for (const wearType of cycle.wear_types) {
-    for (const row of uploadedData.opening_stock) {
-      const combo: DimensionKey = {
-        sub_brand: String(row.sub_brand || '').toLowerCase(),
-        wear_type: wearType,
-        sub_category: String(row.sub_category || '').toLowerCase(),
-        gender: String(row.gender || '').toLowerCase(),
-        channel: String(row.channel || '').toLowerCase(),
-      };
-      const key = makeKey(combo);
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        dimensionCombos.push(combo);
-      }
+  for (const row of uploadedData.opening_stock) {
+    const subBrand = String(row.sub_brand || '').toLowerCase();
+    const subCategory = String(row.sub_category || '').toLowerCase();
+    const wearType = wearTypeMap.get(`${subBrand}|${subCategory}`);
+
+    if (!wearType) {
+      missingWearTypes.add(`${subBrand} × ${subCategory}`);
+      continue;
+    }
+
+    const combo: DimensionKey = {
+      sub_brand: subBrand,
+      wear_type: wearType,
+      sub_category: subCategory,
+      gender: String(row.gender || '').toLowerCase(),
+      channel: String(row.channel || '').toLowerCase(),
+    };
+    const key = makeKey(combo);
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      dimensionCombos.push(combo);
     }
   }
 
+  if (missingWearTypes.size > 0) {
+    warnings.push(`Missing wear_type mapping for: ${[...missingWearTypes].join(', ')}`);
+  }
+
   if (dimensionCombos.length === 0) {
-    throw new Error('No dimension combinations found in opening stock data');
+    throw new Error(
+      'No dimension combinations found. ' +
+      (missingWearTypes.size > 0
+        ? `All rows skipped due to missing wear_type mappings: ${[...missingWearTypes].join(', ')}`
+        : 'Opening stock data is empty')
+    );
   }
 
   // Build lookup maps for reference data
@@ -85,20 +114,20 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   const taxMap = buildLookup(uploadedData.tax_pct, ['sub_category', 'channel'], 'tax_pct');
   const sellexMap = buildLookup(uploadedData.sellex_pct, ['sub_category', 'channel'], 'sellex_pct');
   const openingStockMap = buildLookup(uploadedData.opening_stock, ['sub_brand', 'sub_category', 'gender', 'channel'], 'quantity');
-  const lyMap = buildMonthLookup(uploadedData.ly_sales, ['sub_brand', 'sub_category', 'gender', 'channel'], 'gmv');
+  const lyMap = buildMonthLookup(uploadedData.ly_sales, ['sub_brand', 'sub_category', 'gender', 'channel'], 'nsq');
   const recentMap = buildLookup(uploadedData.recent_sales, ['sub_brand', 'sub_category', 'gender'], 'nsq');
   const forecastMap = buildLookup(uploadedData.soft_forecast, ['sub_brand', 'sub_category', 'gender'], 'nsq');
 
   // Delete existing plan rows for this cycle (in case of re-generation)
-  const { data: existingRows } = await supabase
+  const { data: existingRows } = await adminDb
     .from('otb_plan_rows')
     .select('id')
     .eq('cycle_id', cycleId);
 
   if (existingRows && existingRows.length > 0) {
     const rowIds = existingRows.map(r => r.id);
-    await supabase.from('otb_plan_data').delete().in('row_id', rowIds);
-    await supabase.from('otb_plan_rows').delete().eq('cycle_id', cycleId);
+    await adminDb.from('otb_plan_data').delete().in('row_id', rowIds);
+    await adminDb.from('otb_plan_rows').delete().eq('cycle_id', cycleId);
   }
 
   // Insert plan rows
@@ -107,7 +136,7 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
     ...combo,
   }));
 
-  const { data: insertedRows, error: rowError } = await supabase
+  const { data: insertedRows, error: rowError } = await adminDb
     .from('otb_plan_rows')
     .insert(planRowInserts)
     .select('id, sub_brand, wear_type, sub_category, gender, channel');
@@ -132,7 +161,7 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
         asp: aspMap.get(sbcKey) ?? null,
         cogs: cogsMap.get(sbKey) ?? null,
         opening_stock_qty: mIdx === 0 ? (openingStockMap.get(fullKey) ?? null) : null,
-        ly_sales_gmv: lyMap.get(`${fullKey}|${month}`) ?? null,
+        ly_sales_nsq: lyMap.get(`${fullKey}|${shiftYearBack(month)}`) ?? null,
         recent_sales_nsq: recentMap.get(sbgKey) ?? null,
         soft_forecast_nsq: forecastMap.get(sbgKey) ?? null,
         return_pct: returnMap.get(scChKey) ?? null,
@@ -147,14 +176,20 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   const BATCH_SIZE = 500;
   for (let i = 0; i < planDataInserts.length; i += BATCH_SIZE) {
     const batch = planDataInserts.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase.from('otb_plan_data').insert(batch);
+    const { error } = await adminDb.from('otb_plan_data').insert(batch);
     if (error) throw new Error(`Failed to insert plan data batch: ${error.message}`);
   }
 
-  return { rowCount: insertedRows!.length };
+  return { rowCount: insertedRows!.length, warnings: warnings.length > 0 ? warnings : undefined };
 }
 
 // --- Helper functions ---
+
+/** Shift a "YYYY-MM-DD" date string back by 1 year (for LY lookup). */
+function shiftYearBack(month: string): string {
+  const year = parseInt(month.substring(0, 4));
+  return `${year - 1}${month.substring(4)}`;
+}
 
 function lookupKey(parts: string[]): string {
   return parts.map(p => String(p).toLowerCase()).join('|');
@@ -190,7 +225,7 @@ function buildMonthLookup(
 }
 
 async function loadAllUploadedData(
-  supabase: ReturnType<typeof createServerClient>,
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
   cycleId: string
 ): Promise<UploadedData> {
   const { data: uploads } = await supabase
@@ -212,22 +247,34 @@ async function loadAllUploadedData(
     soft_forecast: [],
   };
 
-  if (!uploads) return result;
+  if (!uploads) {
+    console.log('[generateTemplate] No validated uploads found for cycle', cycleId);
+    return result;
+  }
+
+  console.log('[generateTemplate] Found', uploads.length, 'validated uploads:', uploads.map(u => `${u.file_type}(${u.storage_path})`));
 
   for (const upload of uploads) {
     const fileType = upload.file_type as keyof UploadedData;
-    if (!(fileType in result)) continue;
+    if (!(fileType in result)) {
+      console.log('[generateTemplate] Skipping unknown file type:', fileType);
+      continue;
+    }
 
     // Download file from storage and re-parse
-    const { data: fileData } = await supabase.storage
+    const { data: fileData, error: downloadError } = await supabase.storage
       .from('otb-uploads')
       .download(upload.storage_path);
 
-    if (!fileData) continue;
+    if (!fileData) {
+      console.error('[generateTemplate] Failed to download', upload.storage_path, 'error:', downloadError);
+      continue;
+    }
 
     const buffer = Buffer.from(await fileData.arrayBuffer());
     const { parseUploadedFile } = await import('@/lib/fileParser');
     const rows = await parseUploadedFile(buffer, upload.file_name);
+    console.log('[generateTemplate]', fileType, ':', rows.length, 'rows parsed');
     result[fileType] = rows;
   }
 

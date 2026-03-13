@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 import ExcelJS from 'exceljs';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
@@ -17,9 +19,9 @@ interface ParsedGdRow {
 }
 
 // POST /api/cycles/:cycleId/import-gd — parse XLSX with GD values, match to plan rows
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Verify cycle
   const { data: cycle } = await supabase
@@ -120,6 +122,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   }
 
+  await logAudit({
+    entityType: 'plan_data',
+    entityId: cycleId,
+    action: 'UPDATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { source: 'import-gd', rows_imported: matched.length, unmatched: unmatched.length },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json({
     totalParsed: parsedRows.length,
     matched: matched.length,
@@ -127,4 +140,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     unmatchedRows: unmatched.slice(0, 10),
     updates: matched,
   });
-}
+});

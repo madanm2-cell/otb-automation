@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth/withAuth';
 import { generateTemplate } from '@/lib/templateGenerator';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
 // POST /api/cycles/:cycleId/generate-template
-export async function POST(_req: NextRequest, { params }: Params) {
+export const POST = withAuth('create_cycle', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
 
   try {
@@ -12,8 +13,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({
       message: `Template generated: ${result.rowCount} plan rows created`,
       rowCount: result.rowCount,
+      warnings: result.warnings,
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
-}
+});

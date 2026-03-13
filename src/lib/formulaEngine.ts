@@ -6,10 +6,10 @@ export function calcSalesPlanGmv(nsq: number | null, asp: number | null): number
   return nsq * asp;
 }
 
-// Step 2: GOLY% = ((GMV / LY_GMV) - 1) × 100
-export function calcGolyPct(gmv: number | null, lyGmv: number | null): number | null {
-  if (gmv == null || lyGmv == null || lyGmv === 0) return null;
-  return ((gmv / lyGmv) - 1) * 100;
+// Step 2: GOLY% = ((NSQ / LY_NSQ) - 1) × 100
+export function calcGolyPct(nsq: number | null, lyNsq: number | null): number | null {
+  if (nsq == null || lyNsq == null || lyNsq === 0) return null;
+  return ((nsq / lyNsq) - 1) * 100;
 }
 
 // Step 3: NSV = GMV × (1 - Return%) × (1 - Tax%)
@@ -54,22 +54,22 @@ export function calcGrossMargin(nsv: number | null, gmPct: number | null): numbe
   return nsv * (gmPct / 100);
 }
 
-// Step 10: CM1 = NSV × (1 - Sellex%)
-export function calcCm1(nsv: number | null, sellexPct: number | null): number | null {
-  if (nsv == null || sellexPct == null) return null;
-  return nsv * (1 - sellexPct / 100);
+// Step 10: CM1% = GM% - Sellex%
+export function calcCm1Pct(gmPct: number | null, sellexPct: number | null): number | null {
+  if (gmPct == null || sellexPct == null) return null;
+  return gmPct - sellexPct;
 }
 
-// Step 11: CM2 = CM1 - (NSV × Perf Mktg %)
-export function calcCm2(cm1: number | null, nsv: number | null, perfMktgPct: number | null): number | null {
-  if (cm1 == null || nsv == null || perfMktgPct == null) return null;
-  return cm1 - (nsv * perfMktgPct / 100);
+// Step 11: CM2% = CM1% - Perf Mktg%  (CM2 as % of NSV)
+export function calcCm2Pct(cm1Pct: number | null, perfMktgPct: number | null): number | null {
+  if (cm1Pct == null || perfMktgPct == null) return null;
+  return cm1Pct - perfMktgPct;
 }
 
 // Full 11-step chain
 export function calculateAll(inputs: FormulaInputs): FormulaOutputs {
   const salesPlanGmv = calcSalesPlanGmv(inputs.nsq, inputs.asp);
-  const golyPct = calcGolyPct(salesPlanGmv, inputs.lySalesGmv);
+  const golyPct = calcGolyPct(inputs.nsq, inputs.lySalesNsq);
   const nsv = calcNsv(salesPlanGmv, inputs.returnPct, inputs.taxPct);
   const inwardsValCogs = calcInwardsValCogs(inputs.inwardsQty, inputs.cogs);
   const openingStockVal = calcOpeningStockVal(inputs.openingStockQty, inputs.cogs);
@@ -77,7 +77,7 @@ export function calculateAll(inputs: FormulaInputs): FormulaOutputs {
   const fwd30dayDoh = calcFwd30dayDoh(closingStockQty, inputs.nextMonthNsq);
   const gmPct = calcGmPct(inputs.asp, inputs.cogs);
   const grossMargin = calcGrossMargin(nsv, gmPct);
-  const cm1 = calcCm1(nsv, inputs.sellexPct);
-  const cm2 = calcCm2(cm1, nsv, inputs.perfMarketingPct);
+  const cm1 = calcCm1Pct(gmPct, inputs.sellexPct);
+  const cm2 = calcCm2Pct(cm1, inputs.perfMarketingPct);
   return { salesPlanGmv, golyPct, nsv, inwardsValCogs, openingStockVal, closingStockQty, fwd30dayDoh, gmPct, grossMargin, cm1, cm2 };
 }

@@ -11,6 +11,8 @@ import ImportGdModal from '@/components/ImportGdModal';
 import { useFormulaEngine } from '@/hooks/useFormulaEngine';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/auth/roles';
 import { getLockedMonths } from '@/lib/monthLockout';
 import type { PlanRow, OtbCycle } from '@/types/otb';
 
@@ -42,9 +44,15 @@ export default function GridPage() {
     }).catch(() => setLoading(false));
   }, [cycleId]);
 
+  const { profile } = useAuth();
   const lockedMonths = useMemo(() => getLockedMonths(months), [months]);
 
-  const isEditable = cycle?.status === 'Filling';
+  // Editable: GD on assigned brand in Filling status, or Admin
+  const isEditable = cycle?.status === 'Filling' && profile != null && (
+    profile.role === 'Admin'
+    || (profile.role === 'GD' && profile.assigned_brands?.includes(cycle.brand_id))
+  );
+  const canSubmit = profile?.role === 'GD' || profile?.role === 'Admin';
 
   // Undo/redo: apply a value change (from undo/redo stack)
   const handleUndoRedoApply = useCallback((rowId: string, month: string, field: string, value: number | null) => {
@@ -197,15 +205,17 @@ export default function GridPage() {
               >
                 Save Draft
               </Button>
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleSubmit}
-                loading={submitting}
-                danger
-              >
-                Submit for Review
-              </Button>
+              {canSubmit && (
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleSubmit}
+                  loading={submitting}
+                  danger
+                >
+                  Submit for Review
+                </Button>
+              )}
               <span style={{
                 fontSize: 12,
                 color: saveStatus === 'saved' ? '#52c41a' : saveStatus === 'error' ? '#ff4d4f' : '#999',

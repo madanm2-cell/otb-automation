@@ -1,19 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { withAuth } from '@/lib/auth/withAuth';
 import { parseUploadedFile } from '@/lib/fileParser';
 import { validateUpload, MasterDataContext } from '@/lib/uploadValidator';
 import { ALL_FILE_TYPES, FileType } from '@/types/otb';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string; fileType: string }> };
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withAuth('upload_data', async (req, auth, { params }: Params) => {
   const { cycleId, fileType } = await params;
 
   if (!ALL_FILE_TYPES.includes(fileType as FileType)) {
     return NextResponse.json({ error: `Invalid file type: ${fileType}` }, { status: 400 });
   }
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Verify cycle exists and is in Draft status
   const { data: cycle } = await supabase
@@ -83,6 +85,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
+    await logAudit({
+      entityType: 'file_upload',
+      entityId: cycleId,
+      action: 'UPLOAD',
+      userId: auth.user.id,
+      userEmail: auth.user.email!,
+      userRole: auth.profile.role,
+      details: { file_type: fileType, file_name: file.name, row_count: rows.length, valid: result.valid },
+      ipAddress: getClientIp(req.headers),
+    });
+
     return NextResponse.json({
       valid: result.valid,
       rowCount: rows.length,
@@ -92,9 +105,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
-}
+});
 
-async function loadMasterData(supabase: ReturnType<typeof createServerClient>): Promise<MasterDataContext> {
+async function loadMasterData(supabase: Awaited<ReturnType<typeof createServerClient>>): Promise<MasterDataContext> {
   const [subBrandsRes, subCatsRes, channelsRes, gendersRes, mappingsRes] = await Promise.all([
     supabase.from('sub_brands').select('name'),
     supabase.from('sub_categories').select('name'),

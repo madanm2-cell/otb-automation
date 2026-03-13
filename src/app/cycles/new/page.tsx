@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Form, Input, Select, Button, message, Typography, Card } from 'antd';
 import { useRouter } from 'next/navigation';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import type { Brand } from '@/types/otb';
 
 const { Title } = Typography;
@@ -53,6 +54,7 @@ export default function NewCyclePage() {
   };
 
   return (
+    <ProtectedRoute permission="create_cycle">
     <div style={{ padding: 24, maxWidth: 600, margin: '0 auto' }}>
       <Title level={2}>Create New OTB Cycle</Title>
       <Card>
@@ -76,12 +78,12 @@ export default function NewCyclePage() {
           </Form.Item>
           <Form.Item
             name="wear_types"
-            label="Wear Types"
-            rules={[{ required: true, message: 'Add at least one wear type' }]}
+            label="Wear Types (optional)"
+            tooltip="Wear types are now auto-derived from sub_brand × sub_category mappings. Only add here for informational tagging."
           >
             <Select
               mode="tags"
-              placeholder="Type and press Enter (e.g. NWW, WW)"
+              placeholder="Optional — e.g. NWW, WW"
               tokenSeparators={[',']}
             />
           </Form.Item>
@@ -93,5 +95,6 @@ export default function NewCyclePage() {
         </Form>
       </Card>
     </div>
+    </ProtectedRoute>
   );
 }
