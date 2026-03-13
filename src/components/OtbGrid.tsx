@@ -48,7 +48,7 @@ function flattenRows(rows: PlanRow[], months: string[]): FlatRow[] {
       flat[`${prefix}_asp`] = data.asp;
       flat[`${prefix}_cogs`] = data.cogs;
       flat[`${prefix}_opening_stock_qty`] = data.opening_stock_qty;
-      flat[`${prefix}_ly_sales_gmv`] = data.ly_sales_gmv;
+      flat[`${prefix}_ly_sales_nsq`] = data.ly_sales_nsq;
       flat[`${prefix}_recent_sales_nsq`] = data.recent_sales_nsq;
       flat[`${prefix}_soft_forecast_nsq`] = data.soft_forecast_nsq;
       flat[`${prefix}_standard_doh`] = data.standard_doh;
@@ -183,7 +183,7 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
         { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', valueFormatter: qtyFormatter, width: 95 },
         { field: `${prefix}_asp`, headerName: 'ASP', valueFormatter: currencyFormatter, width: 95 },
         { field: `${prefix}_cogs`, headerName: 'COGS', valueFormatter: currencyFormatter, width: 90 },
-        { field: `${prefix}_ly_sales_gmv`, headerName: 'LY GMV', valueFormatter: croreFormatter, width: 95 },
+        { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', valueFormatter: qtyFormatter, width: 95 },
         { field: `${prefix}_standard_doh`, headerName: 'Std DoH', valueFormatter: qtyFormatter, width: 80 },
       ];
 
@@ -224,8 +224,8 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
         { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', valueFormatter: qtyFormatter, width: 85 },
         { field: `${prefix}_gm_pct`, headerName: 'GM%', valueFormatter: pctFormatter, width: 75 },
         { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', valueFormatter: croreFormatter, width: 105 },
-        { field: `${prefix}_cm1`, headerName: 'CM1', valueFormatter: croreFormatter, width: 90 },
-        { field: `${prefix}_cm2`, headerName: 'CM2', valueFormatter: croreFormatter, width: 90 },
+        { field: `${prefix}_cm1`, headerName: 'CM1%', valueFormatter: pctFormatter, width: 80 },
+        { field: `${prefix}_cm2`, headerName: 'CM2%', valueFormatter: pctFormatter, width: 80 },
       ];
 
       return {

@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/auth/withAuth';
 import { calculateAll } from '@/lib/formulaEngine';
 import { getLockedMonths } from '@/lib/monthLockout';
 import type { BulkUpdateItem } from '@/types/otb';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
@@ -118,7 +119,7 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
         asp: d.asp as number | null,
         cogs: d.cogs as number | null,
         openingStockQty: d.opening_stock_qty as number | null,
-        lySalesGmv: d.ly_sales_gmv as number | null,
+        lySalesNsq: d.ly_sales_nsq as number | null,
         returnPct: d.return_pct as number | null,
         taxPct: d.tax_pct as number | null,
         sellexPct: d.sellex_pct as number | null,
@@ -208,6 +209,17 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
   } catch {
     // Version history is non-critical — don't fail the save
   }
+
+  await logAudit({
+    entityType: 'plan_data',
+    entityId: cycleId,
+    action: 'UPDATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { rows_updated: dbUpdates.length, months_affected: [...new Set(updates.map(u => u.month))] },
+    ipAddress: getClientIp(req.headers),
+  });
 
   return NextResponse.json({
     success: true,

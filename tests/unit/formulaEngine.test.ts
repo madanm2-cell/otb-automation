@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calcSalesPlanGmv, calcGolyPct, calcNsv, calcInwardsValCogs,
   calcOpeningStockVal, calcClosingStockQty, calcFwd30dayDoh,
-  calcGmPct, calcGrossMargin, calcCm1, calcCm2, calculateAll,
+  calcGmPct, calcGrossMargin, calcCm1Pct, calcCm2Pct, calculateAll,
 } from '../../src/lib/formulaEngine';
 
 describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
@@ -17,15 +17,15 @@ describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
     expect(calcSalesPlanGmv(0, 849.50)).toBe(0);
   });
 
-  // Step 2: GOLY% = ((GMV / LY_GMV) - 1) × 100
-  it('step 2: golyPct = ((849500/700000)-1)×100 = 21.36%', () => {
-    expect(calcGolyPct(849500, 700000)).toBeCloseTo(21.36, 1);
+  // Step 2: GOLY% = ((NSQ / LY_NSQ) - 1) × 100
+  it('step 2: golyPct = ((1000/800)-1)×100 = 25%', () => {
+    expect(calcGolyPct(1000, 800)).toBeCloseTo(25, 1);
   });
   it('step 2: returns null when LY is 0', () => {
-    expect(calcGolyPct(849500, 0)).toBeNull();
+    expect(calcGolyPct(1000, 0)).toBeNull();
   });
   it('step 2: returns null when LY is null', () => {
-    expect(calcGolyPct(849500, null)).toBeNull();
+    expect(calcGolyPct(1000, null)).toBeNull();
   });
 
   // Step 3: NSV = GMV × (1 - Return%) × (1 - Tax%)
@@ -76,14 +76,14 @@ describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
     expect(calcGrossMargin(556940.70, 58.80)).toBeCloseTo(327481.13, 0);
   });
 
-  // Step 10: CM1 = NSV × (1 - Sellex%)
-  it('step 10: cm1 = 556940.70 × 0.92 = ~512385', () => {
-    expect(calcCm1(556940.70, 8)).toBeCloseTo(512385.44, 0);
+  // Step 10: CM1% = GM% - Sellex%
+  it('step 10: cm1Pct = 58.80 - 8 = 50.80%', () => {
+    expect(calcCm1Pct(58.80, 8)).toBeCloseTo(50.80, 1);
   });
 
-  // Step 11: CM2 = CM1 - (NSV × Perf Mktg %)
-  it('step 11: cm2 = 512385.44 - (556940.70 × 0.05) = ~484538', () => {
-    expect(calcCm2(512385.44, 556940.70, 5)).toBeCloseTo(484538.41, 0);
+  // Step 11: CM2% = CM1% - Perf Mktg%
+  it('step 11: cm2Pct = 50.80 - 5 = 45.80%', () => {
+    expect(calcCm2Pct(50.80, 5)).toBeCloseTo(45.80, 1);
   });
 
   // Full chain
@@ -91,14 +91,15 @@ describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
     const result = calculateAll({
       nsq: 1000, inwardsQty: 500, perfMarketingPct: 5,
       asp: 849.50, cogs: 350, openingStockQty: 15420,
-      lySalesGmv: 700000, returnPct: 25.5, taxPct: 12,
+      lySalesNsq: 800, returnPct: 25.5, taxPct: 12,
       sellexPct: 8, nextMonthNsq: 1200,
     });
     expect(result.salesPlanGmv).toBe(849500);
-    expect(result.golyPct).toBeCloseTo(21.36, 1);
+    expect(result.golyPct).toBeCloseTo(25, 1);
     expect(result.closingStockQty).toBe(14920);
     expect(result.gmPct).toBeCloseTo(58.80, 1);
-    expect(result.cm2).toBeCloseTo(484531, 0);
+    expect(result.cm1).toBeCloseTo(50.80, 1);  // CM1% = GM% - Sellex% = 58.80 - 8
+    expect(result.cm2).toBeCloseTo(45.80, 1);  // CM2% = CM1% - Perf Mktg% = 50.80 - 5
   });
 
   // Edge: all nulls
@@ -106,7 +107,7 @@ describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
     const result = calculateAll({
       nsq: null, inwardsQty: null, perfMarketingPct: null,
       asp: null, cogs: null, openingStockQty: null,
-      lySalesGmv: null, returnPct: null, taxPct: null,
+      lySalesNsq: null, returnPct: null, taxPct: null,
       sellexPct: null, nextMonthNsq: null,
     });
     expect(result.salesPlanGmv).toBeNull();

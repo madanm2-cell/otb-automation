@@ -79,7 +79,7 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
       asp: d.asp as number | null,
       cogs: d.cogs as number | null,
       opening_stock_qty: d.opening_stock_qty as number | null,
-      ly_sales_gmv: d.ly_sales_gmv as number | null,
+      ly_sales_nsq: d.ly_sales_nsq as number | null,
       recent_sales_nsq: d.recent_sales_nsq as number | null,
       soft_forecast_nsq: d.soft_forecast_nsq as number | null,
       return_pct: d.return_pct as number | null,

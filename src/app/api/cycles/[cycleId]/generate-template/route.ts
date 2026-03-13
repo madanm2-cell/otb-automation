@@ -13,6 +13,7 @@ export const POST = withAuth('create_cycle', async (req, auth, { params }: Param
     return NextResponse.json({
       message: `Template generated: ${result.rowCount} plan rows created`,
       rowCount: result.rowCount,
+      warnings: result.warnings,
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });

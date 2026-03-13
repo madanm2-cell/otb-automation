@@ -93,7 +93,7 @@ export interface PlanMonthData {
   asp: number | null;
   cogs: number | null;
   opening_stock_qty: number | null;
-  ly_sales_gmv: number | null;
+  ly_sales_nsq: number | null;
   recent_sales_nsq: number | null;
   soft_forecast_nsq: number | null;
   return_pct: number | null;
@@ -125,7 +125,7 @@ export interface FormulaInputs {
   asp: number | null;
   cogs: number | null;
   openingStockQty: number | null;
-  lySalesGmv: number | null;
+  lySalesNsq: number | null;
   returnPct: number | null;
   taxPct: number | null;
   sellexPct: number | null;
