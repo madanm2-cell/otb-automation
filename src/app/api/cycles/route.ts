@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { getQuarterDates } from '@/lib/quarterUtils';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 // GET /api/cycles — list all cycles (RLS handles visibility per role)
 export const GET = withAuth(null, async (req, auth) => {
@@ -27,12 +28,7 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
     );
   }
 
-  if (!wear_types || !Array.isArray(wear_types) || wear_types.length === 0) {
-    return NextResponse.json(
-      { error: 'At least one wear_type is required' },
-      { status: 400 }
-    );
-  }
+  // wear_types is now optional — wear types are derived from wear_type_mappings
 
   let quarterDates;
   try {
@@ -75,7 +71,7 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
       planning_quarter,
       planning_period_start: quarterDates.start,
       planning_period_end: quarterDates.end,
-      wear_types,
+      wear_types: Array.isArray(wear_types) ? wear_types : [],
       fill_deadline: fill_deadline || null,
       approval_deadline: approval_deadline || null,
       created_by: auth.user.id,
@@ -84,5 +80,17 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    entityType: 'cycle',
+    entityId: data.id,
+    action: 'CREATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { cycle_name, brand_id },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json(data, { status: 201 });
 });

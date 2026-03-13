@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { REQUIRED_FILE_TYPES } from '@/types/otb';
+import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
@@ -35,13 +36,8 @@ export const POST = withAuth('create_cycle', async (req, auth, { params }: Param
     );
   }
 
-  // Check wear types defined
-  if (!cycle.wear_types || cycle.wear_types.length === 0) {
-    return NextResponse.json(
-      { error: 'At least one wear type must be defined' },
-      { status: 400 }
-    );
-  }
+  // Note: wear_types no longer required on cycle — wear_type is resolved
+  // from wear_type_mappings table during template generation.
 
   // Check all 9 required files are uploaded and validated
   const { data: uploads } = await supabase
@@ -72,5 +68,17 @@ export const POST = withAuth('create_cycle', async (req, auth, { params }: Param
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit({
+    entityType: 'cycle',
+    entityId: cycleId,
+    action: 'ACTIVATE',
+    userId: auth.user.id,
+    userEmail: auth.user.email!,
+    userRole: auth.profile.role,
+    details: { cycle_name: cycle.cycle_name },
+    ipAddress: getClientIp(req.headers),
+  });
+
   return NextResponse.json(data);
 });

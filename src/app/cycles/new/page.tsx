@@ -78,12 +78,12 @@ export default function NewCyclePage() {
           </Form.Item>
           <Form.Item
             name="wear_types"
-            label="Wear Types"
-            rules={[{ required: true, message: 'Add at least one wear type' }]}
+            label="Wear Types (optional)"
+            tooltip="Wear types are now auto-derived from sub_brand × sub_category mappings. Only add here for informational tagging."
           >
             <Select
               mode="tags"
-              placeholder="Type and press Enter (e.g. NWW, WW)"
+              placeholder="Optional — e.g. NWW, WW"
               tokenSeparators={[',']}
             />
           </Form.Item>

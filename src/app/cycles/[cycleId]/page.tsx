@@ -89,6 +89,9 @@ export default function CycleDetailPage() {
         return;
       }
       message.success(`Template generated: ${genData.rowCount} rows`);
+      if (genData.warnings?.length) {
+        genData.warnings.forEach((w: string) => message.warning(w, 8));
+      }
 
       // Then activate
       const actRes = await fetch(`/api/cycles/${cycleId}/activate`, { method: 'POST' });
