@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin, Input } from 'antd';
+import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin, Select } from 'antd';
 import { UploadOutlined, TableOutlined, UserAddOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import type { OtbCycle, FileUpload } from '@/types/otb';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/auth/roles';
+import type { OtbCycle, FileUpload, UserProfile } from '@/types/otb';
 import { REQUIRED_FILE_TYPES, ALL_FILE_TYPES, FILE_TYPE_LABELS } from '@/types/otb';
 
 const { Title } = Typography;
@@ -23,28 +25,43 @@ export default function CycleDetailPage() {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState(false);
-  const [gdName, setGdName] = useState('');
+  const [gdUsers, setGdUsers] = useState<UserProfile[]>([]);
+  const [selectedGdId, setSelectedGdId] = useState<string | null>(null);
   const [assigningGd, setAssigningGd] = useState(false);
+  const { profile } = useAuth();
+  const canManageCycle = profile ? hasPermission(profile.role, 'create_cycle') : false;
+  const canUpload = profile ? hasPermission(profile.role, 'upload_data') : false;
+  const canAssignGd = profile ? hasPermission(profile.role, 'assign_gd') : false;
 
   useEffect(() => {
-    Promise.all([
+    const fetches: Promise<any>[] = [
       fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
       fetch(`/api/cycles/${cycleId}/upload-status`).then(r => r.json()),
-    ]).then(([cycleData, uploadsData]) => {
+    ];
+    // Load GD users for assignment dropdown (only if user can assign)
+    if (canAssignGd) {
+      fetches.push(
+        fetch('/api/admin/users').then(r => r.json()).then(users =>
+          Array.isArray(users) ? users.filter((u: UserProfile) => u.role === 'GD' && u.is_active) : []
+        ).catch(() => [])
+      );
+    }
+    Promise.all(fetches).then(([cycleData, uploadsData, gdData]) => {
       setCycle(cycleData);
       setUploads(Array.isArray(uploadsData) ? uploadsData : []);
+      if (gdData) setGdUsers(gdData);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [cycleId]);
+  }, [cycleId, canAssignGd]);
 
   const handleAssignGd = async () => {
-    if (!gdName.trim()) return;
+    if (!selectedGdId) return;
     setAssigningGd(true);
     try {
       const res = await fetch(`/api/cycles/${cycleId}/assign-gd`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gd_name: gdName.trim() }),
+        body: JSON.stringify({ gd_id: selectedGdId }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -52,7 +69,7 @@ export default function CycleDetailPage() {
         return;
       }
       setCycle(data);
-      setGdName('');
+      setSelectedGdId(null);
       message.success('GD assigned successfully');
     } catch {
       message.error('Network error');
@@ -112,21 +129,23 @@ export default function CycleDetailPage() {
           <Descriptions.Item label="Period">{cycle.planning_period_start} to {cycle.planning_period_end}</Descriptions.Item>
           <Descriptions.Item label="GD Assigned">
             {cycle.assigned_gd_id ? (
-              <Tag color="blue" icon={<UserAddOutlined />}>{cycle.assigned_gd_id}</Tag>
-            ) : cycle.status === 'Draft' ? (
+              <Tag color="blue" icon={<UserAddOutlined />}>
+                {gdUsers.find(u => u.id === cycle.assigned_gd_id)?.full_name || cycle.assigned_gd_id}
+              </Tag>
+            ) : cycle.status === 'Draft' && canAssignGd ? (
               <Space.Compact>
-                <Input
-                  placeholder="Enter GD name"
-                  value={gdName}
-                  onChange={e => setGdName(e.target.value)}
-                  style={{ width: 180 }}
-                  onPressEnter={handleAssignGd}
+                <Select
+                  placeholder="Select GD"
+                  value={selectedGdId}
+                  onChange={setSelectedGdId}
+                  style={{ width: 200 }}
+                  options={gdUsers.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` }))}
                 />
                 <Button
                   type="primary"
                   onClick={handleAssignGd}
                   loading={assigningGd}
-                  disabled={!gdName.trim()}
+                  disabled={!selectedGdId}
                 >
                   Assign
                 </Button>
@@ -169,7 +188,7 @@ export default function CycleDetailPage() {
             );
           })}
         </div>
-        {cycle.status === 'Draft' && (
+        {cycle.status === 'Draft' && canUpload && (
           <div style={{ marginTop: 16 }}>
             <Link href={`/cycles/${cycleId}/upload`}>
               <Button type="primary" icon={<UploadOutlined />}>Upload Files</Button>
@@ -179,7 +198,7 @@ export default function CycleDetailPage() {
       </Card>
 
       <Space>
-        {cycle.status === 'Draft' && (
+        {cycle.status === 'Draft' && canManageCycle && (
           <Button
             type="primary"
             size="large"

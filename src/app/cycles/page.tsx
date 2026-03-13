@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Table, Button, Tag, Space, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/auth/roles';
 import type { OtbCycle } from '@/types/otb';
 
 const { Title } = Typography;
@@ -17,8 +19,10 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function CyclesPage() {
+  const { profile } = useAuth();
   const [cycles, setCycles] = useState<OtbCycle[]>([]);
   const [loading, setLoading] = useState(true);
+  const canCreate = profile ? hasPermission(profile.role, 'create_cycle') : false;
 
   useEffect(() => {
     fetch('/api/cycles')
@@ -79,9 +83,11 @@ export default function CyclesPage() {
     <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <Title level={2} style={{ margin: 0 }}>OTB Cycles</Title>
-        <Link href="/cycles/new">
-          <Button type="primary" icon={<PlusOutlined />}>New Cycle</Button>
-        </Link>
+        {canCreate && (
+          <Link href="/cycles/new">
+            <Button type="primary" icon={<PlusOutlined />}>New Cycle</Button>
+          </Link>
+        )}
       </div>
       <Table
         dataSource={cycles}

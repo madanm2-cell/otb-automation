@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Form, Input, Select, Button, message, Typography, Card } from 'antd';
 import { useRouter } from 'next/navigation';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import type { Brand } from '@/types/otb';
 
 const { Title } = Typography;
@@ -53,6 +54,7 @@ export default function NewCyclePage() {
   };
 
   return (
+    <ProtectedRoute permission="create_cycle">
     <div style={{ padding: 24, maxWidth: 600, margin: '0 auto' }}>
       <Title level={2}>Create New OTB Cycle</Title>
       <Card>
@@ -93,5 +95,6 @@ export default function NewCyclePage() {
         </Form>
       </Card>
     </div>
+    </ProtectedRoute>
   );
 }
