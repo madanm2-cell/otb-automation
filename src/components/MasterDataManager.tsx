@@ -1,39 +1,56 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs, Table, Button, Modal, Form, Input, Select, Space, message } from 'antd';
+import { Tabs, Table, Button, Modal, Form, Input, Select, Space, message, Alert } from 'antd';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
-import type { Brand } from '@/types/otb';
+import type { Brand, WearType } from '@/types/otb';
 
 interface MasterRecord {
   id: string;
   name: string;
   brand_id?: string;
+  wear_type_id?: string;
   [key: string]: any;
 }
 
-const TABS = [
-  { key: 'brands', label: 'Brands', fields: ['name'] },
-  { key: 'sub_brands', label: 'Sub Brands', fields: ['name', 'brand_id'] },
-  { key: 'sub_categories', label: 'Sub Categories', fields: ['name'] },
-  { key: 'channels', label: 'Channels', fields: ['name'] },
-  { key: 'genders', label: 'Genders', fields: ['name'] },
+interface TabConfig {
+  key: string;
+  label: string;
+  fields: string[];
+  brandScoped: boolean;
+}
+
+const TABS: TabConfig[] = [
+  { key: 'brands', label: 'Brands', fields: ['name'], brandScoped: false },
+  { key: 'sub_brands', label: 'Sub Brands', fields: ['name'], brandScoped: true },
+  { key: 'wear_types', label: 'Wear Types', fields: ['name'], brandScoped: true },
+  { key: 'sub_categories', label: 'Sub Categories', fields: ['name', 'wear_type_id'], brandScoped: true },
+  { key: 'channels', label: 'Channels', fields: ['name'], brandScoped: true },
+  { key: 'genders', label: 'Genders', fields: ['name'], brandScoped: true },
 ];
 
 export function MasterDataManager() {
   const [activeTab, setActiveTab] = useState('brands');
   const [data, setData] = useState<MasterRecord[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [wearTypes, setWearTypes] = useState<WearType[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<MasterRecord | null>(null);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async (type: string) => {
+  const tabConfig = TABS.find(t => t.key === activeTab)!;
+
+  const loadData = useCallback(async (type: string, brandId: string | null) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/master-data/${type}`);
+      const tab = TABS.find(t => t.key === type)!;
+      const url = tab.brandScoped && brandId
+        ? `/api/master-data/${type}?brandId=${brandId}`
+        : `/api/master-data/${type}`;
+      const res = await fetch(url);
       const result = await res.json();
       setData(Array.isArray(result) ? result : []);
     } catch {
@@ -43,9 +60,10 @@ export function MasterDataManager() {
   }, []);
 
   useEffect(() => {
-    loadData(activeTab);
-  }, [activeTab, loadData]);
+    loadData(activeTab, selectedBrandId);
+  }, [activeTab, selectedBrandId, loadData]);
 
+  // Load brands list
   useEffect(() => {
     fetch('/api/master-data/brands')
       .then(r => r.json())
@@ -53,12 +71,26 @@ export function MasterDataManager() {
       .catch(() => {});
   }, []);
 
-  const tabConfig = TABS.find(t => t.key === activeTab)!;
+  // Load wear types for selected brand (needed for sub_categories form)
+  useEffect(() => {
+    if (selectedBrandId) {
+      fetch(`/api/master-data/wear_types?brandId=${selectedBrandId}`)
+        .then(r => r.json())
+        .then(d => setWearTypes(Array.isArray(d) ? d : []))
+        .catch(() => setWearTypes([]));
+    } else {
+      setWearTypes([]);
+    }
+  }, [selectedBrandId]);
 
   const handleSave = async (values: any) => {
     setSaving(true);
     const method = editing ? 'PUT' : 'POST';
-    const body = editing ? { id: editing.id, ...values } : values;
+    const body = editing
+      ? { id: editing.id, ...values }
+      : tabConfig.brandScoped
+        ? { ...values, brand_id: selectedBrandId }
+        : values;
 
     try {
       const res = await fetch(`/api/master-data/${activeTab}`, {
@@ -77,7 +109,7 @@ export function MasterDataManager() {
       setModalOpen(false);
       setEditing(null);
       form.resetFields();
-      loadData(activeTab);
+      loadData(activeTab, selectedBrandId);
     } catch {
       message.error('Network error');
     } finally {
@@ -87,10 +119,10 @@ export function MasterDataManager() {
 
   const columns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
-    ...(tabConfig.fields.includes('brand_id')
+    ...(activeTab === 'sub_categories'
       ? [{
-          title: 'Brand', dataIndex: 'brand_id', key: 'brand_id',
-          render: (id: string) => brands.find(b => b.id === id)?.name || id,
+          title: 'Wear Type', dataIndex: 'wear_type_id', key: 'wear_type_id',
+          render: (id: string) => wearTypes.find(wt => wt.id === id)?.name || '-',
         }]
       : []),
     {
@@ -105,22 +137,43 @@ export function MasterDataManager() {
     },
   ];
 
+  const brandScopedDisabled = tabConfig.brandScoped && !selectedBrandId;
+
   return (
     <>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>Master Data Management</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); form.resetFields(); setModalOpen(true); }}>
-          Add {tabConfig.label.replace(/s$/, '')}
-        </Button>
+        <Space>
+          <Select
+            placeholder="Select brand"
+            value={selectedBrandId}
+            onChange={setSelectedBrandId}
+            style={{ width: 200 }}
+            allowClear
+            options={brands.map(b => ({ value: b.id, label: b.name }))}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={brandScopedDisabled}
+            onClick={() => { setEditing(null); form.resetFields(); setModalOpen(true); }}
+          >
+            Add {tabConfig.label.replace(/s$/, '')}
+          </Button>
+        </Space>
       </div>
 
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
-        items={TABS.map(t => ({ key: t.key, label: t.label }))}
+        items={TABS.map(t => ({ key: t.key, label: t.label, disabled: t.brandScoped && !selectedBrandId }))}
       />
 
-      <Table dataSource={data} columns={columns} rowKey="id" loading={loading} />
+      {brandScopedDisabled ? (
+        <Alert message="Select a brand to manage its master data" type="info" showIcon />
+      ) : (
+        <Table dataSource={data} columns={columns} rowKey="id" loading={loading} />
+      )}
 
       <Modal
         title={editing ? `Edit ${tabConfig.label.replace(/s$/, '')}` : `Add ${tabConfig.label.replace(/s$/, '')}`}
@@ -133,9 +186,13 @@ export function MasterDataManager() {
           <Form.Item name="name" label="Name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          {tabConfig.fields.includes('brand_id') && (
-            <Form.Item name="brand_id" label="Brand" rules={[{ required: true }]}>
-              <Select options={brands.map(b => ({ value: b.id, label: b.name }))} />
+          {activeTab === 'sub_categories' && (
+            <Form.Item name="wear_type_id" label="Wear Type">
+              <Select
+                allowClear
+                placeholder="Select wear type"
+                options={wearTypes.map(wt => ({ value: wt.id, label: wt.name }))}
+              />
             </Form.Item>
           )}
         </Form>
