@@ -9,6 +9,41 @@ export interface SubBrand {
   brand_id: string;
 }
 
+export interface WearType {
+  id: string;
+  name: string;
+  brand_id: string;
+}
+
+export interface SubCategory {
+  id: string;
+  name: string;
+  brand_id: string;
+  wear_type_id: string | null;
+  // Joined
+  wear_types?: WearType;
+}
+
+export interface Channel {
+  id: string;
+  name: string;
+  brand_id: string;
+}
+
+export interface Gender {
+  id: string;
+  name: string;
+  brand_id: string;
+}
+
+export interface MasterMapping {
+  id: string;
+  mapping_type: string;
+  raw_value: string;
+  standard_value: string;
+  brand_id: string | null;
+}
+
 export interface OtbCycle {
   id: string;
   cycle_name: string;
@@ -16,7 +51,6 @@ export interface OtbCycle {
   planning_quarter: string;
   planning_period_start: string;
   planning_period_end: string;
-  wear_types: string[];
   fill_deadline: string | null;
   approval_deadline: string | null;
   assigned_gd_id: string | null;
