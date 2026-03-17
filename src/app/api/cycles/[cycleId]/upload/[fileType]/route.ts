@@ -20,7 +20,7 @@ export const POST = withAuth('upload_data', async (req, auth, { params }: Params
   // Verify cycle exists and is in Draft status
   const { data: cycle } = await supabase
     .from('otb_cycles')
-    .select('id, status')
+    .select('id, status, brand_id')
     .eq('id', cycleId)
     .single();
 
@@ -47,7 +47,7 @@ export const POST = withAuth('upload_data', async (req, auth, { params }: Params
     const rows = await parseUploadedFile(buffer, file.name);
 
     // Load master data for validation context
-    const masterData = await loadMasterData(supabase);
+    const masterData = await loadMasterData(supabase, cycle.brand_id);
 
     // Validate
     const result = validateUpload(fileType as FileType, rows, masterData);
@@ -107,13 +107,16 @@ export const POST = withAuth('upload_data', async (req, auth, { params }: Params
   }
 });
 
-async function loadMasterData(supabase: Awaited<ReturnType<typeof createServerClient>>): Promise<MasterDataContext> {
+async function loadMasterData(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  brandId: string
+): Promise<MasterDataContext> {
   const [subBrandsRes, subCatsRes, channelsRes, gendersRes, mappingsRes] = await Promise.all([
-    supabase.from('sub_brands').select('name'),
-    supabase.from('sub_categories').select('name'),
-    supabase.from('channels').select('name'),
-    supabase.from('genders').select('name'),
-    supabase.from('master_mappings').select('*'),
+    supabase.from('sub_brands').select('name').eq('brand_id', brandId),
+    supabase.from('sub_categories').select('name').eq('brand_id', brandId),
+    supabase.from('channels').select('name').eq('brand_id', brandId),
+    supabase.from('genders').select('name').eq('brand_id', brandId),
+    supabase.from('master_mappings').select('*').or(`brand_id.eq.${brandId},brand_id.is.null`),
   ]);
 
   const mappings = new Map<string, string>();
