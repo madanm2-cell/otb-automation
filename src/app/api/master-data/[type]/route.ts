@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 
-const VALID_TYPES = ['brands', 'sub_brands', 'sub_categories', 'channels', 'genders', 'master_mappings', 'wear_type_mappings'];
+const VALID_TYPES = ['brands', 'sub_brands', 'wear_types', 'sub_categories', 'channels', 'genders', 'master_mappings'];
+const BRAND_SCOPED_TABLES = ['sub_brands', 'wear_types', 'sub_categories', 'channels', 'genders'];
 
 export const GET = withAuth(null, async (
   req: NextRequest,
@@ -19,15 +20,31 @@ export const GET = withAuth(null, async (
   let query = supabase.from(type).select('*');
 
   // Order by name for tables that have it
-  if (['brands', 'sub_brands', 'sub_categories', 'channels', 'genders'].includes(type)) {
+  if (['brands', 'sub_brands', 'wear_types', 'sub_categories', 'channels', 'genders'].includes(type)) {
     query = query.order('name');
   }
 
-  // For sub_brands, support ?brandId= filter
-  if (type === 'sub_brands') {
+  // Brand-scoped filtering
+  if (BRAND_SCOPED_TABLES.includes(type)) {
     const brandId = req.nextUrl.searchParams.get('brandId');
     if (brandId) {
       query = query.eq('brand_id', brandId);
+    }
+  }
+
+  // For sub_categories, also support ?wearTypeId= filter
+  if (type === 'sub_categories') {
+    const wearTypeId = req.nextUrl.searchParams.get('wearTypeId');
+    if (wearTypeId) {
+      query = query.eq('wear_type_id', wearTypeId);
+    }
+  }
+
+  // For master_mappings: include brand-specific + global fallback
+  if (type === 'master_mappings') {
+    const brandId = req.nextUrl.searchParams.get('brandId');
+    if (brandId) {
+      query = query.or(`brand_id.eq.${brandId},brand_id.is.null`);
     }
   }
 
@@ -50,6 +67,10 @@ export const POST = withAuth('manage_master_data', async (req: NextRequest, auth
   }
   const supabase = await createServerClient();
   const body = await req.json();
+
+  if (BRAND_SCOPED_TABLES.includes(type) && !body.brand_id) {
+    return NextResponse.json({ error: 'brand_id is required' }, { status: 400 });
+  }
 
   const { data, error } = await supabase.from(type).insert(body).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
