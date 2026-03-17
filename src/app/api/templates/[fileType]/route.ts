@@ -10,18 +10,6 @@ const SAMPLE_DATA: Record<FileType, Record<string, unknown>[]> = {
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', quantity: 15420 },
     { sub_brand: 'bewakoof air', sub_category: 'Jeans', gender: 'Female', channel: 'amazon_cocoblu', quantity: 8200 },
   ],
-  cogs: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', cogs: 350 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', cogs: 520 },
-  ],
-  asp: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', asp: 849.50 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', asp: 1299 },
-  ],
-  standard_doh: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', doh: 45 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', doh: 60 },
-  ],
   ly_sales: [
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-01-01', nsq: 1000 },
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-02-01', nsq: 950 },
@@ -29,18 +17,6 @@ const SAMPLE_DATA: Record<FileType, Record<string, unknown>[]> = {
   recent_sales: [
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-10-01', nsq: 1100 },
     { sub_brand: 'bewakoof air', sub_category: 'Jeans', gender: 'Female', channel: 'flipkart_sor', month: '2025-11-01', nsq: 800 },
-  ],
-  return_pct: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', return_pct: 25.5 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', return_pct: 18.0 },
-  ],
-  tax_pct: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', tax_pct: 12 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', tax_pct: 12 },
-  ],
-  sellex_pct: [
-    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', channel: 'myntra_sor', sellex_pct: 8 },
-    { sub_brand: 'bewakoof air', sub_category: 'Jeans', channel: 'amazon_cocoblu', sellex_pct: 10 },
   ],
   soft_forecast: [
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', nsq: 1100 },

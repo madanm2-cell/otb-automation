@@ -36,10 +36,15 @@ export const POST = withAuth('create_cycle', async (req, auth, { params }: Param
     );
   }
 
-  // Note: wear_types no longer required on cycle — wear_type is resolved
-  // from wear_type_mappings table during template generation.
+  // Check defaults are confirmed
+  if (!cycle.defaults_confirmed) {
+    return NextResponse.json(
+      { error: 'Master data defaults must be reviewed and confirmed before activation' },
+      { status: 400 }
+    );
+  }
 
-  // Check all 9 required files are uploaded and validated
+  // Check all required files are uploaded and validated
   const { data: uploads } = await supabase
     .from('file_uploads')
     .select('file_type, status')

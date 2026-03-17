@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin, Select } from 'antd';
-import { UploadOutlined, TableOutlined, UserAddOutlined } from '@ant-design/icons';
+import { UploadOutlined, TableOutlined, UserAddOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -116,7 +116,10 @@ export default function CycleDetailPage() {
   const allRequiredValidated = REQUIRED_FILE_TYPES.every(
     ft => uploadsByType.get(ft)?.status === 'validated'
   );
-  const canActivate = cycle.status === 'Draft' && allRequiredValidated && cycle.assigned_gd_id;
+  const canActivate = cycle.status === 'Draft'
+    && allRequiredValidated
+    && cycle.assigned_gd_id
+    && cycle.defaults_confirmed;
 
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
@@ -197,6 +200,40 @@ export default function CycleDetailPage() {
         )}
       </Card>
 
+      {/* Review Defaults card — shown in Draft status */}
+      {cycle.status === 'Draft' && (
+        <Card
+          title="Review & Confirm Defaults"
+          style={{
+            marginBottom: 24,
+            borderColor: cycle.defaults_confirmed ? '#52c41a' : '#d9d9d9',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div>ASP, COGS, Return%, Tax%, Sellex%, Standard DoH</div>
+              <div style={{ color: '#999', fontSize: 13 }}>
+                Pre-populated from master data. Review and adjust values for this cycle.
+              </div>
+            </div>
+            <Space>
+              {cycle.defaults_confirmed ? (
+                <Tag icon={<CheckCircleOutlined />} color="success">Confirmed</Tag>
+              ) : (
+                <Tag color="warning">Not confirmed</Tag>
+              )}
+              {canManageCycle && (
+                <Link href={`/cycles/${cycleId}/defaults`}>
+                  <Button type={cycle.defaults_confirmed ? 'default' : 'primary'}>
+                    {cycle.defaults_confirmed ? 'View Defaults' : 'Review Defaults'}
+                  </Button>
+                </Link>
+              )}
+            </Space>
+          </div>
+        </Card>
+      )}
+
       <Space>
         {cycle.status === 'Draft' && canManageCycle && (
           <Button
@@ -220,8 +257,9 @@ export default function CycleDetailPage() {
 
       {!canActivate && cycle.status === 'Draft' && (
         <div style={{ marginTop: 8, color: '#999', fontSize: 13 }}>
-          {!allRequiredValidated && 'Upload and validate all 9 required files. '}
+          {!allRequiredValidated && 'Upload and validate all required files. '}
           {!cycle.assigned_gd_id && 'Assign a GD. '}
+          {!cycle.defaults_confirmed && 'Review and confirm defaults. '}
         </div>
       )}
     </div>

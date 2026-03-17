@@ -1,17 +1,20 @@
 import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { getQuarterDates } from '@/lib/quarterUtils';
+import type { DefaultType } from '@/types/otb';
 
 interface UploadedData {
   opening_stock: Record<string, unknown>[];
-  cogs: Record<string, unknown>[];
-  asp: Record<string, unknown>[];
-  standard_doh: Record<string, unknown>[];
   ly_sales: Record<string, unknown>[];
   recent_sales: Record<string, unknown>[];
-  return_pct: Record<string, unknown>[];
-  tax_pct: Record<string, unknown>[];
-  sellex_pct: Record<string, unknown>[];
   soft_forecast: Record<string, unknown>[];
+}
+
+interface CycleDefaultRow {
+  default_type: DefaultType;
+  sub_brand: string | null;
+  sub_category: string;
+  channel: string | null;
+  value: number;
 }
 
 interface DimensionKey {
@@ -27,14 +30,13 @@ function makeKey(d: DimensionKey): string {
 }
 
 /**
- * Generate plan rows + monthly data from uploaded reference files.
- * Called after all uploads are validated, when cycle is activated.
+ * Generate plan rows + monthly data from uploaded files + cycle defaults.
+ * Called after uploads validated AND defaults confirmed, when cycle is activated.
  */
 export async function generateTemplate(cycleId: string): Promise<{ rowCount: number; warnings?: string[] }> {
   const supabase = await createServerClient();
-  const adminDb = createAdminClient(); // bypasses RLS for insert/delete operations
+  const adminDb = createAdminClient();
 
-  // Get cycle details
   const { data: cycle } = await supabase
     .from('otb_cycles')
     .select('*')
@@ -46,21 +48,34 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   const quarterDates = getQuarterDates(cycle.planning_quarter);
   const months = quarterDates.months;
 
-  // Load all uploaded file data by re-parsing stored files
-  // For simplicity, we'll query the upload records and re-download/parse
-  // In production, we'd cache parsed data. Here we'll use a simpler approach:
-  // store normalized rows in a staging table or re-parse from storage.
-  // For MVP, we'll re-parse from storage.
+  // Load uploaded file data (only 3 required + 1 optional)
   const uploadedData = await loadAllUploadedData(supabase, cycleId);
 
-  // Load sub_categories with wear_types join to derive wear_type from hierarchy
+  // Load confirmed cycle defaults
+  const { data: cycleDefaults } = await adminDb
+    .from('cycle_defaults')
+    .select('default_type, sub_brand, sub_category, channel, value')
+    .eq('cycle_id', cycleId);
+
+  if (!cycleDefaults || cycleDefaults.length === 0) {
+    throw new Error('No cycle defaults found. Initialize and confirm defaults before activation.');
+  }
+
+  // Build lookup maps from cycle defaults
+  const aspMap = buildDefaultLookup(cycleDefaults, 'asp', ['sub_brand', 'sub_category', 'channel']);
+  const cogsMap = buildDefaultLookup(cycleDefaults, 'cogs', ['sub_brand', 'sub_category']);
+  const returnMap = buildDefaultLookup(cycleDefaults, 'return_pct', ['sub_brand', 'sub_category', 'channel']);
+  const taxMap = buildDefaultLookup(cycleDefaults, 'tax_pct', ['sub_category']);
+  const sellexMap = buildDefaultLookup(cycleDefaults, 'sellex_pct', ['sub_brand', 'sub_category', 'channel']);
+  const dohMap = buildDefaultLookup(cycleDefaults, 'standard_doh', ['sub_brand', 'sub_category']);
+
+  // Load sub_categories with wear_types join
   const { data: subCategoryData } = await adminDb
     .from('sub_categories')
     .select('name, wear_type_id, wear_types(name)')
     .eq('brand_id', cycle.brand_id)
     .not('wear_type_id', 'is', null);
 
-  // Build lookup: sub_category name → wear_type name
   const subCatWearTypeMap = new Map<string, string>();
   for (const sc of subCategoryData || []) {
     if ((sc.wear_types as any)?.name) {
@@ -68,7 +83,7 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
     }
   }
 
-  // Determine unique dimension combinations from opening_stock (primary source)
+  // Determine unique dimension combinations from opening_stock
   const dimensionCombos: DimensionKey[] = [];
   const seenKeys = new Set<string>();
   const warnings: string[] = [];
@@ -110,13 +125,7 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
     );
   }
 
-  // Build lookup maps for reference data
-  const cogsMap = buildLookup(uploadedData.cogs, ['sub_brand', 'sub_category'], 'cogs');
-  const aspMap = buildLookup(uploadedData.asp, ['sub_brand', 'sub_category', 'channel'], 'asp');
-  const dohMap = buildLookup(uploadedData.standard_doh, ['sub_brand', 'sub_category'], 'doh');
-  const returnMap = buildLookup(uploadedData.return_pct, ['sub_category', 'channel'], 'return_pct');
-  const taxMap = buildLookup(uploadedData.tax_pct, ['sub_category', 'channel'], 'tax_pct');
-  const sellexMap = buildLookup(uploadedData.sellex_pct, ['sub_category', 'channel'], 'sellex_pct');
+  // Build lookup maps for uploaded data
   const openingStockMap = buildLookup(uploadedData.opening_stock, ['sub_brand', 'sub_category', 'gender', 'channel'], 'quantity');
   const lyMap = buildMonthLookup(uploadedData.ly_sales, ['sub_brand', 'sub_category', 'gender', 'channel'], 'nsq');
   const recentMap = buildLookup(uploadedData.recent_sales, ['sub_brand', 'sub_category', 'gender'], 'nsq');
@@ -153,30 +162,34 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   for (const row of insertedRows!) {
     for (let mIdx = 0; mIdx < months.length; mIdx++) {
       const month = months[mIdx];
-      const sbKey = lookupKey([row.sub_brand, row.sub_category]);
-      const sbcKey = lookupKey([row.sub_brand, row.sub_category, row.channel]);
-      const scChKey = lookupKey([row.sub_category, row.channel]);
+
+      // Lookup keys for cycle defaults
+      const sbScChKey = lookupKey([row.sub_brand, row.sub_category, row.channel]);
+      const sbScKey = lookupKey([row.sub_brand, row.sub_category]);
+      const scKey = lookupKey([row.sub_category]);
+
+      // Lookup keys for uploaded data
       const fullKey = lookupKey([row.sub_brand, row.sub_category, row.gender, row.channel]);
       const sbgKey = lookupKey([row.sub_brand, row.sub_category, row.gender]);
 
       planDataInserts.push({
         row_id: row.id,
         month,
-        asp: aspMap.get(sbcKey) ?? null,
-        cogs: cogsMap.get(sbKey) ?? null,
+        asp: aspMap.get(sbScChKey) ?? null,
+        cogs: cogsMap.get(sbScKey) ?? null,
         opening_stock_qty: mIdx === 0 ? (openingStockMap.get(fullKey) ?? null) : null,
         ly_sales_nsq: lyMap.get(`${fullKey}|${shiftYearBack(month)}`) ?? null,
         recent_sales_nsq: recentMap.get(sbgKey) ?? null,
         soft_forecast_nsq: forecastMap.get(sbgKey) ?? null,
-        return_pct: returnMap.get(scChKey) ?? null,
-        tax_pct: taxMap.get(scChKey) ?? null,
-        sellex_pct: sellexMap.get(scChKey) ?? null,
-        standard_doh: dohMap.get(sbKey) ?? null,
+        return_pct: returnMap.get(sbScChKey) ?? null,
+        tax_pct: taxMap.get(scKey) ?? null,
+        sellex_pct: sellexMap.get(sbScChKey) ?? null,
+        standard_doh: dohMap.get(sbScKey) ?? null,
       });
     }
   }
 
-  // Batch insert (Supabase supports up to ~1000 rows per insert)
+  // Batch insert
   const BATCH_SIZE = 500;
   for (let i = 0; i < planDataInserts.length; i += BATCH_SIZE) {
     const batch = planDataInserts.slice(i, i + BATCH_SIZE);
@@ -189,14 +202,13 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
 
 // --- Helper functions ---
 
-/** Shift a "YYYY-MM-DD" date string back by 1 year (for LY lookup). */
 function shiftYearBack(month: string): string {
   const year = parseInt(month.substring(0, 4));
   return `${year - 1}${month.substring(4)}`;
 }
 
 function lookupKey(parts: string[]): string {
-  return parts.map(p => String(p).toLowerCase()).join('|');
+  return parts.map(p => String(p || '').toLowerCase()).join('|');
 }
 
 function buildLookup(
@@ -228,6 +240,24 @@ function buildMonthLookup(
   return map;
 }
 
+/**
+ * Build a lookup map from cycle_defaults rows for a specific default_type.
+ * @param keyFields - which fields to include in the key (sub_brand, sub_category, channel)
+ */
+function buildDefaultLookup(
+  defaults: CycleDefaultRow[],
+  type: DefaultType,
+  keyFields: ('sub_brand' | 'sub_category' | 'channel')[]
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of defaults) {
+    if (row.default_type !== type) continue;
+    const key = lookupKey(keyFields.map(f => String(row[f] || '')));
+    map.set(key, row.value);
+  }
+  return map;
+}
+
 async function loadAllUploadedData(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
   cycleId: string
@@ -240,45 +270,26 @@ async function loadAllUploadedData(
 
   const result: UploadedData = {
     opening_stock: [],
-    cogs: [],
-    asp: [],
-    standard_doh: [],
     ly_sales: [],
     recent_sales: [],
-    return_pct: [],
-    tax_pct: [],
-    sellex_pct: [],
     soft_forecast: [],
   };
 
-  if (!uploads) {
-    console.log('[generateTemplate] No validated uploads found for cycle', cycleId);
-    return result;
-  }
-
-  console.log('[generateTemplate] Found', uploads.length, 'validated uploads:', uploads.map(u => `${u.file_type}(${u.storage_path})`));
+  if (!uploads) return result;
 
   for (const upload of uploads) {
     const fileType = upload.file_type as keyof UploadedData;
-    if (!(fileType in result)) {
-      console.log('[generateTemplate] Skipping unknown file type:', fileType);
-      continue;
-    }
+    if (!(fileType in result)) continue;
 
-    // Download file from storage and re-parse
-    const { data: fileData, error: downloadError } = await supabase.storage
+    const { data: fileData } = await supabase.storage
       .from('otb-uploads')
       .download(upload.storage_path);
 
-    if (!fileData) {
-      console.error('[generateTemplate] Failed to download', upload.storage_path, 'error:', downloadError);
-      continue;
-    }
+    if (!fileData) continue;
 
     const buffer = Buffer.from(await fileData.arrayBuffer());
     const { parseUploadedFile } = await import('@/lib/fileParser');
     const rows = await parseUploadedFile(buffer, upload.file_name);
-    console.log('[generateTemplate]', fileType, ':', rows.length, 'rows parsed');
     result[fileType] = rows;
   }
 

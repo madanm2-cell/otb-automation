@@ -44,6 +44,70 @@ export interface MasterMapping {
   brand_id: string | null;
 }
 
+// Master data defaults — brand-scoped reference values
+export interface MasterDefaultAsp {
+  id: string;
+  brand_id: string;
+  sub_brand: string;
+  sub_category: string;
+  channel: string;
+  asp: number;
+}
+
+export interface MasterDefaultCogs {
+  id: string;
+  brand_id: string;
+  sub_brand: string;
+  sub_category: string;
+  cogs: number;
+}
+
+export interface MasterDefaultReturnPct {
+  id: string;
+  brand_id: string;
+  sub_brand: string;
+  sub_category: string;
+  channel: string;
+  return_pct: number;
+}
+
+export interface MasterDefaultTaxPct {
+  id: string;
+  brand_id: string;
+  sub_category: string;
+  tax_pct: number;
+}
+
+export interface MasterDefaultSellexPct {
+  id: string;
+  brand_id: string;
+  sub_brand: string;
+  sub_category: string;
+  channel: string;
+  sellex_pct: number;
+}
+
+export interface MasterDefaultDoh {
+  id: string;
+  brand_id: string;
+  sub_brand: string;
+  sub_category: string;
+  doh: number;
+}
+
+export type DefaultType = 'asp' | 'cogs' | 'return_pct' | 'tax_pct' | 'sellex_pct' | 'standard_doh';
+
+export interface CycleDefault {
+  id: string;
+  cycle_id: string;
+  default_type: DefaultType;
+  sub_brand: string | null;
+  sub_category: string;
+  channel: string | null;
+  value: number;
+  confirmed: boolean;
+}
+
 export interface OtbCycle {
   id: string;
   cycle_name: string;
@@ -54,6 +118,7 @@ export interface OtbCycle {
   fill_deadline: string | null;
   approval_deadline: string | null;
   assigned_gd_id: string | null;
+  defaults_confirmed: boolean;
   status: 'Draft' | 'Active' | 'Filling' | 'InReview' | 'Approved';
   created_at: string;
   updated_at: string;
@@ -62,14 +127,12 @@ export interface OtbCycle {
 }
 
 export type FileType =
-  | 'opening_stock' | 'cogs' | 'asp' | 'standard_doh'
+  | 'opening_stock'
   | 'ly_sales' | 'recent_sales'
-  | 'return_pct' | 'tax_pct' | 'sellex_pct'
   | 'soft_forecast';
 
 export const REQUIRED_FILE_TYPES: FileType[] = [
-  'opening_stock', 'cogs', 'asp', 'standard_doh',
-  'ly_sales', 'recent_sales', 'return_pct', 'tax_pct', 'sellex_pct',
+  'opening_stock', 'ly_sales', 'recent_sales',
 ];
 
 export const ALL_FILE_TYPES: FileType[] = [
@@ -79,14 +142,8 @@ export const ALL_FILE_TYPES: FileType[] = [
 
 export const FILE_TYPE_LABELS: Record<FileType, string> = {
   opening_stock: 'Opening Stock',
-  cogs: 'COGS',
-  asp: 'ASP',
-  standard_doh: 'Standard DoH',
   ly_sales: 'LY Sales',
   recent_sales: 'Recent Sales (3M)',
-  return_pct: 'Return %',
-  tax_pct: 'Tax %',
-  sellex_pct: 'Sellex %',
   soft_forecast: 'Soft Forecast (Optional)',
 };
 

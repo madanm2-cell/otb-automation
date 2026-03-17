@@ -34,6 +34,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
   if (hasPermission(role, 'manage_master_data')) {
     menuItems.push({ key: '/admin/master-data', icon: <SettingOutlined />, label: 'Master Data' });
+    menuItems.push({ key: '/admin/master-defaults', icon: <SettingOutlined />, label: 'Master Defaults' });
     menuItems.push({ key: '/admin/mappings', icon: <SettingOutlined />, label: 'Mappings' });
   }
   if (hasPermission(role, 'view_audit_logs')) {
