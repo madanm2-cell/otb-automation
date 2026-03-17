@@ -19,7 +19,7 @@ export const GET = withAuth(null, async (req, auth) => {
 // POST /api/cycles — create a new cycle
 export const POST = withAuth('create_cycle', async (req, auth) => {
   const body = await req.json();
-  const { cycle_name, brand_id, planning_quarter, wear_types, fill_deadline, approval_deadline } = body;
+  const { cycle_name, brand_id, planning_quarter, fill_deadline, approval_deadline } = body;
 
   if (!cycle_name || !brand_id || !planning_quarter) {
     return NextResponse.json(
@@ -27,8 +27,6 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
       { status: 400 }
     );
   }
-
-  // wear_types is now optional — wear types are derived from wear_type_mappings
 
   let quarterDates;
   try {
@@ -71,7 +69,6 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
       planning_quarter,
       planning_period_start: quarterDates.start,
       planning_period_end: quarterDates.end,
-      wear_types: Array.isArray(wear_types) ? wear_types : [],
       fill_deadline: fill_deadline || null,
       approval_deadline: approval_deadline || null,
       created_by: auth.user.id,

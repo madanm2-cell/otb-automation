@@ -157,9 +157,6 @@ export default function CycleDetailPage() {
               'Not assigned'
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="Wear Types">
-            <Space size={4}>{cycle.wear_types.map(t => <Tag key={t}>{t}</Tag>)}</Space>
-          </Descriptions.Item>
         </Descriptions>
       </Card>
 

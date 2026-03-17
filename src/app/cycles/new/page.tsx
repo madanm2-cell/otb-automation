@@ -36,7 +36,6 @@ export default function NewCyclePage() {
           cycle_name: values.cycle_name,
           brand_id: values.brand_id,
           planning_quarter: values.planning_quarter,
-          wear_types: values.wear_types,
         }),
       });
       const data = await res.json();
@@ -75,17 +74,6 @@ export default function NewCyclePage() {
                 <Select.Option key={q} value={q}>{q}</Select.Option>
               ))}
             </Select>
-          </Form.Item>
-          <Form.Item
-            name="wear_types"
-            label="Wear Types (optional)"
-            tooltip="Wear types are now auto-derived from sub_brand × sub_category mappings. Only add here for informational tagging."
-          >
-            <Select
-              mode="tags"
-              placeholder="Optional — e.g. NWW, WW"
-              tokenSeparators={[',']}
-            />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} block>
