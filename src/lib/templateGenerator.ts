@@ -53,14 +53,19 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   // For MVP, we'll re-parse from storage.
   const uploadedData = await loadAllUploadedData(supabase, cycleId);
 
-  // Load wear_type mappings (sub_brand × sub_category → wear_type)
-  const { data: wearTypeMappings } = await adminDb
-    .from('wear_type_mappings')
-    .select('sub_brand, sub_category, wear_type');
+  // Load sub_categories with wear_types join to derive wear_type from hierarchy
+  const { data: subCategoryData } = await adminDb
+    .from('sub_categories')
+    .select('name, wear_type_id, wear_types(name)')
+    .eq('brand_id', cycle.brand_id)
+    .not('wear_type_id', 'is', null);
 
-  const wearTypeMap = new Map<string, string>();
-  for (const m of wearTypeMappings || []) {
-    wearTypeMap.set(`${m.sub_brand}|${m.sub_category}`, m.wear_type);
+  // Build lookup: sub_category name → wear_type name
+  const subCatWearTypeMap = new Map<string, string>();
+  for (const sc of subCategoryData || []) {
+    if ((sc.wear_types as any)?.name) {
+      subCatWearTypeMap.set(sc.name.toLowerCase(), (sc.wear_types as any).name);
+    }
   }
 
   // Determine unique dimension combinations from opening_stock (primary source)
@@ -70,17 +75,16 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   const missingWearTypes = new Set<string>();
 
   for (const row of uploadedData.opening_stock) {
-    const subBrand = String(row.sub_brand || '').toLowerCase();
     const subCategory = String(row.sub_category || '').toLowerCase();
-    const wearType = wearTypeMap.get(`${subBrand}|${subCategory}`);
+    const wearType = subCatWearTypeMap.get(subCategory);
 
     if (!wearType) {
-      missingWearTypes.add(`${subBrand} × ${subCategory}`);
+      missingWearTypes.add(subCategory);
       continue;
     }
 
     const combo: DimensionKey = {
-      sub_brand: subBrand,
+      sub_brand: String(row.sub_brand || '').toLowerCase(),
       wear_type: wearType,
       sub_category: subCategory,
       gender: String(row.gender || '').toLowerCase(),
@@ -94,14 +98,14 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   }
 
   if (missingWearTypes.size > 0) {
-    warnings.push(`Missing wear_type mapping for: ${[...missingWearTypes].join(', ')}`);
+    warnings.push(`Missing wear_type for sub_category: ${[...missingWearTypes].join(', ')}`);
   }
 
   if (dimensionCombos.length === 0) {
     throw new Error(
       'No dimension combinations found. ' +
       (missingWearTypes.size > 0
-        ? `All rows skipped due to missing wear_type mappings: ${[...missingWearTypes].join(', ')}`
+        ? `All rows skipped due to missing wear_type for sub_categories: ${[...missingWearTypes].join(', ')}`
         : 'Opening stock data is empty')
     );
   }
