@@ -79,7 +79,6 @@ describeIf('Sprint 1-2 Full Flow Integration', () => {
         planning_quarter: 'Q4-FY26',
         planning_period_start: '2026-01-01',
         planning_period_end: '2026-03-31',
-        wear_types: ['NWW', 'WW'],
         assigned_gd_id: 'test-gd',
       })
       .select()
@@ -166,7 +165,6 @@ describeIf('Sprint 3-4 GD Workflow Integration', () => {
         planning_quarter: 'Q4-FY26',
         planning_period_start: '2026-01-01',
         planning_period_end: '2026-03-31',
-        wear_types: ['NWW'],
         assigned_gd_id: 'test-gd',
         status: 'Filling',
       })
@@ -223,7 +221,6 @@ describeIf('Sprint 3-4 GD Workflow Integration', () => {
         planning_quarter: 'Q4-FY26',
         planning_period_start: '2026-01-01',
         planning_period_end: '2026-03-31',
-        wear_types: ['NWW'],
         status: 'Draft',
       })
       .select()
