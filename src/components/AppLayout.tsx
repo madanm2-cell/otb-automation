@@ -45,7 +45,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible>
         <div style={{ padding: '16px', textAlign: 'center' }}>
-          <Typography.Text strong style={{ color: '#fff' }}>OTB Platform</Typography.Text>
+          <img src="/tmrw-logo.png" alt="TMRW" style={{ height: 28, marginBottom: 4 }} />
+          <Typography.Text strong style={{ color: '#fff', fontSize: 12, display: 'block' }}>OTB Platform</Typography.Text>
         </div>
         <Menu
           theme="dark"

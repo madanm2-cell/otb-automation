@@ -225,6 +225,45 @@ function buildLookup(
   return map;
 }
 
+function normalizeMonth(raw: unknown): string {
+  if (!raw) return '';
+  if (raw instanceof Date) {
+    const y = raw.getFullYear();
+    const m = String(raw.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}-01`;
+  }
+  const s = String(raw).trim();
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // YYYY-MM
+  if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+  // DD/MM/YY (e.g. 01/04/25 → 2025-04-01)
+  const ddmmyy = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})$/);
+  if (ddmmyy) {
+    const yy = parseInt(ddmmyy[3]);
+    const yyyy = yy < 50 ? 2000 + yy : 1900 + yy;
+    const mm = String(parseInt(ddmmyy[2])).padStart(2, '0');
+    const dd = String(parseInt(ddmmyy[1])).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  // DD/MM/YYYY (e.g. 01/04/2025 → 2025-04-01)
+  const ddmmyyyy = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (ddmmyyyy) {
+    const yyyy = parseInt(ddmmyyyy[3]);
+    const mm = String(parseInt(ddmmyyyy[2])).padStart(2, '0');
+    const dd = String(parseInt(ddmmyyyy[1])).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  // Try JS Date parsing as last resort
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}-01`;
+  }
+  return s;
+}
+
 function buildMonthLookup(
   rows: Record<string, unknown>[],
   keyColumns: string[],
@@ -233,7 +272,7 @@ function buildMonthLookup(
   const map = new Map<string, number>();
   for (const row of rows) {
     const dimKey = lookupKey(keyColumns.map(c => String(row[c] || '')));
-    const month = String(row.month || '');
+    const month = normalizeMonth(row.month);
     const val = Number(row[valueColumn]);
     if (!isNaN(val)) map.set(`${dimKey}|${month}`, val);
   }

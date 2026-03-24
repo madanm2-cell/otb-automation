@@ -5,8 +5,8 @@ import { AppLayout } from "@/components/AppLayout";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OTB Automation",
-  description: "Open-To-Buy inventory planning platform",
+  title: "TMRW OTB Platform",
+  description: "TMRW Open-To-Buy inventory planning platform",
 };
 
 export default function RootLayout({

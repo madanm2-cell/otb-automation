@@ -51,7 +51,14 @@ async function parseXlsx(buffer: Buffer): Promise<Record<string, unknown>[]> {
     headers.forEach((header, idx) => {
       if (header) {
         const cell = row.getCell(idx + 1);
-        const val = cell.value;
+        let val = cell.value;
+        // Normalize Date objects to YYYY-MM-DD strings
+        if (val instanceof Date) {
+          const y = val.getFullYear();
+          const m = String(val.getMonth() + 1).padStart(2, '0');
+          const d = String(val.getDate()).padStart(2, '0');
+          val = `${y}-${m}-${d}`;
+        }
         record[header] = val;
         if (val != null && val !== '') hasData = true;
       }

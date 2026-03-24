@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs, Table, InputNumber, Button, Select, Space, message, Alert, Modal, Form, Input, Typography } from 'antd';
+import { Tabs, Table, InputNumber, Button, Select, Space, message, Alert, Modal, Form, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { Brand, DefaultType } from '@/types/otb';
+import type { Brand, SubBrand, SubCategory, Channel, DefaultType } from '@/types/otb';
 
 const { Title } = Typography;
 
@@ -42,6 +42,9 @@ export function MasterDefaultsManager() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [subBrands, setSubBrands] = useState<SubBrand[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
   const [form] = Form.useForm();
 
   // Load brands
@@ -66,6 +69,26 @@ export function MasterDefaultsManager() {
   }, [activeTab, selectedBrandId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Load dropdown options when brand is selected
+  useEffect(() => {
+    if (!selectedBrandId) {
+      setSubBrands([]);
+      setSubCategories([]);
+      setChannels([]);
+      return;
+    }
+    const base = `/api/master-data`;
+    Promise.all([
+      fetch(`${base}/sub_brands?brandId=${selectedBrandId}`).then(r => r.json()),
+      fetch(`${base}/sub_categories?brandId=${selectedBrandId}`).then(r => r.json()),
+      fetch(`${base}/channels?brandId=${selectedBrandId}`).then(r => r.json()),
+    ]).then(([sb, sc, ch]) => {
+      setSubBrands(Array.isArray(sb) ? sb : []);
+      setSubCategories(Array.isArray(sc) ? sc : []);
+      setChannels(Array.isArray(ch) ? ch : []);
+    }).catch(() => {});
+  }, [selectedBrandId]);
 
   const tabConfig = DEFAULT_TYPE_TABS.find(t => t.key === activeTab)!;
   const valueCol = VALUE_COL[activeTab];
@@ -225,15 +248,27 @@ export function MasterDefaultsManager() {
         <Form form={form} layout="vertical" onFinish={handleAdd}>
           {tabConfig.dimensions.includes('sub_brand') && (
             <Form.Item name="sub_brand" label="Sub Brand" rules={[{ required: true }]}>
-              <Input />
+              <Select
+                showSearch
+                placeholder="Select sub brand"
+                options={subBrands.map(s => ({ value: s.name, label: s.name }))}
+              />
             </Form.Item>
           )}
           <Form.Item name="sub_category" label="Sub Category" rules={[{ required: true }]}>
-            <Input />
+            <Select
+              showSearch
+              placeholder="Select sub category"
+              options={subCategories.map(s => ({ value: s.name, label: s.name }))}
+            />
           </Form.Item>
           {tabConfig.dimensions.includes('channel') && (
             <Form.Item name="channel" label="Channel" rules={[{ required: true }]}>
-              <Input />
+              <Select
+                showSearch
+                placeholder="Select channel"
+                options={channels.map(s => ({ value: s.name, label: s.name }))}
+              />
             </Form.Item>
           )}
           <Form.Item name={valueCol} label={tabConfig.label} rules={[{ required: true }]}>
