@@ -1,0 +1,41 @@
+steps:
+  # Build the Docker image with NEXT_PUBLIC_ build args
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_SUPABASE_URL=https://soypywzwjqmwwcmtcsfw.supabase.co'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_daajNFCfYE5i_GqGCrmGCQ_Z5FeeVmG'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/otb-automation:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/otb-automation:latest'
+      - '.'
+
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/otb-automation:$COMMIT_SHA']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/otb-automation:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'otb-automation'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/otb-automation:$COMMIT_SHA'
+      - '--region'
+      - 'asia-south1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '3000'
+
+images:
+  - 'gcr.io/$PROJECT_ID/otb-automation:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/otb-automation:latest'
