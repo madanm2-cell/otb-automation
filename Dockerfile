@@ -12,6 +12,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Dummy values so Next.js can prerender pages at build time.
+# Real values are provided via Cloud Run environment variables at runtime.
+ENV NEXT_PUBLIC_SUPABASE_URL=http://placeholder.supabase.co
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key
 RUN npm run build
 
 # Production image
