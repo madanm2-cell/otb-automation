@@ -4,6 +4,7 @@ import { Layout, Menu, Dropdown, Button, Spin, Typography } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
   UserOutlined, SettingOutlined, AuditOutlined, LogoutOutlined,
+  CheckSquareOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
@@ -29,6 +30,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { key: '/cycles', icon: <TableOutlined />, label: 'OTB Cycles' },
   ];
 
+  if (hasPermission(role, 'approve_otb')) {
+    menuItems.push({ key: '/approvals', icon: <CheckSquareOutlined />, label: 'Approvals' });
+  }
+  if (hasPermission(role, 'view_cross_brand_summary')) {
+    menuItems.push({ key: '/summary', icon: <BarChartOutlined />, label: 'Cross-Brand Summary' });
+  }
   if (hasPermission(role, 'manage_users')) {
     menuItems.push({ key: '/admin/users', icon: <UserOutlined />, label: 'User Management' });
   }

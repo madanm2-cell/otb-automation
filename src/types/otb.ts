@@ -264,3 +264,42 @@ export interface UserProfile {
   created_at: string;
   updated_at: string;
 }
+
+// === Approval Workflow Types ===
+
+export type ApproverRole = 'Planning' | 'GD' | 'Finance' | 'CXO';
+
+export type ApprovalStatus = 'Pending' | 'Approved' | 'RevisionRequested';
+
+export interface ApprovalRecord {
+  id?: string;
+  cycle_id: string;
+  role: ApproverRole;
+  user_id: string | null;
+  status: ApprovalStatus;
+  comment: string | null;
+  decided_at: string | null;
+  created_at?: string;
+  updated_at?: string;
+  // Joined
+  user_name?: string;
+}
+
+export type CommentType = 'brand' | 'metric' | 'general';
+
+export interface OtbComment {
+  id: string;
+  cycle_id: string;
+  parent_id: string | null;
+  comment_type: CommentType;
+  row_id: string | null;
+  month: string | null;
+  field: string | null;
+  text: string;
+  author_id: string;
+  author_name: string;
+  author_role: string;
+  created_at: string;
+  // Client-side
+  replies?: OtbComment[];
+}

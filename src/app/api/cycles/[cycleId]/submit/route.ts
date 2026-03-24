@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
+import { APPROVER_ROLES } from '@/lib/approvalEngine';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
@@ -67,6 +68,21 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Initialize approval tracking rows (use admin client — RLS blocks direct inserts)
+  const adminClient = createAdminClient();
+  const approvalRows = APPROVER_ROLES.map(role => ({
+    cycle_id: cycleId,
+    role,
+    status: 'Pending',
+    user_id: null,
+    comment: null,
+    decided_at: null,
+  }));
+
+  await adminClient
+    .from('approval_tracking')
+    .upsert(approvalRows, { onConflict: 'cycle_id,role' });
 
   await logAudit({
     entityType: 'cycle',

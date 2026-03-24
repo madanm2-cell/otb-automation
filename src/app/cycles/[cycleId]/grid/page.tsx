@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Spin, Typography, Button, Space, Tag, Modal, message } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import OtbGrid from '@/components/OtbGrid';
 import BulkEditModal from '@/components/BulkEditModal';
 import ImportGdModal from '@/components/ImportGdModal';
+import { ApprovalPanel } from '@/components/ApprovalPanel';
+import { CommentsPanel } from '@/components/CommentsPanel';
 import { useFormulaEngine } from '@/hooks/useFormulaEngine';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
@@ -29,6 +31,7 @@ export default function GridPage() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const { applyChange } = useFormulaEngine();
 
@@ -53,6 +56,8 @@ export default function GridPage() {
     || (profile.role === 'GD' && profile.assigned_brands?.includes(cycle.brand_id))
   );
   const canSubmit = profile?.role === 'GD' || profile?.role === 'Admin';
+  const showApprovalPanel = cycle?.status === 'InReview' || cycle?.status === 'Approved';
+  const canExport = profile != null && hasPermission(profile.role, 'export_otb');
 
   // Undo/redo: apply a value change (from undo/redo stack)
   const handleUndoRedoApply = useCallback((rowId: string, month: string, field: string, value: number | null) => {
@@ -190,6 +195,18 @@ export default function GridPage() {
           <span style={{ color: '#999', fontSize: 13 }}>
             {rows.length} rows × {months.length} months
           </span>
+          {canExport && (
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              href={`/api/cycles/${cycleId}/export`}
+            >
+              Export
+            </Button>
+          )}
+          <Button size="small" icon={<CommentOutlined />} onClick={() => setCommentsOpen(true)}>
+            Comments
+          </Button>
           {isEditable && (
             <>
               <Button size="small" icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>Import Excel</Button>
@@ -226,6 +243,13 @@ export default function GridPage() {
           )}
         </Space>
       </div>
+      {showApprovalPanel && cycle && (
+        <ApprovalPanel
+          cycleId={cycleId}
+          cycleStatus={cycle.status}
+          onStatusChange={(newStatus) => setCycle(prev => prev ? { ...prev, status: newStatus as any } : prev)}
+        />
+      )}
       <OtbGrid
         rows={rows}
         months={months}
@@ -251,6 +275,11 @@ export default function GridPage() {
           />
         </>
       )}
+      <CommentsPanel
+        cycleId={cycleId}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+      />
     </div>
   );
 }
