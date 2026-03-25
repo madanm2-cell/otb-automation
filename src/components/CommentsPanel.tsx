@@ -143,7 +143,7 @@ function CommentItem({
   );
 }
 
-export default function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
+export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
   const { profile } = useAuth();
   const [comments, setComments] = useState<OtbComment[]>([]);
   const [loading, setLoading] = useState(false);

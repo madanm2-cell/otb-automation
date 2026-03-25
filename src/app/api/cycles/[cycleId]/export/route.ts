@@ -99,7 +99,7 @@ export const GET = withAuth('export_otb', async (req, auth, { params }: Params) 
   const brandName = ((cycle.brands as any)?.name || 'export').replace(/[^a-zA-Z0-9]/g, '_');
   const filename = `OTB_${brandName}_${cycle.planning_quarter}.xlsx`;
 
-  return new NextResponse(buffer as Buffer, {
+  return new NextResponse(new Uint8Array(buffer as ArrayBuffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,
