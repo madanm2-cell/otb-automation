@@ -140,6 +140,27 @@ export const GET = withAuth('export_otb', async (req, auth, { params }: Params) 
     });
   }
 
+  if (format === 'pdf') {
+    const { buildPlanPdf } = await import('@/lib/pdfExport');
+    const doc = buildPlanPdf({
+      cycleName: cycle.cycle_name,
+      brandName: (cycle.brands as any)?.name || 'Unknown',
+      planningQuarter: cycle.planning_quarter,
+      months: sortedMonths,
+      rows: formattedRows,
+    });
+    const pdfBuffer = doc.output('arraybuffer');
+    const brandName = ((cycle.brands as any)?.name || 'export').replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `OTB_${brandName}_${cycle.planning_quarter}.pdf`;
+
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    });
+  }
+
   // Build workbook
   const workbook = await buildOtbWorkbook(
     {
