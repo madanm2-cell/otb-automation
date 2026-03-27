@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Spin, Typography, Button, Space, Tag, Modal, message } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined } from '@ant-design/icons';
+import { Spin, Typography, Button, Space, Tag, Modal, message, Popconfirm, Collapse, List } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined, HistoryOutlined, RollbackOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import OtbGrid from '@/components/OtbGrid';
@@ -20,6 +20,14 @@ import type { PlanRow, OtbCycle } from '@/types/otb';
 
 const { Title } = Typography;
 
+interface VersionEntry {
+  id: string;
+  version_number: number;
+  change_summary: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export default function GridPage() {
   const { cycleId } = useParams<{ cycleId: string }>();
   const [cycle, setCycle] = useState<OtbCycle | null>(null);
@@ -32,20 +40,44 @@ export default function GridPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [reverting, setReverting] = useState(false);
 
   const { applyChange } = useFormulaEngine();
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
-      fetch(`/api/cycles/${cycleId}/plan-data`).then(r => r.json()),
-    ]).then(([cycleData, planData]) => {
+  const fetchGridData = useCallback(async () => {
+    try {
+      const [cycleData, planData] = await Promise.all([
+        fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
+        fetch(`/api/cycles/${cycleId}/plan-data`).then(r => r.json()),
+      ]);
       setCycle(cycleData);
       setRows(planData.rows || []);
       setMonths(planData.months || []);
+      setDirtyRows(new Set());
+    } catch {
+      // ignore
+    } finally {
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }
   }, [cycleId]);
+
+  const fetchVersions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/cycles/${cycleId}/versions`);
+      if (res.ok) {
+        const data = await res.json();
+        setVersions(data);
+      }
+    } catch {
+      // ignore
+    }
+  }, [cycleId]);
+
+  useEffect(() => {
+    fetchGridData();
+    fetchVersions();
+  }, [fetchGridData, fetchVersions]);
 
   const { profile } = useAuth();
   const lockedMonths = useMemo(() => getLockedMonths(months), [months]);
@@ -164,6 +196,31 @@ export default function GridPage() {
     });
   }, [cycleId, dirtyRows.size, handleSave]);
 
+  const handleRevert = useCallback(async (versionNumber: number) => {
+    setReverting(true);
+    try {
+      const res = await fetch(`/api/cycles/${cycleId}/versions/revert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version_number: versionNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        message.error(data.error || 'Revert failed');
+        return;
+      }
+      message.success(`Successfully reverted to version ${versionNumber}`);
+      await fetchGridData();
+      await fetchVersions();
+    } catch {
+      message.error('Network error during revert');
+    } finally {
+      setReverting(false);
+    }
+  }, [cycleId, fetchGridData, fetchVersions]);
+
+  const isRevertDisabled = cycle?.status === 'Approved' || cycle?.status === 'InReview';
+
   // Auto-save every 30s when dirty (with 2s debounce)
   useAutoSave({
     dirtyCount: dirtyRows.size,
@@ -248,6 +305,63 @@ export default function GridPage() {
           cycleId={cycleId}
           cycleStatus={cycle.status}
           onStatusChange={(newStatus) => setCycle(prev => prev ? { ...prev, status: newStatus as any } : prev)}
+        />
+      )}
+      {versions.length > 0 && (
+        <Collapse
+          size="small"
+          style={{ marginBottom: 16 }}
+          items={[{
+            key: 'version-history',
+            label: (
+              <Space>
+                <HistoryOutlined />
+                Version History ({versions.length})
+              </Space>
+            ),
+            children: (
+              <List
+                size="small"
+                dataSource={versions}
+                renderItem={(v) => (
+                  <List.Item
+                    actions={[
+                      <Popconfirm
+                        key="revert"
+                        title={`Revert to version ${v.version_number}`}
+                        description={`Are you sure you want to revert to version ${v.version_number}? This will replace all current plan data.`}
+                        onConfirm={() => handleRevert(v.version_number)}
+                        okText="Revert"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button
+                          size="small"
+                          icon={<RollbackOutlined />}
+                          disabled={isRevertDisabled || reverting}
+                          loading={reverting}
+                        >
+                          Revert
+                        </Button>
+                      </Popconfirm>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={`Version ${v.version_number}`}
+                      description={
+                        <Space size="middle">
+                          {v.change_summary && <span>{v.change_summary}</span>}
+                          <span style={{ color: '#999', fontSize: 12 }}>
+                            {new Date(v.created_at).toLocaleString()}
+                          </span>
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            ),
+          }]}
         />
       )}
       <OtbGrid
