@@ -38,6 +38,13 @@ export const FILE_SCHEMAS: Record<FileType, FileSchema> = {
     numericColumns: ['nsq'],
     percentColumns: [],
   },
+  actuals: {
+    fileType: 'actuals',
+    requiredColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month', 'actual_nsq', 'actual_inwards_qty'],
+    dimensionColumns: ['sub_brand', 'sub_category', 'gender', 'channel', 'month'],
+    numericColumns: ['actual_nsq', 'actual_inwards_qty'],
+    percentColumns: [],
+  },
 };
 
 export interface MasterDataContext {

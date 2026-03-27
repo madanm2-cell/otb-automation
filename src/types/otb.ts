@@ -129,7 +129,8 @@ export interface OtbCycle {
 export type FileType =
   | 'opening_stock'
   | 'ly_sales' | 'recent_sales'
-  | 'soft_forecast';
+  | 'soft_forecast'
+  | 'actuals';
 
 export const REQUIRED_FILE_TYPES: FileType[] = [
   'opening_stock', 'ly_sales', 'recent_sales',
@@ -138,6 +139,7 @@ export const REQUIRED_FILE_TYPES: FileType[] = [
 export const ALL_FILE_TYPES: FileType[] = [
   ...REQUIRED_FILE_TYPES,
   'soft_forecast',
+  'actuals',
 ];
 
 export const FILE_TYPE_LABELS: Record<FileType, string> = {
@@ -145,6 +147,7 @@ export const FILE_TYPE_LABELS: Record<FileType, string> = {
   ly_sales: 'LY Sales',
   recent_sales: 'Recent Sales (3M)',
   soft_forecast: 'Soft Forecast (Optional)',
+  actuals: 'Actuals (NSQ + Inwards)',
 };
 
 export interface FileUpload {

@@ -96,3 +96,31 @@ describe('Upload Validator (V-001 to V-007)', () => {
     expect(result.errors).toHaveLength(0);
   });
 });
+
+describe('actuals validation', () => {
+  const actMasterData: MasterDataContext = {
+    subBrands: new Set(['bewakoof']),
+    subCategories: new Set(['t-shirts']),
+    channels: new Set(['myntra_sor']),
+    genders: new Set(['male']),
+    mappings: new Map(),
+  };
+
+  it('validates valid actuals rows', () => {
+    const rows = [
+      { sub_brand: 'bewakoof', sub_category: 't-shirts', gender: 'male', channel: 'myntra_sor', month: '2026-01-01', actual_nsq: '100', actual_inwards_qty: '50' },
+    ];
+    const result = validateUpload('actuals', rows, actMasterData);
+    expect(result.valid).toBe(true);
+    expect(result.normalizedRows).toHaveLength(1);
+  });
+
+  it('rejects negative actual_nsq', () => {
+    const rows = [
+      { sub_brand: 'bewakoof', sub_category: 't-shirts', gender: 'male', channel: 'myntra_sor', month: '2026-01-01', actual_nsq: '-5', actual_inwards_qty: '50' },
+    ];
+    const result = validateUpload('actuals', rows, actMasterData);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0].rule).toBe('V-001');
+  });
+});
