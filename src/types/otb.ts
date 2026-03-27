@@ -303,3 +303,83 @@ export interface OtbComment {
   // Client-side
   replies?: OtbComment[];
 }
+
+// === Actuals & Variance Types ===
+
+export interface ActualsRow {
+  id: string;
+  cycle_id: string;
+  sub_brand: string;
+  wear_type: string;
+  sub_category: string;
+  gender: string;
+  channel: string;
+  month: string;
+  actual_nsq: number;
+  actual_inwards_qty: number;
+  // Recalculated from actuals
+  actual_gmv: number | null;
+  actual_nsv: number | null;
+  actual_closing_stock_qty: number | null;
+  actual_doh: number | null;
+  actual_gm_pct: number | null;
+  actual_cm1: number | null;
+  actual_cm2: number | null;
+  uploaded_at: string;
+  uploaded_by: string;
+}
+
+export type VarianceLevel = 'green' | 'yellow' | 'red';
+
+export interface VarianceMetric {
+  metric: string;
+  planned: number | null;
+  actual: number | null;
+  variance_pct: number | null;
+  level: VarianceLevel;
+}
+
+export interface VarianceRow {
+  sub_brand: string;
+  wear_type: string;
+  sub_category: string;
+  gender: string;
+  channel: string;
+  month: string;
+  nsq: VarianceMetric;
+  gmv: VarianceMetric;
+  inwards: VarianceMetric;
+  closing_stock: VarianceMetric;
+}
+
+export interface VarianceThresholds {
+  nsq_pct: number;          // ±15%
+  gmv_pct: number;          // ±15%
+  inwards_pct: number;      // ±20%
+  closing_stock_pct: number; // ±25%
+}
+
+export const DEFAULT_VARIANCE_THRESHOLDS: VarianceThresholds = {
+  nsq_pct: 15,
+  gmv_pct: 15,
+  inwards_pct: 20,
+  closing_stock_pct: 25,
+};
+
+export interface VarianceReportData {
+  cycle_id: string;
+  cycle_name: string;
+  brand_name: string;
+  planning_quarter: string;
+  months: string[];
+  rows: VarianceRow[];
+  summary: VarianceSummary;
+}
+
+export interface VarianceSummary {
+  total_rows: number;
+  red_count: number;
+  yellow_count: number;
+  green_count: number;
+  top_variances: VarianceRow[]; // Top 10 by magnitude
+}
