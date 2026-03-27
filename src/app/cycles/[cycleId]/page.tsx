@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin, Select } from 'antd';
-import { UploadOutlined, TableOutlined, UserAddOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { UploadOutlined, TableOutlined, UserAddOutlined, CheckCircleOutlined, BarChartOutlined } from '@ant-design/icons';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
 import type { OtbCycle, FileUpload, UserProfile } from '@/types/otb';
@@ -28,10 +28,13 @@ export default function CycleDetailPage() {
   const [gdUsers, setGdUsers] = useState<UserProfile[]>([]);
   const [selectedGdId, setSelectedGdId] = useState<string | null>(null);
   const [assigningGd, setAssigningGd] = useState(false);
+  const router = useRouter();
   const { profile } = useAuth();
   const canManageCycle = profile ? hasPermission(profile.role, 'create_cycle') : false;
   const canUpload = profile ? hasPermission(profile.role, 'upload_data') : false;
   const canAssignGd = profile ? hasPermission(profile.role, 'assign_gd') : false;
+  const canUploadActuals = profile ? hasPermission(profile.role, 'upload_actuals') : false;
+  const canViewVariance = profile ? hasPermission(profile.role, 'view_variance') : false;
 
   useEffect(() => {
     const fetches: Promise<any>[] = [
@@ -252,6 +255,24 @@ export default function CycleDetailPage() {
               Open OTB Grid
             </Button>
           </Link>
+        )}
+        {cycle.status === 'Approved' && canUploadActuals && (
+          <Button
+            size="large"
+            icon={<UploadOutlined />}
+            onClick={() => router.push(`/cycles/${cycleId}/actuals`)}
+          >
+            Upload Actuals
+          </Button>
+        )}
+        {cycle.status === 'Approved' && canViewVariance && (
+          <Button
+            size="large"
+            icon={<BarChartOutlined />}
+            onClick={() => router.push(`/cycles/${cycleId}/variance`)}
+          >
+            View Variance Report
+          </Button>
         )}
       </Space>
 
