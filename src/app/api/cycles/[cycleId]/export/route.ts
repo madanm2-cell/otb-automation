@@ -7,7 +7,7 @@ import type { ApprovalRecord } from '@/types/otb';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
-// GET /api/cycles/:cycleId/export — download OTB plan as Excel
+// GET /api/cycles/:cycleId/export — download OTB plan as Excel or CSV (?format=csv)
 export const GET = withAuth('export_otb', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
   const supabase = await createServerClient();
@@ -80,6 +80,65 @@ export const GET = withAuth('export_otb', async (req, auth, { params }: Params) 
     .select('*')
     .eq('cycle_id', cycleId)
     .order('created_at', { ascending: true });
+
+  // Check requested format
+  const format = req.nextUrl.searchParams.get('format')?.toLowerCase();
+
+  if (format === 'csv') {
+    // Build CSV from the same data
+    const METRICS = ['NSQ', 'ASP', 'GMV', 'NSV', 'COGS', 'GM%', 'Inwards Qty', 'DoH'] as const;
+
+    const escapeCSV = (val: any): string => {
+      if (val == null) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Header row
+    const headers: string[] = ['Sub Brand', 'Wear Type', 'Sub Category', 'Gender', 'Channel'];
+    for (const month of sortedMonths) {
+      const d = new Date(month);
+      const label = d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+      for (const metric of METRICS) {
+        headers.push(`${label} - ${metric}`);
+      }
+    }
+
+    const csvLines: string[] = [headers.map(escapeCSV).join(',')];
+
+    // Data rows
+    for (const row of formattedRows) {
+      const cells: any[] = [
+        row.sub_brand, row.wear_type, row.sub_category, row.gender, row.channel,
+      ];
+      for (const month of sortedMonths) {
+        const md = row.months[month];
+        if (md) {
+          cells.push(
+            md.nsq, md.asp, md.sales_plan_gmv, md.nsv,
+            md.cogs, md.gm_pct, md.inwards_qty, md.fwd_30day_doh,
+          );
+        } else {
+          cells.push(null, null, null, null, null, null, null, null);
+        }
+      }
+      csvLines.push(cells.map(escapeCSV).join(','));
+    }
+
+    const csvString = csvLines.join('\n');
+    const brandName = ((cycle.brands as any)?.name || 'export').replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `OTB_${brandName}_${cycle.planning_quarter}.csv`;
+
+    return new NextResponse(csvString, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    });
+  }
 
   // Build workbook
   const workbook = await buildOtbWorkbook(
