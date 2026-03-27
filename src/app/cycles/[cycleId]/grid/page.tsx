@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Spin, Typography, Button, Space, Tag, Modal, message, Popconfirm, Collapse, List } from 'antd';
+import { Spin, Typography, Button, Space, Tag, Modal, message, Popconfirm, Collapse, List, Dropdown } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined, HistoryOutlined, RollbackOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -253,13 +253,19 @@ export default function GridPage() {
             {rows.length} rows × {months.length} months
           </span>
           {canExport && (
-            <Button
-              size="small"
-              icon={<DownloadOutlined />}
-              href={`/api/cycles/${cycleId}/export`}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'xlsx', label: 'Export as Excel', onClick: () => window.open(`/api/cycles/${cycleId}/export?format=xlsx`, '_blank') },
+                  { key: 'csv', label: 'Export as CSV', onClick: () => window.open(`/api/cycles/${cycleId}/export?format=csv`, '_blank') },
+                  { key: 'pdf', label: 'Export as PDF', onClick: () => window.open(`/api/cycles/${cycleId}/export?format=pdf`, '_blank') },
+                ],
+              }}
             >
-              Export
-            </Button>
+              <Button size="small" icon={<DownloadOutlined />}>
+                Export
+              </Button>
+            </Dropdown>
           )}
           <Button size="small" icon={<CommentOutlined />} onClick={() => setCommentsOpen(true)}>
             Comments
