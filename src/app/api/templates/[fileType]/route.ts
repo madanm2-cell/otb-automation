@@ -22,6 +22,10 @@ const SAMPLE_DATA: Record<FileType, Record<string, unknown>[]> = {
     { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', nsq: 1100 },
     { sub_brand: 'bewakoof air', sub_category: 'Jeans', gender: 'Female', nsq: 750 },
   ],
+  actuals: [
+    { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2026-01-01', actual_nsq: 1050, actual_inwards_qty: 500 },
+    { sub_brand: 'bewakoof air', sub_category: 'Jeans', gender: 'Female', channel: 'flipkart_sor', month: '2026-01-01', actual_nsq: 780, actual_inwards_qty: 400 },
+  ],
 };
 
 // GET /api/templates/:fileType — download sample CSV
