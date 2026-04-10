@@ -6,12 +6,6 @@ const masterData: MasterDataContext = {
   subCategories: new Set(['t-shirts', 'jeans', 'hoodies']),
   channels: new Set(['amazon_cocoblu', 'flipkart_sor', 'myntra_sor', 'offline', 'others']),
   genders: new Set(['male', 'female', 'unisex']),
-  mappings: new Map([
-    ['sub_brand:bob', 'bewakoof'],
-    ['sub_brand:BOB', 'bewakoof'],
-    ['channel:unicommerce', 'others'],
-    ['channel:website', 'others'],
-  ]),
 };
 
 describe('Upload Validator (V-001 to V-007)', () => {
@@ -33,14 +27,16 @@ describe('Upload Validator (V-001 to V-007)', () => {
     expect(result.errors.some(e => e.rule === 'V-001')).toBe(true);
   });
 
-  it('V-003: unknown sub_brand fails, but mapping resolves it', () => {
-    // "bob" should map to "bewakoof" via ly_sales (still an upload type)
+  it('V-003: unknown sub_brand fails with valid values in message', () => {
     const rows = [
       { sub_brand: 'bob', sub_category: 'T-Shirts', gender: 'Male', channel: 'myntra_sor', month: '2025-01-01', nsq: 100 },
     ];
     const result = validateUpload('ly_sales', rows, masterData);
-    expect(result.valid).toBe(true);
-    expect(result.normalizedRows[0].sub_brand).toBe('bewakoof');
+    expect(result.valid).toBe(false);
+    const err = result.errors.find(e => e.rule === 'V-003' && e.field === 'sub_brand');
+    expect(err).toBeDefined();
+    expect(err!.message).toContain('Valid values:');
+    expect(err!.message).toContain('bewakoof');
   });
 
   it('V-003: truly unknown sub_brand fails', () => {
@@ -78,13 +74,16 @@ describe('Upload Validator (V-001 to V-007)', () => {
     expect(result.errors.some(e => e.rule === 'V-007')).toBe(true);
   });
 
-  it('channel mapping: unicommerce → others (recent_sales)', () => {
+  it('V-003: unknown channel fails with valid values in message', () => {
     const rows = [
       { sub_brand: 'bewakoof', sub_category: 'T-Shirts', gender: 'Male', channel: 'unicommerce', month: '2025-10-01', nsq: 100 },
     ];
     const result = validateUpload('recent_sales', rows, masterData);
-    expect(result.valid).toBe(true);
-    expect(result.normalizedRows[0].channel).toBe('others');
+    expect(result.valid).toBe(false);
+    const err = result.errors.find(e => e.rule === 'V-003' && e.field === 'channel');
+    expect(err).toBeDefined();
+    expect(err!.message).toContain('Valid values:');
+    expect(err!.message).toContain('myntra_sor');
   });
 
   it('valid soft_forecast passes', () => {
@@ -103,7 +102,6 @@ describe('actuals validation', () => {
     subCategories: new Set(['t-shirts']),
     channels: new Set(['myntra_sor']),
     genders: new Set(['male']),
-    mappings: new Map(),
   };
 
   it('validates valid actuals rows', () => {

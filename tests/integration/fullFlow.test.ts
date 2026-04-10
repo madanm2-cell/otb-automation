@@ -36,10 +36,6 @@ describeIf('Sprint 1-2 Full Flow Integration', () => {
     subCategories: new Set(['t-shirts', 'jeans', 'hoodies', 'joggers', 'shorts', 'shirts', 'trousers', 'jackets', 'sweatshirts', 'pyjamas']),
     channels: new Set(['amazon_cocoblu', 'flipkart_sor', 'myntra_sor', 'offline', 'others']),
     genders: new Set(['male', 'female', 'unisex']),
-    mappings: new Map([
-      ['sub_brand:bob', 'bewakoof'],
-      ['channel:unicommerce', 'others'],
-    ]),
   };
 
   beforeAll(async () => {

@@ -257,24 +257,17 @@ async function loadMasterData(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
   brandId: string
 ): Promise<MasterDataContext> {
-  const [subBrandsRes, subCatsRes, channelsRes, gendersRes, mappingsRes] = await Promise.all([
+  const [subBrandsRes, subCatsRes, channelsRes, gendersRes] = await Promise.all([
     supabase.from('sub_brands').select('name').eq('brand_id', brandId),
     supabase.from('sub_categories').select('name').eq('brand_id', brandId),
     supabase.from('channels').select('name').eq('brand_id', brandId),
     supabase.from('genders').select('name').eq('brand_id', brandId),
-    supabase.from('master_mappings').select('*').or(`brand_id.eq.${brandId},brand_id.is.null`),
   ]);
-
-  const mappings = new Map<string, string>();
-  for (const m of mappingsRes.data || []) {
-    mappings.set(`${m.mapping_type}:${m.raw_value.toLowerCase()}`, m.standard_value.toLowerCase());
-  }
 
   return {
     subBrands: new Set((subBrandsRes.data || []).map(r => r.name.toLowerCase())),
     subCategories: new Set((subCatsRes.data || []).map(r => r.name.toLowerCase())),
     channels: new Set((channelsRes.data || []).map(r => r.name.toLowerCase())),
     genders: new Set((gendersRes.data || []).map(r => r.name.toLowerCase())),
-    mappings,
   };
 }

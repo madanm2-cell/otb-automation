@@ -52,7 +52,6 @@ export interface MasterDataContext {
   subCategories: Set<string>;
   channels: Set<string>;
   genders: Set<string>;
-  mappings: Map<string, string>;  // key: "type:rawValue" → standardValue
 }
 
 export interface ValidateResult {
@@ -64,11 +63,6 @@ export interface ValidateResult {
 function normalizeValue(value: unknown): string {
   if (value == null) return '';
   return String(value).trim().toLowerCase();
-}
-
-function applyMapping(mappings: Map<string, string>, type: string, raw: string): string {
-  const key = `${type}:${raw.toLowerCase()}`;
-  return mappings.get(key) ?? raw;
 }
 
 export function validateUpload(
@@ -109,30 +103,30 @@ export function validateUpload(
     for (const col of schema.requiredColumns) {
       let val = normalizeValue(row[col]);
 
-      // Apply master data mappings for dimension columns
+      // V-003: Validate dimension columns against master data
       if (col === 'sub_brand') {
-        val = applyMapping(masterData.mappings, 'sub_brand', val);
         normalizedRow[col] = val;
-        // V-003: Check against master data
         if (!masterData.subBrands.has(val)) {
-          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown sub_brand: "${val}"` });
+          const valid = [...masterData.subBrands].join(', ');
+          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown sub_brand: "${val}". Valid values: ${valid}` });
         }
       } else if (col === 'sub_category') {
-        val = applyMapping(masterData.mappings, 'sub_category', val);
         normalizedRow[col] = val;
         if (!masterData.subCategories.has(val)) {
-          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown sub_category: "${val}"` });
+          const valid = [...masterData.subCategories].join(', ');
+          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown sub_category: "${val}". Valid values: ${valid}` });
         }
       } else if (col === 'channel') {
-        val = applyMapping(masterData.mappings, 'channel', val);
         normalizedRow[col] = val;
         if (!masterData.channels.has(val)) {
-          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown channel: "${val}"` });
+          const valid = [...masterData.channels].join(', ');
+          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown channel: "${val}". Valid values: ${valid}` });
         }
       } else if (col === 'gender') {
         normalizedRow[col] = val;
         if (!masterData.genders.has(val)) {
-          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown gender: "${val}"` });
+          const valid = [...masterData.genders].join(', ');
+          errors.push({ row: rowNum, field: col, rule: 'V-003', message: `Unknown gender: "${val}". Valid values: ${valid}` });
         }
       } else {
         // Numeric or other columns
