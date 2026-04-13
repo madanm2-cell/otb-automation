@@ -313,8 +313,8 @@ export function BrandPanel({
           <InlineMetric label="NSV" value={formatCrore(brand.nsv)} />
           <InlineMetric label="NSQ" value={formatQty(brand.nsq)} />
           <InlineMetric label="Inwards" value={formatQty(brand.inwards_qty)} />
-          <InlineMetric label="DoH" value={String(Math.round(brand.avg_doh))} />
           <InlineMetric label="Closing Stock" value={formatQty(brand.closing_stock_qty)} />
+          <InlineMetric label="DoH" value={String(Math.round(brand.avg_doh))} />
         </div>
       </div>
 
