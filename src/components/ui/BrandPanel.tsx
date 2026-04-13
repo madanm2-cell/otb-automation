@@ -232,15 +232,15 @@ function ZoneActions({
 
 // --- Main Component ---
 
-export function BrandPanel({
-  brand,
-  zone,
-  variance,
-  onLoadVariance,
-  onApprove,
-  onRequestRevision,
-  approvalProgress,
-}: BrandPanelProps) {
+export function BrandPanel(props: BrandPanelProps) {
+  const {
+    brand,
+    zone,
+    onLoadVariance,
+    onApprove,
+    onRequestRevision,
+    approvalProgress,
+  } = props;
   const [expanded, setExpanded] = useState(false);
   const varianceLoadedRef = useRef(false);
 

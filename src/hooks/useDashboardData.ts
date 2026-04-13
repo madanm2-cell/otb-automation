@@ -108,28 +108,25 @@ export function useDashboardData() {
 
   // Lazy-load variance for a specific cycle
   const loadVariance = useCallback(async (cycleId: string) => {
-    // Check current cache via setState to avoid stale closure
     setData(prev => {
       if (prev.varianceCache[cycleId]) return prev; // already cached
-      // Trigger the fetch outside setState
-      fetchVariance(cycleId);
+
+      // Fetch variance data asynchronously
+      fetch(`/api/cycles/${cycleId}/variance`)
+        .then(res => res.ok ? res.json() : null)
+        .then((variance: VarianceReportData | null) => {
+          if (variance) {
+            setData(inner => ({
+              ...inner,
+              varianceCache: { ...inner.varianceCache, [cycleId]: variance },
+            }));
+          }
+        })
+        .catch(() => { /* variance zone shows "no actuals" message */ });
+
       return prev;
     });
   }, []);
-
-  const fetchVariance = async (cycleId: string) => {
-    try {
-      const res = await fetch(`/api/cycles/${cycleId}/variance`);
-      if (!res.ok) return;
-      const variance = await res.json() as VarianceReportData;
-      setData(prev => ({
-        ...prev,
-        varianceCache: { ...prev.varianceCache, [cycleId]: variance },
-      }));
-    } catch {
-      // Silently fail — variance zone shows "no actuals" message
-    }
-  };
 
   useEffect(() => {
     fetchData();

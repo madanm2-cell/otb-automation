@@ -63,7 +63,7 @@ export const GET = withAuth('view_cross_brand_summary', async (req, auth) => {
   }
 
   // 3. Fetch plan data
-  let planData: any[] = [];
+  let planData: Record<string, unknown>[] = [];
   if (rowIds.length > 0) {
     const { data } = await supabase
       .from('otb_plan_data')
@@ -77,7 +77,7 @@ export const GET = withAuth('view_cross_brand_summary', async (req, auth) => {
   for (const c of cycles) {
     cycleToBrand[c.id] = {
       brand_id: c.brand_id,
-      brand_name: (c.brands as any)?.name || 'Unknown',
+      brand_name: (c.brands as { name?: string } | null)?.name || 'Unknown',
       cycle_id: c.id,
       cycle_name: c.cycle_name,
       status: c.status,
