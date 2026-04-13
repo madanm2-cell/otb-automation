@@ -386,3 +386,56 @@ export interface VarianceSummary {
   green_count: number;
   top_variances: VarianceRow[]; // Top 10 by magnitude
 }
+
+// === Enhanced Dashboard Types ===
+
+export interface BrandMonthBreakdown {
+  month: string;
+  gmv: number;
+  nsv: number;
+  nsq: number;
+  inwards_qty: number;
+  closing_stock_qty: number;
+  avg_doh: number;
+}
+
+export interface CategoryBreakdown {
+  sub_category: string;
+  gmv: number;
+  nsq: number;
+  pct_of_total: number; // percentage of brand total GMV
+}
+
+export interface EnhancedBrandSummary {
+  brand_id: string;
+  brand_name: string;
+  cycle_id: string;
+  cycle_name: string;
+  status: string;
+  planning_quarter: string;
+  // Aggregate metrics
+  gmv: number;
+  nsv: number;
+  nsq: number;
+  inwards_qty: number;
+  avg_doh: number;
+  closing_stock_qty: number;
+  // Breakdowns
+  monthly: BrandMonthBreakdown[];
+  top_categories: CategoryBreakdown[];
+}
+
+export interface DashboardKpiTotals {
+  gmv: number;
+  nsv: number;
+  nsq: number;
+  inwards_qty: number;
+  avg_doh: number;
+  closing_stock_qty: number;
+}
+
+export interface DashboardSummaryResponse {
+  kpiTotals: DashboardKpiTotals;
+  brands: EnhancedBrandSummary[];
+  months: string[];
+}
