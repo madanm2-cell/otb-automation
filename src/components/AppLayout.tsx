@@ -1,17 +1,28 @@
 'use client';
 
-import { Layout, Menu, Dropdown, Button, Spin, Typography } from 'antd';
+import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
   UserOutlined, SettingOutlined, AuditOutlined, LogoutOutlined,
-  CheckSquareOutlined, BarChartOutlined,
+  CheckSquareOutlined, DatabaseOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
 import { useRouter, usePathname } from 'next/navigation';
+import { COLORS, SHADOWS, SPACING } from '@/lib/designTokens';
 import type { MenuProps } from 'antd';
 
 const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, loading, signOut } = useAuth();
@@ -19,40 +30,84 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><Spin size="large" /></div>;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: COLORS.background }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   if (!profile) return <>{children}</>;
 
   const role = profile.role;
-  const menuItems: MenuProps['items'] = [
+
+  // Main navigation items
+  const navItems: MenuProps['items'] = [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/cycles', icon: <TableOutlined />, label: 'OTB Cycles' },
   ];
 
   if (hasPermission(role, 'approve_otb')) {
-    menuItems.push({ key: '/approvals', icon: <CheckSquareOutlined />, label: 'Approvals' });
+    navItems.push({ key: '/approvals', icon: <CheckSquareOutlined />, label: 'Approvals' });
   }
-  if (hasPermission(role, 'view_cross_brand_summary')) {
-    menuItems.push({ key: '/summary', icon: <BarChartOutlined />, label: 'Cross-Brand Summary' });
-  }
+  // Admin section
+  const adminItems: MenuProps['items'] = [];
   if (hasPermission(role, 'manage_users')) {
-    menuItems.push({ key: '/admin/users', icon: <UserOutlined />, label: 'User Management' });
+    adminItems.push({ key: '/admin/users', icon: <UserOutlined />, label: 'User Management' });
   }
   if (hasPermission(role, 'manage_master_data')) {
-    menuItems.push({ key: '/admin/master-data', icon: <SettingOutlined />, label: 'Master Data' });
-    menuItems.push({ key: '/admin/master-defaults', icon: <SettingOutlined />, label: 'Master Defaults' });
+    adminItems.push({ key: '/admin/master-data', icon: <DatabaseOutlined />, label: 'Master Data' });
+    adminItems.push({ key: '/admin/master-defaults', icon: <SettingOutlined />, label: 'Master Defaults' });
   }
   if (hasPermission(role, 'view_audit_logs')) {
-    menuItems.push({ key: '/admin/audit-logs', icon: <AuditOutlined />, label: 'Audit Logs' });
+    adminItems.push({ key: '/admin/audit-logs', icon: <AuditOutlined />, label: 'Audit Logs' });
   }
+
+  const menuItems: MenuProps['items'] = [
+    ...navItems,
+    ...(adminItems.length > 0
+      ? [
+          { type: 'divider' as const },
+          {
+            type: 'group' as const,
+            label: (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase' as const,
+                letterSpacing: '0.5px',
+                color: 'rgba(255, 255, 255, 0.45)',
+                padding: '0 8px',
+              }}>
+                Administration
+              </span>
+            ),
+            children: adminItems,
+          },
+        ]
+      : []),
+  ];
+
+  const initials = getInitials(profile.full_name || profile.email);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible>
-        <div style={{ padding: '16px', textAlign: 'center' }}>
-          <img src="/tmrw-logo.png" alt="TMRW" style={{ height: 28, marginBottom: 4 }} />
-          <Typography.Text strong style={{ color: '#fff', fontSize: 12, display: 'block' }}>OTB Platform</Typography.Text>
+      <Sider
+        collapsible
+        width={240}
+        collapsedWidth={80}
+        style={{ background: COLORS.primary }}
+      >
+        <div style={{
+          padding: `${SPACING.xl}px ${SPACING.lg}px`,
+          textAlign: 'center',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          marginBottom: SPACING.sm,
+        }}>
+          <img src="/tmrw-logo.png" alt="TMRW" style={{ height: 28, marginBottom: 6 }} />
+          <Text strong style={{ color: '#fff', fontSize: 13, display: 'block', letterSpacing: '0.3px' }}>
+            OTB Platform
+          </Text>
         </div>
         <Menu
           theme="dark"
@@ -60,20 +115,42 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           selectedKeys={[pathname]}
           items={menuItems}
           onClick={({ key }) => router.push(key)}
+          style={{ background: 'transparent', borderRight: 0 }}
         />
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <Header style={{
+          background: COLORS.surface,
+          padding: `0 ${SPACING.xxl}px`,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          height: 56,
+          lineHeight: '56px',
+          borderBottom: `1px solid ${COLORS.borderLight}`,
+          boxShadow: SHADOWS.sm,
+        }}>
           <Dropdown menu={{ items: [
             { key: 'role', label: `Role: ${profile.role}`, disabled: true },
+            { type: 'divider' },
             { key: 'logout', icon: <LogoutOutlined />, label: 'Sign Out', onClick: signOut },
           ]}}>
-            <Button type="text">
-              <UserOutlined /> {profile.full_name}
+            <Button type="text" style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40 }}>
+              <Avatar
+                size={32}
+                style={{ backgroundColor: COLORS.accent, fontSize: 13, fontWeight: 600 }}
+              >
+                {initials}
+              </Avatar>
+              <span style={{ color: COLORS.textPrimary, fontWeight: 500 }}>{profile.full_name}</span>
             </Button>
           </Dropdown>
         </Header>
-        <Content style={{ margin: '24px', padding: '24px', background: '#fff', borderRadius: 8 }}>
+        <Content style={{
+          padding: `${SPACING.xl}px ${SPACING.xxl}px`,
+          background: COLORS.background,
+          minHeight: 280,
+        }}>
           {children}
         </Content>
       </Layout>
