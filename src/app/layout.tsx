@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { ConfigProvider } from "antd";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AppLayout } from "@/components/AppLayout";
+import { antdTheme } from "@/lib/antdTheme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,11 +18,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <AntdRegistry>
-          <AuthProvider>
-            <AppLayout>{children}</AppLayout>
-          </AuthProvider>
+          <ConfigProvider theme={antdTheme}>
+            <AuthProvider>
+              <AppLayout>{children}</AppLayout>
+            </AuthProvider>
+          </ConfigProvider>
         </AntdRegistry>
       </body>
     </html>

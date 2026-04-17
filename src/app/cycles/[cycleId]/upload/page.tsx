@@ -6,7 +6,7 @@ import { InboxOutlined, DownloadOutlined, ArrowLeftOutlined, CheckCircleOutlined
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import type { FileUpload, FileType, ValidationError } from '@/types/otb';
+import type { FileUpload, FileType, ValidationError, CycleStatus } from '@/types/otb';
 import { ALL_FILE_TYPES, REQUIRED_FILE_TYPES, FILE_TYPE_LABELS } from '@/types/otb';
 import ValidationReport from '@/components/ValidationReport';
 
@@ -16,16 +16,20 @@ const { Dragger } = Upload;
 export default function UploadPage() {
   const { cycleId } = useParams<{ cycleId: string }>();
   const [uploads, setUploads] = useState<FileUpload[]>([]);
+  const [cycleStatus, setCycleStatus] = useState<CycleStatus>('Draft');
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<FileType | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lastResult, setLastResult] = useState<{ valid: boolean; errors: ValidationError[]; rowCount: number } | null>(null);
 
   const loadUploads = useCallback(() => {
-    fetch(`/api/cycles/${cycleId}/upload-status`)
-      .then(r => r.json())
-      .then(data => {
-        setUploads(Array.isArray(data) ? data : []);
+    Promise.all([
+      fetch(`/api/cycles/${cycleId}/upload-status`).then(r => r.json()),
+      fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
+    ])
+      .then(([uploadsData, cycleData]) => {
+        setUploads(Array.isArray(uploadsData) ? uploadsData : []);
+        if (cycleData?.status) setCycleStatus(cycleData.status);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -90,7 +94,7 @@ export default function UploadPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 24 }}>
         {/* Left: file type cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {ALL_FILE_TYPES.map(ft => {
+          {ALL_FILE_TYPES.filter(ft => ft !== 'soft_forecast' && (ft !== 'actuals' || cycleStatus === 'Approved')).map(ft => {
             const upload = uploadsByType.get(ft);
             const isRequired = REQUIRED_FILE_TYPES.includes(ft);
             const isSelected = selectedType === ft;

@@ -5,8 +5,9 @@ import { Card, Form, Input, Button, Typography, Alert, Space } from 'antd';
 import { MailOutlined, LockOutlined } from '@ant-design/icons';
 import { createClient } from '@/lib/supabase/client';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { COLORS, SHADOWS } from '@/lib/designTokens';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -36,12 +37,29 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-      <Card style={{ width: 400 }}>
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryLight} 100%)`,
+    }}>
+      <Card style={{
+        width: 420,
+        borderRadius: 16,
+        boxShadow: SHADOWS.lg,
+        border: 'none',
+      }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Title level={3} style={{ textAlign: 'center', margin: 0 }}>
-            OTB Automation
-          </Title>
+          <div style={{ textAlign: 'center' }}>
+            <img src="/tmrw-logo.png" alt="TMRW" style={{ height: 36, marginBottom: 12 }} />
+            <Title level={3} style={{ margin: 0, color: COLORS.primary }}>
+              OTB Platform
+            </Title>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              Open-To-Buy inventory planning
+            </Text>
+          </div>
           {error && <Alert type="error" message={error} closable onClose={() => setError(null)} />}
           <Form onFinish={handleLogin} layout="vertical">
             <Form.Item name="email" rules={[{ required: true, type: 'email', message: 'Enter your email' }]}>

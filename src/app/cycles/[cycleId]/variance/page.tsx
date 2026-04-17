@@ -6,7 +6,6 @@ import { DownloadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { AppLayout } from '@/components/AppLayout';
 import { VarianceReport } from '@/components/VarianceReport';
 import type { VarianceReportData } from '@/types/otb';
 
@@ -34,49 +33,47 @@ export default function VariancePage() {
 
   return (
     <ProtectedRoute permission="view_variance">
-      <AppLayout>
-        <div style={{ padding: '16px 24px' }}>
-          {/* Navigation and Export */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Link href={`/cycles/${cycleId}`}>
-              <Button icon={<ArrowLeftOutlined />} size="small">Back to Cycle</Button>
-            </Link>
-            {data && (
-              <Space>
-                <Button
-                  icon={<DownloadOutlined />}
-                  href={`/api/cycles/${cycleId}/variance/export?format=xlsx`}
-                >
-                  Export Excel
-                </Button>
-                <Button
-                  icon={<DownloadOutlined />}
-                  href={`/api/cycles/${cycleId}/variance/export?format=pdf`}
-                >
-                  Export PDF
-                </Button>
-              </Space>
-            )}
-          </div>
-
-          {/* Content */}
-          {loading && (
-            <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+      <div style={{ padding: '16px 24px' }}>
+        {/* Navigation and Export */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Link href={`/cycles/${cycleId}`}>
+            <Button icon={<ArrowLeftOutlined />} size="small">Back to Cycle</Button>
+          </Link>
+          {data && (
+            <Space>
+              <Button
+                icon={<DownloadOutlined />}
+                href={`/api/cycles/${cycleId}/variance/export?format=xlsx`}
+              >
+                Export Excel
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                href={`/api/cycles/${cycleId}/variance/export?format=pdf`}
+              >
+                Export PDF
+              </Button>
+            </Space>
           )}
-
-          {error && (
-            <Alert
-              type="error"
-              message="Error Loading Variance Report"
-              description={error}
-              showIcon
-              style={{ maxWidth: 600, margin: '40px auto' }}
-            />
-          )}
-
-          {data && <VarianceReport data={data} />}
         </div>
-      </AppLayout>
+
+        {/* Content */}
+        {loading && (
+          <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+        )}
+
+        {error && (
+          <Alert
+            type="error"
+            message="Error Loading Variance Report"
+            description={error}
+            showIcon
+            style={{ maxWidth: 600, margin: '40px auto' }}
+          />
+        )}
+
+        {data && <VarianceReport data={data} />}
+      </div>
     </ProtectedRoute>
   );
 }

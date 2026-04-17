@@ -26,39 +26,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    async function getSession() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        setProfile(data);
-      }
-      setLoading(false);
-    }
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          setProfile(data);
-        } else {
-          setProfile(null);
+    // Fetch auth state from server API — avoids client-side Supabase auth
+    // initialization issues (the middleware already handles token refresh).
+    async function initSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+          setProfile(data.profile);
         }
+      } catch (err) {
+        console.error('[AuthProvider] initSession error:', err);
+      } finally {
+        setLoading(false);
       }
-    );
-
-    return () => subscription.unsubscribe();
+    }
+    initSession();
   }, []);
 
   async function signOut() {

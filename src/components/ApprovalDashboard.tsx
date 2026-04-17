@@ -1,9 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Table, Tag, Typography, Spin, Space, Progress } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined, EditOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Table, Tag, Typography, Space, Badge } from 'antd';
+import {
+  CheckCircleOutlined, ClockCircleOutlined, EditOutlined,
+  ExclamationCircleOutlined, FileProtectOutlined,
+} from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { StatusPipeline } from '@/components/ui/StatusPipeline';
+import type { PipelineStage } from '@/components/ui/StatusPipeline';
+import { TablePageSkeleton } from '@/components/ui/PageSkeleton';
+import { COLORS, CARD_STYLES, SPACING, STATUS_TAG_COLORS } from '@/lib/designTokens';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
@@ -26,11 +34,19 @@ interface DashboardData {
   brands: BrandSummary[];
 }
 
-const STATUS_TAG: Record<string, { color: string; icon: React.ReactNode }> = {
-  InReview: { color: 'processing', icon: <ClockCircleOutlined /> },
-  Approved: { color: 'success', icon: <CheckCircleOutlined /> },
-  Filling: { color: 'default', icon: <EditOutlined /> },
-};
+const APPROVAL_ROLES = ['Planning', 'GD', 'Finance', 'CXO'] as const;
+
+function getApprovalStages(progress: BrandSummary['approval_progress']): PipelineStage[] {
+  return APPROVAL_ROLES.map((role, i) => {
+    const isApproved = progress.approved > i;
+    const isRevision = progress.revision > 0 && !isApproved;
+    return {
+      key: role,
+      label: role,
+      status: isApproved ? 'completed' as const : isRevision ? 'error' as const : 'pending' as const,
+    };
+  });
+}
 
 export function ApprovalDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -44,7 +60,7 @@ export function ApprovalDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (loading) return <TablePageSkeleton />;
   if (!data) return <Text type="danger">Failed to load dashboard</Text>;
 
   const columns: ColumnsType<BrandSummary> = [
@@ -52,28 +68,30 @@ export function ApprovalDashboard() {
       title: 'Brand',
       dataIndex: 'brand_name',
       key: 'brand_name',
+      width: 130,
       sorter: (a, b) => a.brand_name.localeCompare(b.brand_name),
+      render: (v: string) => <Text strong>{v}</Text>,
     },
     {
       title: 'Cycle',
       dataIndex: 'cycle_name',
       key: 'cycle_name',
+      width: 180,
     },
     {
       title: 'Quarter',
       dataIndex: 'planning_quarter',
       key: 'planning_quarter',
+      width: 100,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => {
-        const cfg = STATUS_TAG[status] || STATUS_TAG.Filling;
-        return <Tag icon={cfg.icon} color={cfg.color}>{status}</Tag>;
-      },
+      width: 110,
+      render: (status: string) => <Tag color={STATUS_TAG_COLORS[status] || 'default'}>{status}</Tag>,
       filters: [
-        { text: 'InReview', value: 'InReview' },
+        { text: 'In Review', value: 'InReview' },
         { text: 'Approved', value: 'Approved' },
         { text: 'Filling', value: 'Filling' },
       ],
@@ -82,26 +100,17 @@ export function ApprovalDashboard() {
     {
       title: 'Approval Progress',
       key: 'progress',
-      render: (_, record) => {
-        const { approved, total } = record.approval_progress;
-        return (
-          <Space>
-            <Progress
-              percent={(approved / total) * 100}
-              steps={4}
-              size="small"
-              strokeColor="#52c41a"
-            />
-            <Text type="secondary">{approved}/{total}</Text>
-          </Space>
-        );
-      },
+      width: 280,
+      render: (_, record) => (
+        <StatusPipeline stages={getApprovalStages(record.approval_progress)} size="small" />
+      ),
     },
     {
       title: 'Risk',
       key: 'risk',
+      width: 100,
       render: (_, record) => {
-        if (!record.risk_level) return <Tag>OK</Tag>;
+        if (!record.risk_level) return <Tag color="success">OK</Tag>;
         return (
           <Tag
             icon={<ExclamationCircleOutlined />}
@@ -116,7 +125,8 @@ export function ApprovalDashboard() {
       title: 'Last Updated',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (d: string) => new Date(d).toLocaleDateString(),
+      width: 120,
+      render: (d: string) => new Date(d).toLocaleDateString('en-IN'),
       sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
     },
   ];
@@ -125,32 +135,44 @@ export function ApprovalDashboard() {
 
   return (
     <div>
-      <Title level={3}>Approval Dashboard</Title>
+      <Title level={3} style={{ marginBottom: SPACING.xl, color: COLORS.textPrimary }}>
+        Approval Dashboard
+      </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Text type="secondary">Total Cycles</Text>
-            <Title level={2} style={{ margin: '8px 0 0' }}>{summary.totalCycles}</Title>
-          </Card>
+      <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
+        <Col xs={24} sm={12} lg={6}>
+          <MetricCard
+            title="Total Cycles"
+            value={summary.totalCycles}
+            icon={<FileProtectOutlined />}
+            size="compact"
+          />
         </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Text type="secondary">Pending Approval</Text>
-            <Title level={2} style={{ margin: '8px 0 0', color: '#faad14' }}>{summary.pendingApproval}</Title>
-          </Card>
+        <Col xs={24} sm={12} lg={6}>
+          <MetricCard
+            title="Pending Approval"
+            value={summary.pendingApproval}
+            icon={<ClockCircleOutlined />}
+            color={COLORS.warning}
+            size="compact"
+          />
         </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Text type="secondary">Approved</Text>
-            <Title level={2} style={{ margin: '8px 0 0', color: '#52c41a' }}>{summary.approved}</Title>
-          </Card>
+        <Col xs={24} sm={12} lg={6}>
+          <MetricCard
+            title="Approved"
+            value={summary.approved}
+            icon={<CheckCircleOutlined />}
+            color={COLORS.success}
+            size="compact"
+          />
         </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Text type="secondary">Filling</Text>
-            <Title level={2} style={{ margin: '8px 0 0' }}>{summary.filling}</Title>
-          </Card>
+        <Col xs={24} sm={12} lg={6}>
+          <MetricCard
+            title="Filling"
+            value={summary.filling}
+            icon={<EditOutlined />}
+            size="compact"
+          />
         </Col>
       </Row>
 
@@ -163,6 +185,7 @@ export function ApprovalDashboard() {
           style: { cursor: 'pointer' },
         })}
         pagination={false}
+        scroll={{ x: 1000 }}
       />
     </div>
   );

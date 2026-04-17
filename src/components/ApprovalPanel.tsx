@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Button, Tag, Modal, Input, message, Typography, Space, Progress } from 'antd';
+import { Card, Row, Col, Button, Tag, Modal, Input, message, Typography, Space } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { StatusPipeline } from '@/components/ui/StatusPipeline';
+import type { PipelineStage } from '@/components/ui/StatusPipeline';
+import { COLORS, CARD_STYLES, SPACING } from '@/lib/designTokens';
 import type { ApprovalRecord, ApproverRole } from '@/types/otb';
 
 const { Text, Title } = Typography;
@@ -17,10 +20,12 @@ interface ApprovalPanelProps {
 }
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; tagColor: string }> = {
-  Approved: { color: '#52c41a', icon: <CheckCircleOutlined />, tagColor: 'success' },
-  Pending: { color: '#faad14', icon: <ClockCircleOutlined />, tagColor: 'warning' },
-  RevisionRequested: { color: '#ff4d4f', icon: <ExclamationCircleOutlined />, tagColor: 'error' },
+  Approved: { color: COLORS.success, icon: <CheckCircleOutlined />, tagColor: 'success' },
+  Pending: { color: COLORS.warning, icon: <ClockCircleOutlined />, tagColor: 'warning' },
+  RevisionRequested: { color: COLORS.danger, icon: <ExclamationCircleOutlined />, tagColor: 'error' },
 };
+
+const APPROVAL_ROLES: ApproverRole[] = ['Planning', 'GD', 'Finance', 'CXO'];
 
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -115,30 +120,35 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
   const userRecord = records.find(r => r.role === userRole);
   const canAct = cycleStatus === 'InReview' && userRecord?.status === 'Pending';
 
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} align="center">
-        <Title level={5} style={{ margin: 0 }}>Approval Status</Title>
-        <Space>
-          <Text type="secondary">{approvedCount} of 4 approved</Text>
-          <Progress
-            percent={(approvedCount / 4) * 100}
-            steps={4}
-            size="small"
-            strokeColor="#52c41a"
-            style={{ marginBottom: 0 }}
-          />
-        </Space>
-      </Space>
+  // Build pipeline stages from records
+  const pipelineStages: PipelineStage[] = APPROVAL_ROLES.map(role => {
+    const record = records.find(r => r.role === role);
+    if (!record) return { key: role, label: role, status: 'pending' as const };
+    if (record.status === 'Approved') return { key: role, label: role, status: 'completed' as const };
+    if (record.status === 'RevisionRequested') return { key: role, label: role, status: 'error' as const };
+    return { key: role, label: role, status: 'pending' as const };
+  });
 
-      <Row gutter={16}>
+  return (
+    <div style={{ marginBottom: SPACING.xl }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
+        <Title level={5} style={{ margin: 0 }}>Approval Status</Title>
+        <Text type="secondary">{approvedCount} of 4 approved</Text>
+      </div>
+
+      {/* Pipeline visualization */}
+      <div style={{ marginBottom: SPACING.xl }}>
+        <StatusPipeline stages={pipelineStages} size="small" />
+      </div>
+
+      <Row gutter={[12, 12]}>
         {records.map(record => {
           const cfg = STATUS_CONFIG[record.status] || STATUS_CONFIG.Pending;
           return (
             <Col key={record.role} xs={24} sm={12} md={6}>
               <Card
                 size="small"
-                style={{ borderTop: `3px solid ${cfg.color}` }}
+                style={{ ...CARD_STYLES, borderTop: `3px solid ${cfg.color}` }}
                 loading={loading}
               >
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
@@ -165,10 +175,10 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
       </Row>
 
       {canAct && (
-        <Space style={{ marginTop: 16 }}>
+        <Space style={{ marginTop: SPACING.lg }}>
           <Button
             type="primary"
-            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            style={{ background: COLORS.success, borderColor: COLORS.success }}
             icon={<CheckCircleOutlined />}
             loading={actionLoading}
             onClick={handleApprove}

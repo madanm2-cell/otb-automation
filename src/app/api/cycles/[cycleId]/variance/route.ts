@@ -20,7 +20,7 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
   // 1. Fetch cycle with brand name
   const { data: cycle, error: cycleError } = await supabase
     .from('otb_cycles')
-    .select('*, brands(brand_name)')
+    .select('*, brands(name)')
     .eq('id', cycleId)
     .single();
 
@@ -28,7 +28,7 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
     return NextResponse.json({ error: 'Cycle not found' }, { status: 404 });
   }
 
-  const brandName = (cycle.brands as any)?.brand_name ?? 'Unknown';
+  const brandName = (cycle.brands as { name?: string } | null)?.name ?? 'Unknown';
   const planningQuarter = cycle.planning_quarter ?? '';
 
   // 2. Fetch all actuals for this cycle

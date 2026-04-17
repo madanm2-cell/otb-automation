@@ -1,22 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Typography } from 'antd';
+import { useEffect, useState, useMemo } from 'react';
+import { Table, Button, Tag, Space, Typography, Statistic } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
-import type { OtbCycle } from '@/types/otb';
+import { COLORS, SPACING, STATUS_TAG_COLORS } from '@/lib/designTokens';
+import type { OtbCycle, CycleStatus } from '@/types/otb';
 
 const { Title } = Typography;
-
-const STATUS_COLORS: Record<string, string> = {
-  Draft: 'default',
-  Active: 'blue',
-  Filling: 'orange',
-  InReview: 'purple',
-  Approved: 'green',
-};
 
 export default function CyclesPage() {
   const { profile } = useAuth();
@@ -34,13 +27,19 @@ export default function CyclesPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { Draft: 0, Filling: 0, InReview: 0, Approved: 0 };
+    cycles.forEach(c => { counts[c.status] = (counts[c.status] || 0) + 1; });
+    return counts;
+  }, [cycles]);
+
   const columns = [
     {
       title: 'Cycle Name',
       dataIndex: 'cycle_name',
       key: 'cycle_name',
       render: (text: string, record: OtbCycle) => (
-        <Link href={`/cycles/${record.id}`}>{text}</Link>
+        <Link href={`/cycles/${record.id}`} style={{ fontWeight: 500 }}>{text}</Link>
       ),
     },
     {
@@ -67,9 +66,7 @@ export default function CyclesPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={STATUS_COLORS[status] || 'default'}>{status}</Tag>
-      ),
+      render: (status: string) => <Tag color={STATUS_TAG_COLORS[status] || 'default'}>{status}</Tag>,
     },
     {
       title: 'Created',
@@ -80,21 +77,44 @@ export default function CyclesPage() {
   ];
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>OTB Cycles</Title>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl }}>
+        <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>OTB Cycles</Title>
         {canCreate && (
           <Link href="/cycles/new">
             <Button type="primary" icon={<PlusOutlined />}>New Cycle</Button>
           </Link>
         )}
       </div>
+
+      {/* Status summary row */}
+      {cycles.length > 0 && (
+        <div style={{ display: 'flex', gap: SPACING.xl, marginBottom: SPACING.xl, flexWrap: 'wrap' }}>
+          {(['Draft', 'Filling', 'InReview', 'Approved'] as const).map(status => (
+            <Statistic
+              key={status}
+              title={<span style={{ fontSize: 12, color: COLORS.textMuted }}>{status === 'InReview' ? 'In Review' : status}</span>}
+              value={statusCounts[status] || 0}
+              valueStyle={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: status === 'Approved' ? COLORS.success
+                  : status === 'InReview' ? COLORS.accent
+                  : status === 'Filling' ? COLORS.warning
+                  : COLORS.textSecondary,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       <Table
         dataSource={cycles}
         columns={columns}
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20 }}
+        scroll={{ x: 800 }}
       />
     </div>
   );

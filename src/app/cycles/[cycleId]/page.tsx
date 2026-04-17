@@ -2,22 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin, Select } from 'antd';
-import { UploadOutlined, TableOutlined, UserAddOutlined, CheckCircleOutlined, BarChartOutlined } from '@ant-design/icons';
+import {
+  UploadOutlined, TableOutlined, UserAddOutlined, CheckCircleOutlined,
+  BarChartOutlined,
+} from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
-import type { OtbCycle, FileUpload, UserProfile } from '@/types/otb';
+import { StatusPipeline } from '@/components/ui/StatusPipeline';
+import type { PipelineStage } from '@/components/ui/StatusPipeline';
+import { COLORS, CARD_STYLES, SPACING, STATUS_TAG_COLORS } from '@/lib/designTokens';
+import type { OtbCycle, FileUpload, UserProfile, CycleStatus } from '@/types/otb';
 import { REQUIRED_FILE_TYPES, ALL_FILE_TYPES, FILE_TYPE_LABELS } from '@/types/otb';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
-const STATUS_COLORS: Record<string, string> = {
-  Draft: 'default',
-  Filling: 'orange',
-  InReview: 'purple',
-  Approved: 'green',
-};
+const LIFECYCLE_STAGES: CycleStatus[] = ['Draft', 'Filling', 'InReview', 'Approved'];
+
+function getCycleStages(status: CycleStatus): PipelineStage[] {
+  const currentIdx = LIFECYCLE_STAGES.indexOf(status);
+  return LIFECYCLE_STAGES.map((stage, i) => ({
+    key: stage,
+    label: stage === 'InReview' ? 'In Review' : stage,
+    status: i < currentIdx ? 'completed' as const : i === currentIdx ? 'active' as const : 'pending' as const,
+  }));
+}
 
 export default function CycleDetailPage() {
   const { cycleId } = useParams<{ cycleId: string }>();
@@ -41,7 +51,6 @@ export default function CycleDetailPage() {
       fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
       fetch(`/api/cycles/${cycleId}/upload-status`).then(r => r.json()),
     ];
-    // Load GD users for assignment dropdown (only if user can assign)
     if (canAssignGd) {
       fetches.push(
         fetch('/api/admin/users').then(r => r.json()).then(users =>
@@ -84,7 +93,6 @@ export default function CycleDetailPage() {
   const handleActivate = async () => {
     setActivating(true);
     try {
-      // First generate template
       const genRes = await fetch(`/api/cycles/${cycleId}/generate-template`, { method: 'POST' });
       const genData = await genRes.json();
       if (!genRes.ok) {
@@ -96,7 +104,6 @@ export default function CycleDetailPage() {
         genData.warnings.forEach((w: string) => message.warning(w, 8));
       }
 
-      // Then activate
       const actRes = await fetch(`/api/cycles/${cycleId}/activate`, { method: 'POST' });
       const actData = await actRes.json();
       if (!actRes.ok) {
@@ -113,7 +120,7 @@ export default function CycleDetailPage() {
   };
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
-  if (!cycle) return <div style={{ padding: 24 }}>Cycle not found</div>;
+  if (!cycle) return <div style={{ padding: SPACING.xl }}>Cycle not found</div>;
 
   const uploadsByType = new Map(uploads.map(u => [u.file_type, u]));
   const allRequiredValidated = REQUIRED_FILE_TYPES.every(
@@ -125,18 +132,24 @@ export default function CycleDetailPage() {
     && cycle.defaults_confirmed;
 
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>{cycle.cycle_name}</Title>
-        <Tag color={STATUS_COLORS[cycle.status]}>{cycle.status}</Tag>
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {/* Header with status pipeline */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
+        <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>{cycle.cycle_name}</Title>
+        <Tag color={STATUS_TAG_COLORS[cycle.status]}>{cycle.status}</Tag>
       </div>
 
-      <Card style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: SPACING.xl }}>
+        <StatusPipeline stages={getCycleStages(cycle.status)} size="small" />
+      </div>
+
+      {/* Cycle Info */}
+      <Card style={{ ...CARD_STYLES, marginBottom: SPACING.xl }}>
         <Descriptions column={2}>
-          <Descriptions.Item label="Brand">{cycle.brands?.name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Quarter">{cycle.planning_quarter}</Descriptions.Item>
-          <Descriptions.Item label="Period">{cycle.planning_period_start} to {cycle.planning_period_end}</Descriptions.Item>
-          <Descriptions.Item label="GD Assigned">
+          <Descriptions.Item label={<Text type="secondary">Brand</Text>}>{cycle.brands?.name || '-'}</Descriptions.Item>
+          <Descriptions.Item label={<Text type="secondary">Quarter</Text>}>{cycle.planning_quarter}</Descriptions.Item>
+          <Descriptions.Item label={<Text type="secondary">Period</Text>}>{cycle.planning_period_start} to {cycle.planning_period_end}</Descriptions.Item>
+          <Descriptions.Item label={<Text type="secondary">GD Assigned</Text>}>
             {cycle.assigned_gd_id ? (
               <Tag color="blue" icon={<UserAddOutlined />}>
                 {gdUsers.find(u => u.id === cycle.assigned_gd_id)?.full_name || cycle.assigned_gd_id}
@@ -150,40 +163,35 @@ export default function CycleDetailPage() {
                   style={{ width: 200 }}
                   options={gdUsers.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` }))}
                 />
-                <Button
-                  type="primary"
-                  onClick={handleAssignGd}
-                  loading={assigningGd}
-                  disabled={!selectedGdId}
-                >
+                <Button type="primary" onClick={handleAssignGd} loading={assigningGd} disabled={!selectedGdId}>
                   Assign
                 </Button>
               </Space.Compact>
             ) : (
-              'Not assigned'
+              <Text type="secondary">Not assigned</Text>
             )}
           </Descriptions.Item>
         </Descriptions>
       </Card>
 
-      <Card title="File Uploads" style={{ marginBottom: 24 }}>
+      {/* File Uploads */}
+      <Card title={<Text strong>File Uploads</Text>} style={{ ...CARD_STYLES, marginBottom: SPACING.xl }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
-          {ALL_FILE_TYPES.map(ft => {
+          {ALL_FILE_TYPES.filter(ft => ft !== 'soft_forecast' && (ft !== 'actuals' || cycle.status === 'Approved')).map(ft => {
             const upload = uploadsByType.get(ft);
             const isRequired = REQUIRED_FILE_TYPES.includes(ft);
+            const borderColor = upload?.status === 'validated' ? COLORS.success
+              : upload?.status === 'failed' ? COLORS.danger
+              : COLORS.border;
             return (
-              <Card
-                key={ft}
-                size="small"
-                style={{ borderColor: upload?.status === 'validated' ? '#52c41a' : upload?.status === 'failed' ? '#ff4d4f' : '#d9d9d9' }}
-              >
+              <Card key={ft} size="small" style={{ borderColor, borderRadius: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <strong>{FILE_TYPE_LABELS[ft]}</strong>
-                    {isRequired && <Tag color="red" style={{ marginLeft: 4 }}>Required</Tag>}
+                    <Text strong style={{ fontSize: 13 }}>{FILE_TYPE_LABELS[ft]}</Text>
+                    {isRequired && <Tag color="error" style={{ marginLeft: 6, fontSize: 10 }}>Required</Tag>}
                   </div>
                   {upload ? (
-                    <Tag color={upload.status === 'validated' ? 'green' : 'red'}>
+                    <Tag color={upload.status === 'validated' ? 'success' : 'error'}>
                       {upload.status} ({upload.row_count} rows)
                     </Tag>
                   ) : (
@@ -195,7 +203,7 @@ export default function CycleDetailPage() {
           })}
         </div>
         {cycle.status === 'Draft' && canUpload && (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: SPACING.lg }}>
             <Link href={`/cycles/${cycleId}/upload`}>
               <Button type="primary" icon={<UploadOutlined />}>Upload Files</Button>
             </Link>
@@ -203,19 +211,20 @@ export default function CycleDetailPage() {
         )}
       </Card>
 
-      {/* Review Defaults card — shown in Draft status */}
+      {/* Review Defaults */}
       {cycle.status === 'Draft' && (
         <Card
-          title="Review & Confirm Defaults"
+          title={<Text strong>Review & Confirm Defaults</Text>}
           style={{
-            marginBottom: 24,
-            borderColor: cycle.defaults_confirmed ? '#52c41a' : '#d9d9d9',
+            ...CARD_STYLES,
+            marginBottom: SPACING.xl,
+            borderColor: cycle.defaults_confirmed ? COLORS.success : COLORS.border,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div>ASP, COGS, Return%, Tax%, Sellex%, Standard DoH</div>
-              <div style={{ color: '#999', fontSize: 13 }}>
+              <Text>ASP, COGS, Return%, Tax%, Sellex%, Standard DoH</Text>
+              <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>
                 Pre-populated from master data. Review and adjust values for this cycle.
               </div>
             </div>
@@ -237,47 +246,32 @@ export default function CycleDetailPage() {
         </Card>
       )}
 
-      <Space>
+      {/* Action Buttons */}
+      <Space size="middle">
         {cycle.status === 'Draft' && canManageCycle && (
-          <Button
-            type="primary"
-            size="large"
-            onClick={handleActivate}
-            loading={activating}
-            disabled={!canActivate}
-          >
+          <Button type="primary" size="large" onClick={handleActivate} loading={activating} disabled={!canActivate}>
             Generate Template & Activate
           </Button>
         )}
         {['Filling', 'InReview', 'Approved'].includes(cycle.status) && (
           <Link href={`/cycles/${cycleId}/grid`}>
-            <Button type="primary" size="large" icon={<TableOutlined />}>
-              Open OTB Grid
-            </Button>
+            <Button type="primary" size="large" icon={<TableOutlined />}>Open OTB Grid</Button>
           </Link>
         )}
         {cycle.status === 'Approved' && canUploadActuals && (
-          <Button
-            size="large"
-            icon={<UploadOutlined />}
-            onClick={() => router.push(`/cycles/${cycleId}/actuals`)}
-          >
+          <Button size="large" icon={<UploadOutlined />} onClick={() => router.push(`/cycles/${cycleId}/actuals`)}>
             Upload Actuals
           </Button>
         )}
         {cycle.status === 'Approved' && canViewVariance && (
-          <Button
-            size="large"
-            icon={<BarChartOutlined />}
-            onClick={() => router.push(`/cycles/${cycleId}/variance`)}
-          >
+          <Button size="large" icon={<BarChartOutlined />} onClick={() => router.push(`/cycles/${cycleId}/variance`)}>
             View Variance Report
           </Button>
         )}
       </Space>
 
       {!canActivate && cycle.status === 'Draft' && (
-        <div style={{ marginTop: 8, color: '#999', fontSize: 13 }}>
+        <div style={{ marginTop: SPACING.sm, color: COLORS.textMuted, fontSize: 13 }}>
           {!allRequiredValidated && 'Upload and validate all required files. '}
           {!cycle.assigned_gd_id && 'Assign a GD. '}
           {!cycle.defaults_confirmed && 'Review and confirm defaults. '}
