@@ -63,7 +63,7 @@ export const GET = withAuth('view_cross_brand_summary', async (req, auth) => {
   }
 
   // 3. Fetch plan data
-  let planData: Record<string, unknown>[] = [];
+  let planData: { row_id: string; month: string; sales_plan_gmv: number; nsv: number; nsq: number; inwards_qty: number; closing_stock_qty: number; fwd_30day_doh: number }[] = [];
   if (rowIds.length > 0) {
     const { data } = await supabase
       .from('otb_plan_data')
