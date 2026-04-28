@@ -1,11 +1,11 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar, Select } from 'antd';
+import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
   UserOutlined, SettingOutlined, AuditOutlined, LogoutOutlined,
-  CheckSquareOutlined, DatabaseOutlined,
+  CheckSquareOutlined, DatabaseOutlined, SwapOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
@@ -28,7 +28,7 @@ function getInitials(name: string): string {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, loading, signOut } = useAuth();
-  const { brands, selectedBrandId, setSelectedBrandId, loading: brandLoading } = useBrand();
+  const { brands, selectedBrandId } = useBrand();
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = profile?.role === 'Admin';
@@ -155,23 +155,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           borderBottom: `1px solid ${COLORS.borderLight}`,
           boxShadow: SHADOWS.sm,
         }}>
-          {profile && brands.length > 1 && (
-            <Select
-              value={selectedBrandId ?? '__all__'}
-              onChange={(value) => setSelectedBrandId(value === '__all__' ? null : value)}
-              style={{ width: 180, marginRight: 16 }}
-              loading={brandLoading}
-              placeholder="Select brand"
-              options={[
-                ...(isAdmin ? [{ value: '__all__', label: 'All Brands' }] : []),
-                ...brands.map((brand) => ({ value: brand.id, label: brand.name })),
-              ]}
-            />
-          )}
-          {profile && brands.length === 1 && (
-            <span style={{ marginRight: 16, fontWeight: 500, color: COLORS.textSecondary }}>
-              {brands[0].name}
-            </span>
+          {profile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 16 }}>
+              <span style={{ fontWeight: 500, color: COLORS.textSecondary, fontSize: 13 }}>
+                {selectedBrandId
+                  ? brands.find(b => b.id === selectedBrandId)?.name ?? 'Unknown'
+                  : 'All Brands'}
+              </span>
+              {brands.length > 1 && (
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<SwapOutlined />}
+                  onClick={() => router.push(
+                    `/brand-select?returnTo=${encodeURIComponent(pathname)}&switch=true`
+                  )}
+                  style={{ padding: 0, height: 'auto', fontSize: 12, color: COLORS.accent }}
+                >
+                  Switch
+                </Button>
+              )}
+            </div>
           )}
           <Dropdown menu={{ items: [
             { key: 'role', label: `Role: ${profile.role}`, disabled: true },

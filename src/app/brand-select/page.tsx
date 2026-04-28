@@ -16,6 +16,7 @@ export default function BrandSelectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/';
+  const isSwitching = searchParams.get('switch') === 'true';
 
   const loading = authLoading || brandLoading;
 
@@ -38,14 +39,15 @@ export default function BrandSelectPage() {
     }
   }, [authLoading, profile, router]);
 
-  // If sessionStorage flag already set, skip the picker
+  // If sessionStorage flag already set, skip the picker — unless this is an
+  // explicit mid-session switch (?switch=true), in which case always show it.
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (authLoading || !profile || isSwitching) return;
     const key = `otb_brand_selected_${profile.id}`;
     if (sessionStorage.getItem(key)) {
       router.replace(returnTo);
     }
-  }, [authLoading, profile, returnTo, router]);
+  }, [authLoading, profile, returnTo, router, isSwitching]);
 
   // Auto-confirm for single-brand non-admin users
   useEffect(() => {
@@ -85,10 +87,12 @@ export default function BrandSelectPage() {
         <div style={{ textAlign: 'center', marginBottom: SPACING.xxl }}>
           <img src="/tmrw-logo.png" alt="TMRW" style={{ height: 36, marginBottom: 12 }} />
           <Title level={3} style={{ margin: 0, color: '#fff' }}>
-            Select a Brand
+            {isSwitching ? 'Switch Brand' : 'Select a Brand'}
           </Title>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
-            Choose the brand you want to work with this session
+            {isSwitching
+              ? 'Pick a brand to continue — the page will reload fresh'
+              : 'Choose the brand you want to work with this session'}
           </Text>
         </div>
 
