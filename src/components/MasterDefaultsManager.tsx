@@ -12,7 +12,7 @@ const DEFAULT_TYPE_TABS: { key: DefaultType; label: string; dimensions: string[]
   { key: 'cogs', label: 'COGS', dimensions: ['sub_brand', 'sub_category'] },
   { key: 'return_pct', label: 'Return %', dimensions: ['sub_brand', 'sub_category', 'channel'] },
   { key: 'tax_pct', label: 'Tax %', dimensions: ['sub_category'] },
-  { key: 'sellex_pct', label: 'Sellex %', dimensions: ['sub_brand', 'sub_category', 'channel'] },
+  // sellex_pct hidden from UI per GM-only restriction (2026-04-27 pivot); data/API retained
   { key: 'standard_doh', label: 'Standard DoH', dimensions: ['sub_brand', 'sub_category'] },
 ];
 

@@ -11,7 +11,7 @@ interface ImportResult {
   matched: number;
   unmatched: number;
   unmatchedRows: { sub_brand: string; sub_category: string; channel: string }[];
-  updates: { rowId: string; month: string; nsq?: number; inwards_qty?: number; perf_marketing_pct?: number }[];
+  updates: { rowId: string; month: string; nsq?: number; inwards_qty?: number }[];
 }
 
 interface ImportGdModalProps {
@@ -65,9 +65,6 @@ export default function ImportGdModal({ open, onClose, cycleId, onApply }: Impor
       if (update.inwards_qty != null) {
         changes.push({ rowId: update.rowId, month: update.month, field: 'inwards_qty', value: update.inwards_qty });
       }
-      if (update.perf_marketing_pct != null) {
-        changes.push({ rowId: update.rowId, month: update.month, field: 'perf_marketing_pct', value: update.perf_marketing_pct });
-      }
     }
 
     onApply(changes);
@@ -96,7 +93,7 @@ export default function ImportGdModal({ open, onClose, cycleId, onApply }: Impor
     >
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
         <Text type="secondary">
-          Upload an Excel file (.xlsx) with columns: sub_brand, wear_type, sub_category, gender, channel, month, nsq, inwards_qty, perf_marketing_pct
+          Upload an Excel file (.xlsx) with columns: sub_brand, wear_type, sub_category, gender, channel, month, nsq, inwards_qty
         </Text>
 
         <Upload

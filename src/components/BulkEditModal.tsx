@@ -18,7 +18,6 @@ interface BulkEditModalProps {
 const FIELD_OPTIONS = [
   { label: 'NSQ', value: 'nsq' },
   { label: 'Inwards Qty', value: 'inwards_qty' },
-  { label: 'Perf Marketing %', value: 'perf_marketing_pct' },
 ];
 
 type EditMode = 'pct_change' | 'absolute';

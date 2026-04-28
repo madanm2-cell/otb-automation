@@ -13,7 +13,6 @@ describe('Actuals & Variance Integration', () => {
         openingStockQty: 200,
         returnPct: 15,
         taxPct: 5,
-        sellexPct: 10,
         nextMonthActualNsq: 1200,
       });
 

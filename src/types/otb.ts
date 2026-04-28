@@ -197,7 +197,6 @@ export interface PlanMonthData {
   // GD inputs
   nsq: number | null;
   inwards_qty: number | null;
-  perf_marketing_pct: number | null;
   // Calculated
   sales_plan_gmv: number | null;
   goly_pct: number | null;
@@ -208,21 +207,17 @@ export interface PlanMonthData {
   fwd_30day_doh: number | null;
   gm_pct: number | null;
   gross_margin: number | null;
-  cm1: number | null;
-  cm2: number | null;
 }
 
 export interface FormulaInputs {
   nsq: number | null;
   inwardsQty: number | null;
-  perfMarketingPct: number | null;
   asp: number | null;
   cogs: number | null;
   openingStockQty: number | null;
   lySalesNsq: number | null;
   returnPct: number | null;
   taxPct: number | null;
-  sellexPct: number | null;
   nextMonthNsq: number | null;
 }
 
@@ -236,8 +231,6 @@ export interface FormulaOutputs {
   fwd30dayDoh: number | null;
   gmPct: number | null;
   grossMargin: number | null;
-  cm1: number | null;
-  cm2: number | null;
 }
 
 export type CycleStatus = OtbCycle['status'];
@@ -247,7 +240,6 @@ export interface BulkUpdateItem {
   month: string;
   nsq?: number | null;
   inwards_qty?: number | null;
-  perf_marketing_pct?: number | null;
 }
 
 export interface PlanDataResponse {
@@ -262,7 +254,7 @@ export interface UserProfile {
   email: string;
   full_name: string;
   role: Role;
-  assigned_brands: string[];  // brand IDs (for GDs)
+  assigned_brands: string[];  // brand IDs (all non-Admin roles)
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -326,8 +318,6 @@ export interface ActualsRow {
   actual_closing_stock_qty: number | null;
   actual_doh: number | null;
   actual_gm_pct: number | null;
-  actual_cm1: number | null;
-  actual_cm2: number | null;
   uploaded_at: string;
   uploaded_by: string;
 }

@@ -65,7 +65,6 @@ describe('calcActualDerived', () => {
       openingStockQty: 80,
       returnPct: 10,
       taxPct: 5,
-      sellexPct: 8,
       nextMonthActualNsq: 120,
     });
     expect(result.actualGmv).toBe(50000);
@@ -82,7 +81,6 @@ describe('calcActualDerived', () => {
       openingStockQty: null,
       returnPct: null,
       taxPct: null,
-      sellexPct: null,
       nextMonthActualNsq: null,
     });
     expect(result.actualGmv).toBeNull();

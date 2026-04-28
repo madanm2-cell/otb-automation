@@ -131,11 +131,23 @@ export function UserManagement() {
           <Form.Item name="role" label="Role" rules={[{ required: true }]}>
             <Select options={ROLES.map(r => ({ value: r, label: r }))} />
           </Form.Item>
-          <Form.Item name="assigned_brands" label="Assigned Brands" tooltip="Required for GD role">
+          <Form.Item
+            name="assigned_brands"
+            label="Assigned Brands"
+            tooltip="Required for all non-Admin roles"
+            rules={[{
+              validator: async (_, value) => {
+                const role = form.getFieldValue('role');
+                if (role && role !== 'Admin' && (!value || value.length === 0)) {
+                  throw new Error('At least one brand must be assigned for non-Admin roles');
+                }
+              },
+            }]}
+          >
             <Select
               mode="multiple"
               options={brands.map(b => ({ value: b.id, label: b.name }))}
-              placeholder="Select brands (for GD)"
+              placeholder="Select brands"
             />
           </Form.Item>
           {editingUser && (

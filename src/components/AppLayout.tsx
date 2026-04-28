@@ -1,12 +1,13 @@
 'use client';
 
-import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar } from 'antd';
+import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar, Select } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
   UserOutlined, SettingOutlined, AuditOutlined, LogoutOutlined,
   CheckSquareOutlined, DatabaseOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrand } from '@/contexts/BrandContext';
 import { hasPermission } from '@/lib/auth/roles';
 import { useRouter, usePathname } from 'next/navigation';
 import { COLORS, SHADOWS, SPACING } from '@/lib/designTokens';
@@ -26,8 +27,10 @@ function getInitials(name: string): string {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, loading, signOut } = useAuth();
+  const { brands, selectedBrandId, setSelectedBrandId, loading: brandLoading } = useBrand();
   const router = useRouter();
   const pathname = usePathname();
+  const isAdmin = profile?.role === 'Admin';
 
   if (loading) {
     return (
@@ -130,6 +133,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           borderBottom: `1px solid ${COLORS.borderLight}`,
           boxShadow: SHADOWS.sm,
         }}>
+          {profile && brands.length > 1 && (
+            <Select
+              value={selectedBrandId ?? '__all__'}
+              onChange={(value) => setSelectedBrandId(value === '__all__' ? null : value)}
+              style={{ width: 180, marginRight: 16 }}
+              loading={brandLoading}
+              placeholder="Select brand"
+              options={[
+                ...(isAdmin ? [{ value: '__all__', label: 'All Brands' }] : []),
+                ...brands.map((brand) => ({ value: brand.id, label: brand.name })),
+              ]}
+            />
+          )}
+          {profile && brands.length === 1 && (
+            <span style={{ marginRight: 16, fontWeight: 500, color: COLORS.textSecondary }}>
+              {brands[0].name}
+            </span>
+          )}
           <Dropdown menu={{ items: [
             { key: 'role', label: `Role: ${profile.role}`, disabled: true },
             { type: 'divider' },

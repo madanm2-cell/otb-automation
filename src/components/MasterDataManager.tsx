@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Table, Button, Modal, Form, Input, Select, Space, message, Alert } from 'antd';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { useAuth } from '@/hooks/useAuth';
 import type { Brand, WearType } from '@/types/otb';
 
 interface MasterRecord {
@@ -30,6 +31,7 @@ const TABS: TabConfig[] = [
 ];
 
 export function MasterDataManager() {
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState('brands');
   const [data, setData] = useState<MasterRecord[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -42,6 +44,7 @@ export function MasterDataManager() {
   const [form] = Form.useForm();
 
   const tabConfig = TABS.find(t => t.key === activeTab)!;
+  const isBrandsReadOnly = activeTab === 'brands' && profile?.role !== 'Admin';
 
   const loadData = useCallback(async (type: string, brandId: string | null) => {
     setLoading(true);
@@ -125,7 +128,7 @@ export function MasterDataManager() {
           render: (id: string) => wearTypes.find(wt => wt.id === id)?.name || '-',
         }]
       : []),
-    {
+    ...(!isBrandsReadOnly ? [{
       title: 'Actions', key: 'actions', width: 80,
       render: (_: any, record: MasterRecord) => (
         <Button
@@ -134,7 +137,7 @@ export function MasterDataManager() {
           onClick={() => { setEditing(record); form.setFieldsValue(record); setModalOpen(true); }}
         />
       ),
-    },
+    }] : []),
   ];
 
   const brandScopedDisabled = tabConfig.brandScoped && !selectedBrandId;
@@ -152,14 +155,16 @@ export function MasterDataManager() {
             allowClear
             options={brands.map(b => ({ value: b.id, label: b.name }))}
           />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            disabled={brandScopedDisabled}
-            onClick={() => { setEditing(null); form.resetFields(); setModalOpen(true); }}
-          >
-            Add {tabConfig.label.replace(/s$/, '')}
-          </Button>
+          {!isBrandsReadOnly && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              disabled={brandScopedDisabled}
+              onClick={() => { setEditing(null); form.resetFields(); setModalOpen(true); }}
+            >
+              Add {tabConfig.label.replace(/s$/, '')}
+            </Button>
+          )}
         </Space>
       </div>
 

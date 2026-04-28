@@ -5,7 +5,7 @@ import { withAuth } from '@/lib/auth/withAuth';
 type Params = { params: Promise<{ cycleId: string }> };
 
 // GET /api/cycles/:cycleId/upload-status
-export const GET = withAuth('upload_data', async (req, auth, { params }: Params) => {
+export const GET = withAuth('view_cycle', async (req, auth, { params }: Params) => {
   const { cycleId } = await params;
   const supabase = await createServerClient();
 

@@ -91,7 +91,7 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
     const { data: planDataRows } = planRowIds.length > 0
       ? await supabase
           .from('otb_plan_data')
-          .select('plan_row_id, month, asp, cogs, opening_stock_qty, return_pct, tax_pct, sellex_pct, nsq')
+          .select('plan_row_id, month, asp, cogs, opening_stock_qty, return_pct, tax_pct, nsq')
           .in('plan_row_id', planRowIds)
       : { data: [] };
 
@@ -126,7 +126,6 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
       let openingStockQty: number | null = null;
       let returnPct: number | null = null;
       let taxPct: number | null = null;
-      let sellexPct: number | null = null;
 
       if (planRow) {
         const pdKey = `${planRow.id}|${month}`;
@@ -137,7 +136,6 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
           openingStockQty = pd.opening_stock_qty;
           returnPct = pd.return_pct;
           taxPct = pd.tax_pct;
-          sellexPct = pd.sellex_pct;
         }
       }
 
@@ -150,7 +148,6 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
         openingStockQty,
         returnPct,
         taxPct,
-        sellexPct,
         nextMonthActualNsq: null, // Will be recalculated in a second pass if needed
       });
 
@@ -169,7 +166,6 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
         actual_closing_stock_qty: derived.actualClosingStockQty,
         actual_doh: derived.actualDoh,
         actual_gm_pct: derived.actualGmPct,
-        actual_cm1: derived.actualCm1,
         uploaded_by: auth.user.id,
       });
     }
@@ -207,7 +203,6 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
             openingStockQty,
             returnPct: null,
             taxPct: null,
-            sellexPct: null,
             nextMonthActualNsq: nextMonthNsq,
           });
           // Only update DOH — keep other derived values from first pass

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Form, Input, Select, Button, message, Typography, Card } from 'antd';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import type { Brand } from '@/types/otb';
+import { useBrand } from '@/contexts/BrandContext';
 
 const { Title } = Typography;
 
@@ -14,17 +14,10 @@ const QUARTERS = [
 ];
 
 export default function NewCyclePage() {
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const { brands } = useBrand();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    fetch('/api/master-data/brands')
-      .then(r => r.json())
-      .then(data => setBrands(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
 
   const onFinish = async (values: Record<string, unknown>) => {
     setLoading(true);

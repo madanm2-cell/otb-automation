@@ -21,7 +21,8 @@ const DEFAULT_TYPE_LABELS: Record<DefaultType, string> = {
   standard_doh: 'Standard DoH',
 };
 
-const DEFAULT_TYPE_TABS: DefaultType[] = ['asp', 'cogs', 'return_pct', 'tax_pct', 'sellex_pct', 'standard_doh'];
+// sellex_pct hidden from UI per GM-only restriction (2026-04-27 pivot); data/API retained
+const DEFAULT_TYPE_TABS: DefaultType[] = ['asp', 'cogs', 'return_pct', 'tax_pct', 'standard_doh'];
 
 const VALUE_SUFFIX: Record<DefaultType, string> = {
   asp: '₹',

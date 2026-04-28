@@ -7,10 +7,21 @@ import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
 // GET /api/cycles — list all cycles (RLS handles visibility per role)
 export const GET = withAuth(null, async (req, auth) => {
   const supabase = await createServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('otb_cycles')
     .select('*, brands(name)')
     .order('created_at', { ascending: false });
+
+  if (auth.profile.role !== 'Admin' && auth.profile.assigned_brands?.length > 0) {
+    query = query.in('brand_id', auth.profile.assigned_brands);
+  }
+
+  const brandId = req.nextUrl.searchParams.get('brandId');
+  if (brandId) {
+    query = query.eq('brand_id', brandId);
+  }
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

@@ -3,6 +3,7 @@ import { ConfigProvider } from "antd";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AppLayout } from "@/components/AppLayout";
+import { BrandProvider } from "@/contexts/BrandContext";
 import { antdTheme } from "@/lib/antdTheme";
 import "./globals.css";
 
@@ -28,7 +29,9 @@ export default function RootLayout({
         <AntdRegistry>
           <ConfigProvider theme={antdTheme}>
             <AuthProvider>
-              <AppLayout>{children}</AppLayout>
+              <BrandProvider>
+                <AppLayout>{children}</AppLayout>
+              </BrandProvider>
             </AuthProvider>
           </ConfigProvider>
         </AntdRegistry>

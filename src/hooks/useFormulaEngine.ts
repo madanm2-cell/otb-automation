@@ -37,7 +37,6 @@ export function useFormulaEngine() {
 
       if (change.field === 'nsq') monthData.nsq = change.value;
       else if (change.field === 'inwards_qty') monthData.inwards_qty = change.value;
-      else if (change.field === 'perf_marketing_pct') monthData.perf_marketing_pct = change.value;
 
       // Recalculate all months (for month chaining)
       const sortedMonths = [...months].sort();
@@ -62,14 +61,12 @@ export function useFormulaEngine() {
         const result = calculateAll({
           nsq: d.nsq,
           inwardsQty: d.inwards_qty,
-          perfMarketingPct: d.perf_marketing_pct,
           asp: d.asp,
           cogs: d.cogs,
           openingStockQty: d.opening_stock_qty,
           lySalesNsq: d.ly_sales_nsq,
           returnPct: d.return_pct,
           taxPct: d.tax_pct,
-          sellexPct: d.sellex_pct,
           nextMonthNsq: nextNsq,
         });
 
@@ -82,8 +79,6 @@ export function useFormulaEngine() {
         d.fwd_30day_doh = result.fwd30dayDoh;
         d.gm_pct = result.gmPct;
         d.gross_margin = result.grossMargin;
-        d.cm1 = result.cm1;
-        d.cm2 = result.cm2;
       }
 
       return { ...row, months: newMonths };

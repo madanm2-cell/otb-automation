@@ -54,19 +54,7 @@ export function calcGrossMargin(nsv: number | null, gmPct: number | null): numbe
   return nsv * (gmPct / 100);
 }
 
-// Step 10: CM1% = GM% - Sellex%
-export function calcCm1Pct(gmPct: number | null, sellexPct: number | null): number | null {
-  if (gmPct == null || sellexPct == null) return null;
-  return gmPct - sellexPct;
-}
-
-// Step 11: CM2% = CM1% - Perf Mktg%  (CM2 as % of NSV)
-export function calcCm2Pct(cm1Pct: number | null, perfMktgPct: number | null): number | null {
-  if (cm1Pct == null || perfMktgPct == null) return null;
-  return cm1Pct - perfMktgPct;
-}
-
-// Full 11-step chain
+// Full 9-step chain (GM only — CM1/CM2 removed per 2026-04-27 pivot)
 export function calculateAll(inputs: FormulaInputs): FormulaOutputs {
   const salesPlanGmv = calcSalesPlanGmv(inputs.nsq, inputs.asp);
   const golyPct = calcGolyPct(inputs.nsq, inputs.lySalesNsq);
@@ -77,7 +65,5 @@ export function calculateAll(inputs: FormulaInputs): FormulaOutputs {
   const fwd30dayDoh = calcFwd30dayDoh(closingStockQty, inputs.nextMonthNsq);
   const gmPct = calcGmPct(inputs.asp, inputs.cogs);
   const grossMargin = calcGrossMargin(nsv, gmPct);
-  const cm1 = calcCm1Pct(gmPct, inputs.sellexPct);
-  const cm2 = calcCm2Pct(cm1, inputs.perfMarketingPct);
-  return { salesPlanGmv, golyPct, nsv, inwardsValCogs, openingStockVal, closingStockQty, fwd30dayDoh, gmPct, grossMargin, cm1, cm2 };
+  return { salesPlanGmv, golyPct, nsv, inwardsValCogs, openingStockVal, closingStockQty, fwd30dayDoh, gmPct, grossMargin };
 }

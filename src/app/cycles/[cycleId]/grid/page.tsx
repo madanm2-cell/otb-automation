@@ -87,6 +87,10 @@ export default function GridPage() {
     profile.role === 'Admin'
     || (profile.role === 'GD' && profile.assigned_brands?.includes(cycle.brand_id))
   );
+  const hasAccess = profile != null && (
+    profile.role === 'Admin'
+    || profile.assigned_brands?.includes(cycle?.brand_id ?? '')
+  );
   const canSubmit = profile?.role === 'GD' || profile?.role === 'Admin';
   const showApprovalPanel = cycle?.status === 'InReview' || cycle?.status === 'Approved';
   const canExport = profile != null && hasPermission(profile.role, 'export_otb');
@@ -142,7 +146,6 @@ export default function GridPage() {
           month,
           nsq: d.nsq,
           inwards_qty: d.inwards_qty,
-          perf_marketing_pct: d.perf_marketing_pct,
         });
       }
     }
@@ -228,6 +231,9 @@ export default function GridPage() {
   });
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (!loading && cycle && !hasAccess) {
+    return <div style={{ padding: 24 }}>You do not have access to this brand.</div>;
+  }
 
   const saveLabel = {
     idle: dirtyRows.size > 0 ? `Save Draft (${dirtyRows.size} changed)` : 'All saved',

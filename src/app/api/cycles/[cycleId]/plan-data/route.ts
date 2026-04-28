@@ -84,11 +84,9 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
       soft_forecast_nsq: d.soft_forecast_nsq as number | null,
       return_pct: d.return_pct as number | null,
       tax_pct: d.tax_pct as number | null,
-      sellex_pct: d.sellex_pct as number | null,
       standard_doh: d.standard_doh as number | null,
       nsq: d.nsq as number | null,
       inwards_qty: d.inwards_qty as number | null,
-      perf_marketing_pct: d.perf_marketing_pct as number | null,
       sales_plan_gmv: d.sales_plan_gmv as number | null,
       goly_pct: d.goly_pct as number | null,
       nsv: d.nsv as number | null,
@@ -98,8 +96,6 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
       fwd_30day_doh: d.fwd_30day_doh as number | null,
       gm_pct: d.gm_pct as number | null,
       gross_margin: d.gross_margin as number | null,
-      cm1: d.cm1 as number | null,
-      cm2: d.cm2 as number | null,
     };
   }
 

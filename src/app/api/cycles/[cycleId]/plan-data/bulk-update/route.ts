@@ -32,8 +32,8 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
     return NextResponse.json({ error: `Cannot edit cycle in ${cycle.status} status` }, { status: 400 });
   }
 
-  // GD brand-scoping check
-  if (auth.profile.role === 'GD') {
+  // Non-admin brand-scoping check
+  if (auth.profile.role !== 'Admin') {
     if (!auth.profile.assigned_brands || !auth.profile.assigned_brands.includes(cycle.brand_id)) {
       return NextResponse.json({ error: 'You are not assigned to this brand' }, { status: 403 });
     }
@@ -82,7 +82,6 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
 
     if (update.nsq !== undefined) monthData.nsq = update.nsq;
     if (update.inwards_qty !== undefined) monthData.inwards_qty = update.inwards_qty;
-    if (update.perf_marketing_pct !== undefined) monthData.perf_marketing_pct = update.perf_marketing_pct;
   }
 
   // Recalculate formulas for each affected row (all months, for chaining)
@@ -115,14 +114,12 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
       const result = calculateAll({
         nsq: d.nsq as number | null,
         inwardsQty: d.inwards_qty as number | null,
-        perfMarketingPct: d.perf_marketing_pct as number | null,
         asp: d.asp as number | null,
         cogs: d.cogs as number | null,
         openingStockQty: d.opening_stock_qty as number | null,
         lySalesNsq: d.ly_sales_nsq as number | null,
         returnPct: d.return_pct as number | null,
         taxPct: d.tax_pct as number | null,
-        sellexPct: d.sellex_pct as number | null,
         nextMonthNsq,
       });
 
@@ -136,15 +133,12 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
       d.fwd_30day_doh = result.fwd30dayDoh;
       d.gm_pct = result.gmPct;
       d.gross_margin = result.grossMargin;
-      d.cm1 = result.cm1;
-      d.cm2 = result.cm2;
 
       dbUpdates.push({
         id: d.id as string,
         data: {
           nsq: d.nsq,
           inwards_qty: d.inwards_qty,
-          perf_marketing_pct: d.perf_marketing_pct,
           opening_stock_qty: d.opening_stock_qty,
           sales_plan_gmv: result.salesPlanGmv,
           goly_pct: result.golyPct,
@@ -155,8 +149,6 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
           fwd_30day_doh: result.fwd30dayDoh,
           gm_pct: result.gmPct,
           gross_margin: result.grossMargin,
-          cm1: result.cm1,
-          cm2: result.cm2,
           updated_at: new Date().toISOString(),
         },
       });
@@ -192,7 +184,7 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
         rowId,
         months: Object.fromEntries(
           [...rowMonths.entries()].map(([month, data]) => [month, {
-            nsq: data.nsq, inwards_qty: data.inwards_qty, perf_marketing_pct: data.perf_marketing_pct,
+            nsq: data.nsq, inwards_qty: data.inwards_qty,
             sales_plan_gmv: data.sales_plan_gmv, closing_stock_qty: data.closing_stock_qty,
           }])
         ),

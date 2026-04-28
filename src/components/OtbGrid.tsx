@@ -54,11 +54,9 @@ function flattenRows(rows: PlanRow[], months: string[]): FlatRow[] {
       flat[`${prefix}_standard_doh`] = data.standard_doh;
       flat[`${prefix}_return_pct`] = data.return_pct;
       flat[`${prefix}_tax_pct`] = data.tax_pct;
-      flat[`${prefix}_sellex_pct`] = data.sellex_pct;
       // GD inputs
       flat[`${prefix}_nsq`] = data.nsq;
       flat[`${prefix}_inwards_qty`] = data.inwards_qty;
-      flat[`${prefix}_perf_marketing_pct`] = data.perf_marketing_pct;
       // Calculated
       flat[`${prefix}_sales_plan_gmv`] = data.sales_plan_gmv;
       flat[`${prefix}_goly_pct`] = data.goly_pct;
@@ -69,8 +67,6 @@ function flattenRows(rows: PlanRow[], months: string[]): FlatRow[] {
       flat[`${prefix}_fwd_30day_doh`] = data.fwd_30day_doh;
       flat[`${prefix}_gm_pct`] = data.gm_pct;
       flat[`${prefix}_gross_margin`] = data.gross_margin;
-      flat[`${prefix}_cm1`] = data.cm1;
-      flat[`${prefix}_cm2`] = data.cm2;
     }
 
     return flat;
@@ -88,7 +84,7 @@ const qtyFormatter = (p: ValueFormatterParams) => formatQty(p.value);
 const currencyFormatter = (p: ValueFormatterParams) => formatCurrency(p.value);
 
 // Fields that GD can edit (used for paste mapping)
-const GD_FIELDS = ['nsq', 'inwards_qty', 'perf_marketing_pct'];
+const GD_FIELDS = ['nsq', 'inwards_qty'];
 
 export default function OtbGrid({ rows, months, editable = false, lockedMonths = {}, onCellValueChanged }: OtbGridProps) {
   const gridRef = useRef<AgGridReact>(null);
@@ -204,14 +200,6 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
           width: 85,
           cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
         },
-        {
-          field: `${prefix}_perf_marketing_pct`,
-          headerName: 'Perf Mktg%',
-          editable: editable && !isLocked,
-          valueFormatter: pctFormatter,
-          width: 95,
-          cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
-        },
       ];
 
       const calcCols: ColDef[] = [
@@ -224,8 +212,6 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
         { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', valueFormatter: qtyFormatter, width: 85 },
         { field: `${prefix}_gm_pct`, headerName: 'GM%', valueFormatter: pctFormatter, width: 75 },
         { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', valueFormatter: croreFormatter, width: 105 },
-        { field: `${prefix}_cm1`, headerName: 'CM1%', valueFormatter: pctFormatter, width: 80 },
-        { field: `${prefix}_cm2`, headerName: 'CM2%', valueFormatter: pctFormatter, width: 80 },
       ];
 
       return {

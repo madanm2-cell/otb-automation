@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   calcSalesPlanGmv, calcGolyPct, calcNsv, calcInwardsValCogs,
   calcOpeningStockVal, calcClosingStockQty, calcFwd30dayDoh,
-  calcGmPct, calcGrossMargin, calcCm1Pct, calcCm2Pct, calculateAll,
+  calcGmPct, calcGrossMargin, calculateAll,
 } from '../../src/lib/formulaEngine';
 
-describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
+describe('Formula Engine — 9-step chain (GM only)', () => {
   // Step 1: GMV = NSQ × ASP
   it('step 1: salesPlanGmv = 1000 × 849.50 = 849500', () => {
     expect(calcSalesPlanGmv(1000, 849.50)).toBe(849500);
@@ -76,42 +76,31 @@ describe('Formula Engine — 11-step chain (PRD 5.2)', () => {
     expect(calcGrossMargin(556940.70, 58.80)).toBeCloseTo(327481.13, 0);
   });
 
-  // Step 10: CM1% = GM% - Sellex%
-  it('step 10: cm1Pct = 58.80 - 8 = 50.80%', () => {
-    expect(calcCm1Pct(58.80, 8)).toBeCloseTo(50.80, 1);
-  });
-
-  // Step 11: CM2% = CM1% - Perf Mktg%
-  it('step 11: cm2Pct = 50.80 - 5 = 45.80%', () => {
-    expect(calcCm2Pct(50.80, 5)).toBeCloseTo(45.80, 1);
-  });
-
   // Full chain
-  it('calculateAll: computes entire chain from inputs', () => {
+  it('calculateAll: computes entire 9-step chain from inputs', () => {
     const result = calculateAll({
-      nsq: 1000, inwardsQty: 500, perfMarketingPct: 5,
+      nsq: 1000, inwardsQty: 500,
       asp: 849.50, cogs: 350, openingStockQty: 15420,
       lySalesNsq: 800, returnPct: 25.5, taxPct: 12,
-      sellexPct: 8, nextMonthNsq: 1200,
+      nextMonthNsq: 1200,
     });
     expect(result.salesPlanGmv).toBe(849500);
     expect(result.golyPct).toBeCloseTo(25, 1);
     expect(result.closingStockQty).toBe(14920);
     expect(result.gmPct).toBeCloseTo(58.80, 1);
-    expect(result.cm1).toBeCloseTo(50.80, 1);  // CM1% = GM% - Sellex% = 58.80 - 8
-    expect(result.cm2).toBeCloseTo(45.80, 1);  // CM2% = CM1% - Perf Mktg% = 50.80 - 5
+    expect(result.grossMargin).toBeDefined();
   });
 
   // Edge: all nulls
   it('calculateAll: handles all-null inputs gracefully', () => {
     const result = calculateAll({
-      nsq: null, inwardsQty: null, perfMarketingPct: null,
+      nsq: null, inwardsQty: null,
       asp: null, cogs: null, openingStockQty: null,
       lySalesNsq: null, returnPct: null, taxPct: null,
-      sellexPct: null, nextMonthNsq: null,
+      nextMonthNsq: null,
     });
     expect(result.salesPlanGmv).toBeNull();
     expect(result.nsv).toBeNull();
-    expect(result.cm2).toBeNull();
+    expect(result.grossMargin).toBeNull();
   });
 });

@@ -9,11 +9,11 @@ function makePlanMonth(overrides: Partial<PlanMonthData> = {}): PlanMonthData {
     asp: 500, cogs: 200, opening_stock_qty: 100, ly_sales_nsq: 80,
     recent_sales_nsq: 90, soft_forecast_nsq: null,
     return_pct: 0.05, tax_pct: 0.18, sellex_pct: 0.1, standard_doh: 45,
-    nsq: 100, inwards_qty: 50, perf_marketing_pct: 0.05,
+    nsq: 100, inwards_qty: 50,
     sales_plan_gmv: 50000, goly_pct: 0.25, nsv: 42000,
     inwards_val_cogs: 10000, opening_stock_val: 20000,
     closing_stock_qty: 50, fwd_30day_doh: 30, gm_pct: 0.4,
-    gross_margin: 20000, cm1: 18000, cm2: 16000,
+    gross_margin: 20000,
     ...overrides,
   };
 }

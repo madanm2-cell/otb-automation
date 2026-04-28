@@ -8,14 +8,19 @@ import type { CycleMetrics } from '@/lib/riskIndicators';
 export const GET = withAuth('approve_otb', async (req, auth) => {
   const supabase = await createServerClient();
 
-  // Get active cycles (filter by brand for GD users)
+  // Get active cycles
   let cycleQuery = supabase
     .from('otb_cycles')
     .select('*, brands(name)')
     .in('status', ['Filling', 'InReview', 'Approved']);
 
-  if (auth.profile.role === 'GD' && auth.profile.assigned_brands?.length > 0) {
+  if (auth.profile.role !== 'Admin' && auth.profile.assigned_brands?.length > 0) {
     cycleQuery = cycleQuery.in('brand_id', auth.profile.assigned_brands);
+  }
+
+  const brandId = req.nextUrl.searchParams.get('brandId');
+  if (brandId) {
+    cycleQuery = cycleQuery.eq('brand_id', brandId);
   }
 
   const { data: cycles, error: cyclesError } = await cycleQuery;

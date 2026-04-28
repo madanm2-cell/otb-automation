@@ -49,11 +49,11 @@ export default function CycleDetailPage() {
   useEffect(() => {
     const fetches: Promise<any>[] = [
       fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
-      fetch(`/api/cycles/${cycleId}/upload-status`).then(r => r.json()),
+      fetch(`/api/cycles/${cycleId}/upload-status`).then(r => r.ok ? r.json() : []).catch(() => []),
     ];
     if (canAssignGd) {
       fetches.push(
-        fetch('/api/admin/users').then(r => r.json()).then(users =>
+        fetch('/api/admin/users').then(r => r.ok ? r.json() : []).then(users =>
           Array.isArray(users) ? users.filter((u: UserProfile) => u.role === 'GD' && u.is_active) : []
         ).catch(() => [])
       );
@@ -152,7 +152,7 @@ export default function CycleDetailPage() {
           <Descriptions.Item label={<Text type="secondary">GD Assigned</Text>}>
             {cycle.assigned_gd_id ? (
               <Tag color="blue" icon={<UserAddOutlined />}>
-                {gdUsers.find(u => u.id === cycle.assigned_gd_id)?.full_name || cycle.assigned_gd_id}
+                {(cycle as OtbCycle & { assigned_gd_name?: string }).assigned_gd_name || cycle.assigned_gd_id}
               </Tag>
             ) : cycle.status === 'Draft' && canAssignGd ? (
               <Space.Compact>

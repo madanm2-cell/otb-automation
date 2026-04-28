@@ -101,10 +101,10 @@ describeIf('Sprint 1-2 Full Flow Integration', () => {
 
   it('3. Formula calculations match expected values', () => {
     const result = calculateAll({
-      nsq: 1000, inwardsQty: 500, perfMarketingPct: 5,
+      nsq: 1000, inwardsQty: 500,
       asp: 849.50, cogs: 350, openingStockQty: 15420,
       lySalesNsq: 824, returnPct: 25.5, taxPct: 12,
-      sellexPct: 8, nextMonthNsq: 1200,
+      nextMonthNsq: 1200,
     });
 
     expect(result.salesPlanGmv).toBe(849500);
@@ -113,26 +113,24 @@ describeIf('Sprint 1-2 Full Flow Integration', () => {
     expect(result.nsv).toBeCloseTo(556932, 0);
     expect(result.closingStockQty).toBe(14920);
     expect(result.gmPct).toBeCloseTo(58.80, 1);
-    // CM1% = GM% - Sellex% = 58.80 - 8 = 50.80
-    expect(result.cm1).toBeCloseTo(50.80, 1);
   });
 
   it('4. Month chaining: closing stock → next month opening stock', () => {
     // Month 1
     const m1 = calculateAll({
-      nsq: 1000, inwardsQty: 500, perfMarketingPct: 5,
+      nsq: 1000, inwardsQty: 500,
       asp: 849.50, cogs: 350, openingStockQty: 15420,
       lySalesNsq: 824, returnPct: 25.5, taxPct: 12,
-      sellexPct: 8, nextMonthNsq: 1200,
+      nextMonthNsq: 1200,
     });
     expect(m1.closingStockQty).toBe(14920);
 
     // Month 2: opening stock = Month 1 closing stock
     const m2 = calculateAll({
-      nsq: 1200, inwardsQty: 600, perfMarketingPct: 5,
+      nsq: 1200, inwardsQty: 600,
       asp: 849.50, cogs: 350, openingStockQty: m1.closingStockQty!,
       lySalesNsq: 1000, returnPct: 25.5, taxPct: 12,
-      sellexPct: 8, nextMonthNsq: 1100,
+      nextMonthNsq: 1100,
     });
     expect(m2.closingStockQty).toBe(14920 + 600 - 1200); // 14320
   });
@@ -202,7 +200,6 @@ describeIf('Sprint 3-4 GD Workflow Integration', () => {
         sellex_pct: 8,
         nsq: 0,
         inwards_qty: 0,
-        perf_marketing_pct: 0,
       });
     }
   });
@@ -252,10 +249,10 @@ describeIf('Sprint 3-4 GD Workflow Integration', () => {
 
   it('6. Formula recalculation works with GD inputs', () => {
     const result = calculateAll({
-      nsq: 500, inwardsQty: 300, perfMarketingPct: 3,
+      nsq: 500, inwardsQty: 300,
       asp: 850, cogs: 350, openingStockQty: 15000,
       lySalesNsq: 450, returnPct: 25.5, taxPct: 12,
-      sellexPct: 8, nextMonthNsq: 600,
+      nextMonthNsq: 600,
     });
 
     // GMV = NSQ * ASP = 500 * 850 = 425000

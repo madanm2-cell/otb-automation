@@ -5,7 +5,6 @@ import {
   calcClosingStockQty,
   calcFwd30dayDoh,
   calcGmPct,
-  calcCm1Pct,
 } from './formulaEngine';
 
 export function calcVariancePct(
@@ -51,7 +50,6 @@ export interface ActualDerivedInputs {
   openingStockQty: number | null;
   returnPct: number | null;
   taxPct: number | null;
-  sellexPct: number | null;
   nextMonthActualNsq: number | null;
 }
 
@@ -61,7 +59,6 @@ export interface ActualDerivedOutputs {
   actualClosingStockQty: number | null;
   actualDoh: number | null;
   actualGmPct: number | null;
-  actualCm1: number | null;
 }
 
 export function calcActualDerived(inputs: ActualDerivedInputs): ActualDerivedOutputs {
@@ -74,9 +71,8 @@ export function calcActualDerived(inputs: ActualDerivedInputs): ActualDerivedOut
   );
   const actualDoh = calcFwd30dayDoh(actualClosingStockQty, inputs.nextMonthActualNsq);
   const actualGmPct = calcGmPct(inputs.asp, inputs.cogs);
-  const actualCm1 = calcCm1Pct(actualGmPct, inputs.sellexPct);
 
-  return { actualGmv, actualNsv, actualClosingStockQty, actualDoh, actualGmPct, actualCm1 };
+  return { actualGmv, actualNsv, actualClosingStockQty, actualDoh, actualGmPct };
 }
 
 function maxAbsVariance(row: VarianceRow): number {

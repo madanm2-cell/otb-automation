@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, Form, Input, Button, Typography, Alert, Space } from 'antd';
 import { MailOutlined, LockOutlined } from '@ant-design/icons';
 import { createClient } from '@/lib/supabase/client';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { COLORS, SHADOWS } from '@/lib/designTokens';
 
 const { Title, Text } = Typography;
@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const router = useRouter();
   const redirectTo = searchParams.get('redirectTo') ?? '/';
 
   async function handleLogin(values: { email: string; password: string }) {
@@ -32,8 +31,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(redirectTo);
-    router.refresh();
+    // Full navigation (not client-side) so AuthProvider remounts and
+    // picks up the new session from /api/auth/me.
+    window.location.href = redirectTo;
   }
 
   return (

@@ -6,7 +6,6 @@ import { InboxOutlined, ArrowLeftOutlined, BarChartOutlined } from '@ant-design/
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { AppLayout } from '@/components/AppLayout';
 
 const { Title, Text, Paragraph } = Typography;
 const { Dragger } = Upload;
@@ -74,7 +73,6 @@ export default function ActualsUploadPage() {
 
   return (
     <ProtectedRoute permission="upload_actuals">
-      <AppLayout>
         <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
           <Space style={{ marginBottom: 16 }}>
             <Link href={`/cycles/${cycleId}`}>
@@ -174,7 +172,6 @@ export default function ActualsUploadPage() {
             )}
           </Card>
         </div>
-      </AppLayout>
     </ProtectedRoute>
   );
 }

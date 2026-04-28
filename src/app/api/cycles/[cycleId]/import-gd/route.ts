@@ -15,7 +15,6 @@ interface ParsedGdRow {
   month: string;
   nsq?: number;
   inwards_qty?: number;
-  perf_marketing_pct?: number;
 }
 
 // POST /api/cycles/:cycleId/import-gd — parse XLSX with GD values, match to plan rows
@@ -79,7 +78,6 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
       month: String(record.month || '').trim(),
       nsq: record.nsq != null ? Number(record.nsq) : undefined,
       inwards_qty: record.inwards_qty != null ? Number(record.inwards_qty) : undefined,
-      perf_marketing_pct: record.perf_marketing_pct != null ? Number(record.perf_marketing_pct) : undefined,
     });
   });
 
@@ -101,7 +99,7 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
   }
 
   // Match parsed rows to plan rows
-  const matched: { rowId: string; month: string; nsq?: number; inwards_qty?: number; perf_marketing_pct?: number }[] = [];
+  const matched: { rowId: string; month: string; nsq?: number; inwards_qty?: number }[] = [];
   const unmatched: ParsedGdRow[] = [];
 
   for (const row of parsedRows) {
@@ -115,7 +113,6 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
         month: row.month,
         nsq: row.nsq,
         inwards_qty: row.inwards_qty,
-        perf_marketing_pct: row.perf_marketing_pct,
       });
     } else {
       unmatched.push(row);

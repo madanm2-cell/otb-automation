@@ -13,7 +13,7 @@ import type {
 // Query params:
 //   ?quarter=Q1+FY27   — filter by planning quarter
 //   ?status=Approved    — filter by cycle status (default: InReview,Approved)
-export const GET = withAuth('view_cross_brand_summary', async (req, auth) => {
+export const GET = withAuth('view_all_otbs', async (req, auth) => {
   const supabase = await createServerClient();
   const url = new URL(req.url);
   const quarter = url.searchParams.get('quarter');
@@ -32,6 +32,15 @@ export const GET = withAuth('view_cross_brand_summary', async (req, auth) => {
 
   if (quarter) {
     cycleQuery = cycleQuery.eq('planning_quarter', quarter);
+  }
+
+  if (auth.profile.role !== 'Admin' && auth.profile.assigned_brands?.length > 0) {
+    cycleQuery = cycleQuery.in('brand_id', auth.profile.assigned_brands);
+  }
+
+  const brandId = url.searchParams.get('brandId');
+  if (brandId) {
+    cycleQuery = cycleQuery.eq('brand_id', brandId);
   }
 
   const { data: cycles, error: cyclesError } = await cycleQuery;

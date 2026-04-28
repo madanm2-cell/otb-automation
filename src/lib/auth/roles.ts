@@ -27,7 +27,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_all_otbs', 'view_approved_otbs',
     'approve_otb', 'upload_actuals', 'view_variance',
     'manage_master_data',
-    'view_cross_brand_summary', 'export_otb', 'view_cycle',
+    'export_otb', 'view_cycle',
   ],
   GD: [
     'edit_otb', 'submit_otb',
@@ -37,12 +37,12 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   Finance: [
     'view_all_otbs', 'view_approved_otbs',
     'approve_otb', 'view_variance',
-    'view_cross_brand_summary', 'export_otb', 'view_cycle',
+    'export_otb', 'view_cycle',
   ],
   CXO: [
     'view_all_otbs', 'view_approved_otbs',
     'approve_otb', 'view_variance',
-    'view_cross_brand_summary', 'export_otb', 'view_cycle',
+    'export_otb', 'view_cycle',
   ],
   ReadOnly: [
     'view_approved_otbs', 'view_variance',

@@ -18,6 +18,17 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
   if (error || !data) {
     return NextResponse.json({ error: 'Cycle not found' }, { status: 404 });
   }
+
+  // Resolve assigned GD name
+  if (data.assigned_gd_id) {
+    const { data: gdProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', data.assigned_gd_id)
+      .single();
+    (data as Record<string, unknown>).assigned_gd_name = gdProfile?.full_name || null;
+  }
+
   return NextResponse.json(data);
 });
 

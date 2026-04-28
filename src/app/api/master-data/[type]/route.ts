@@ -32,6 +32,16 @@ export const GET = withAuth(null, async (
     }
   }
 
+  // Non-Admin users only see their assigned brands
+  if (type === 'brands' && auth.profile.role !== 'Admin') {
+    const assignedIds = auth.profile.assigned_brands || [];
+    if (assignedIds.length > 0) {
+      query = query.in('id', assignedIds);
+    } else {
+      return NextResponse.json([]);
+    }
+  }
+
   // For sub_categories, also support ?wearTypeId= filter
   if (type === 'sub_categories') {
     const wearTypeId = req.nextUrl.searchParams.get('wearTypeId');
@@ -57,6 +67,9 @@ export const POST = withAuth('manage_master_data', async (req: NextRequest, auth
   if (!VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
   }
+  if (type === 'brands' && auth.profile.role !== 'Admin') {
+    return NextResponse.json({ error: 'Only Admin can manage brands' }, { status: 403 });
+  }
   const supabase = await createServerClient();
   const body = await req.json();
 
@@ -75,6 +88,9 @@ export const PUT = withAuth('manage_master_data', async (req: NextRequest, auth,
   if (!VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
   }
+  if (type === 'brands' && auth.profile.role !== 'Admin') {
+    return NextResponse.json({ error: 'Only Admin can manage brands' }, { status: 403 });
+  }
   const supabase = await createServerClient();
   const body = await req.json();
   const { id, ...updates } = body;
@@ -89,6 +105,9 @@ export const DELETE = withAuth('manage_master_data', async (req: NextRequest, au
   const { type } = await params;
   if (!VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+  }
+  if (type === 'brands' && auth.profile.role !== 'Admin') {
+    return NextResponse.json({ error: 'Only Admin can manage brands' }, { status: 403 });
   }
   const supabase = await createServerClient();
   const { id } = await req.json();
