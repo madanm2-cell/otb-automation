@@ -11,6 +11,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrand } from '@/contexts/BrandContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { BrandPanel } from '@/components/ui/BrandPanel';
@@ -31,8 +32,9 @@ function getCurrentQuarter(): string {
 
 export default function CxoDashboard() {
   const { profile } = useAuth();
+  const { selectedBrandId } = useBrand();
   const router = useRouter();
-  const dashboard = useDashboardData();
+  const dashboard = useDashboardData(selectedBrandId);
 
   // GDs redirect to cycles
   useEffect(() => {

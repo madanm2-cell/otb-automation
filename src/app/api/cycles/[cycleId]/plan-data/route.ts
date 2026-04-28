@@ -84,6 +84,7 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
       soft_forecast_nsq: d.soft_forecast_nsq as number | null,
       return_pct: d.return_pct as number | null,
       tax_pct: d.tax_pct as number | null,
+      sellex_pct: d.sellex_pct as number | null,
       standard_doh: d.standard_doh as number | null,
       nsq: d.nsq as number | null,
       inwards_qty: d.inwards_qty as number | null,

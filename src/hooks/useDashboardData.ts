@@ -50,7 +50,7 @@ export interface DashboardData {
   statusDistribution: Record<CycleStatus, number>;
 }
 
-export function useDashboardData() {
+export function useDashboardData(brandId: string | null = null) {
   const [data, setData] = useState<DashboardData>({
     loading: true,
     error: null,
@@ -67,10 +67,11 @@ export function useDashboardData() {
   const fetchData = useCallback(async () => {
     setData(prev => ({ ...prev, loading: true, error: null }));
 
+    const qs = brandId ? `?brandId=${brandId}` : '';
     const results = await Promise.allSettled([
-      fetch('/api/summary').then(r => r.ok ? r.json() : null),
-      fetch('/api/approvals/dashboard').then(r => r.ok ? r.json() : null),
-      fetch('/api/cycles').then(r => r.ok ? r.json() : null),
+      fetch(`/api/summary${qs}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/approvals/dashboard${qs}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/cycles${qs}`).then(r => r.ok ? r.json() : null),
     ]);
 
     const summary = results[0].status === 'fulfilled' ? results[0].value as DashboardSummaryResponse : null;
@@ -104,7 +105,7 @@ export function useDashboardData() {
       cycles,
       statusDistribution,
     }));
-  }, []);
+  }, [brandId]);
 
   // Lazy-load variance for a specific cycle
   const loadVariance = useCallback(async (cycleId: string) => {

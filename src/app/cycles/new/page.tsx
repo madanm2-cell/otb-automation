@@ -14,10 +14,16 @@ const QUARTERS = [
 ];
 
 export default function NewCyclePage() {
-  const { brands } = useBrand();
+  const { brands, selectedBrandId } = useBrand();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const [form] = Form.useForm();
+
+  // Brands available for selection: if a specific brand is active, restrict to it.
+  // If "All Brands" (selectedBrandId === null for admin), show all brands.
+  const brandOptions = selectedBrandId
+    ? brands.filter(b => b.id === selectedBrandId)
+    : brands;
 
   const onFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
@@ -50,13 +56,18 @@ export default function NewCyclePage() {
     <div style={{ padding: 24, maxWidth: 600, margin: '0 auto' }}>
       <Title level={2}>Create New OTB Cycle</Title>
       <Card>
-        <Form form={form} layout="vertical" onFinish={onFinish}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{ brand_id: selectedBrandId ?? undefined }}
+        >
           <Form.Item name="cycle_name" label="Cycle Name" rules={[{ required: true }]}>
             <Input placeholder="e.g. Bewakoof Q4 FY26" />
           </Form.Item>
           <Form.Item name="brand_id" label="Brand" rules={[{ required: true }]}>
-            <Select placeholder="Select brand">
-              {brands.map(b => (
+            <Select placeholder="Select brand" disabled={!!selectedBrandId}>
+              {brandOptions.map(b => (
                 <Select.Option key={b.id} value={b.id}>{b.name}</Select.Option>
               ))}
             </Select>

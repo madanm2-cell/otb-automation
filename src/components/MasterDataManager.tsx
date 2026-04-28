@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Table, Button, Modal, Form, Input, Select, Space, message, Alert } from 'antd';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrand } from '@/contexts/BrandContext';
 import type { Brand, WearType } from '@/types/otb';
 
 interface MasterRecord {
@@ -32,10 +33,15 @@ const TABS: TabConfig[] = [
 
 export function MasterDataManager() {
   const { profile } = useAuth();
+  const { selectedBrandId: globalBrandId } = useBrand();
   const [activeTab, setActiveTab] = useState('brands');
   const [data, setData] = useState<MasterRecord[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(globalBrandId);
+
+  useEffect(() => {
+    setSelectedBrandId(globalBrandId);
+  }, [globalBrandId]);
   const [wearTypes, setWearTypes] = useState<WearType[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);

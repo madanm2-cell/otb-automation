@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState, useEffect } from 'react';
 import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar, Select } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
@@ -32,13 +33,34 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = profile?.role === 'Admin';
 
-  if (loading) {
+  const brandGateCheckedRef = useRef(false);
+  const [brandGateReady, setBrandGateReady] = useState(false);
+
+  useEffect(() => {
+    if (loading || !profile || brandGateCheckedRef.current) return;
+    brandGateCheckedRef.current = true;
+
+    const key = `otb_brand_selected_${profile.id}`;
+    if (sessionStorage.getItem(key)) {
+      setBrandGateReady(true);
+    } else {
+      if (pathname !== '/brand-select') {
+        router.replace(`/brand-select?returnTo=${encodeURIComponent(pathname)}`);
+      } else {
+        setBrandGateReady(true);
+      }
+    }
+  }, [loading, profile, pathname, router]);
+
+  if (loading || (!brandGateReady && !!profile && pathname !== '/brand-select')) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: COLORS.background }}>
         <Spin size="large" />
       </div>
     );
   }
+
+  if (pathname === '/brand-select') return <>{children}</>;
 
   if (!profile) return <>{children}</>;
 

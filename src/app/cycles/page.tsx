@@ -5,6 +5,7 @@ import { Table, Button, Tag, Space, Typography, Statistic } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrand } from '@/contexts/BrandContext';
 import { hasPermission } from '@/lib/auth/roles';
 import { COLORS, SPACING, STATUS_TAG_COLORS } from '@/lib/designTokens';
 import type { OtbCycle, CycleStatus } from '@/types/otb';
@@ -13,19 +14,24 @@ const { Title } = Typography;
 
 export default function CyclesPage() {
   const { profile } = useAuth();
+  const { selectedBrandId } = useBrand();
   const [cycles, setCycles] = useState<OtbCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const canCreate = profile ? hasPermission(profile.role, 'create_cycle') : false;
 
   useEffect(() => {
-    fetch('/api/cycles')
+    const url = selectedBrandId
+      ? `/api/cycles?brandId=${selectedBrandId}`
+      : '/api/cycles';
+    setLoading(true);
+    fetch(url)
       .then(r => r.json())
       .then(data => {
         setCycles(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [selectedBrandId]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { Draft: 0, Filling: 0, InReview: 0, Approved: 0 };

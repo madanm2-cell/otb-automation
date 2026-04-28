@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     // Full navigation (not client-side) so AuthProvider remounts and
     // picks up the new session from /api/auth/me.
-    window.location.href = redirectTo;
+    window.location.href = `/brand-select?returnTo=${encodeURIComponent(redirectTo)}`;
   }
 
   return (

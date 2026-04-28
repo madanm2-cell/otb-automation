@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useBrand } from '@/contexts/BrandContext';
 import { Row, Col, Table, Tag, Typography, Space, Badge } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, EditOutlined,
@@ -49,16 +50,21 @@ function getApprovalStages(progress: BrandSummary['approval_progress']): Pipelin
 }
 
 export function ApprovalDashboard() {
+  const { selectedBrandId } = useBrand();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/approvals/dashboard')
+    setLoading(true);
+    const url = selectedBrandId
+      ? `/api/approvals/dashboard?brandId=${selectedBrandId}`
+      : '/api/approvals/dashboard';
+    fetch(url)
       .then(r => r.json())
       .then(setData)
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedBrandId]);
 
   if (loading) return <TablePageSkeleton />;
   if (!data) return <Text type="danger">Failed to load dashboard</Text>;

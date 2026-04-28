@@ -58,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   async function signOut() {
+    if (profile?.id) {
+      sessionStorage.removeItem(`otb_brand_selected_${profile.id}`);
+    }
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

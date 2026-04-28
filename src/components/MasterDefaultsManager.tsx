@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Table, InputNumber, Button, Select, Space, message, Alert, Modal, Form, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useBrand } from '@/contexts/BrandContext';
 import type { Brand, SubBrand, SubCategory, Channel, DefaultType } from '@/types/otb';
 
 const { Title } = Typography;
@@ -35,8 +36,13 @@ const VALUE_COL: Record<DefaultType, string> = {
 };
 
 export function MasterDefaultsManager() {
+  const { selectedBrandId: globalBrandId } = useBrand();
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(globalBrandId);
+
+  useEffect(() => {
+    setSelectedBrandId(globalBrandId);
+  }, [globalBrandId]);
   const [activeTab, setActiveTab] = useState<DefaultType>('asp');
   const [data, setData] = useState<DefaultRow[]>([]);
   const [loading, setLoading] = useState(false);
