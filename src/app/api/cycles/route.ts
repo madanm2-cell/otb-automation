@@ -30,11 +30,11 @@ export const GET = withAuth(null, async (req, auth) => {
 // POST /api/cycles — create a new cycle
 export const POST = withAuth('create_cycle', async (req, auth) => {
   const body = await req.json();
-  const { cycle_name, brand_id, planning_quarter, fill_deadline, approval_deadline } = body;
+  const { cycle_name, brand_id, planning_quarter, fill_deadline, approval_deadline, assigned_gd_id } = body;
 
-  if (!cycle_name || !brand_id || !planning_quarter) {
+  if (!cycle_name || !brand_id || !planning_quarter || !assigned_gd_id) {
     return NextResponse.json(
-      { error: 'cycle_name, brand_id, and planning_quarter are required' },
+      { error: 'cycle_name, brand_id, planning_quarter, and assigned_gd_id are required' },
       { status: 400 }
     );
   }
@@ -82,6 +82,7 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
       planning_period_end: quarterDates.end,
       fill_deadline: fill_deadline || null,
       approval_deadline: approval_deadline || null,
+      assigned_gd_id: assigned_gd_id.trim(),
       created_by: auth.user.id,
     })
     .select()
