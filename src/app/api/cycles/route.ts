@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { getQuarterDates } from '@/lib/quarterUtils';
 import { logAudit, getClientIp } from '@/lib/auth/auditLogger';
@@ -55,6 +55,21 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
   const { data: brand } = await supabase.from('brands').select('id').eq('id', brand_id).single();
   if (!brand) {
     return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+  }
+
+  // Validate that assigned_gd_id is an active GD assigned to this brand
+  const adminClient = createAdminClient();
+  const { data: gdProfile } = await adminClient
+    .from('profiles')
+    .select('id, role, is_active, assigned_brands')
+    .eq('id', assigned_gd_id.trim())
+    .single();
+
+  if (!gdProfile || gdProfile.role !== 'GD' || !gdProfile.is_active) {
+    return NextResponse.json({ error: 'Invalid GD user' }, { status: 400 });
+  }
+  if (!Array.isArray(gdProfile.assigned_brands) || !gdProfile.assigned_brands.includes(brand_id)) {
+    return NextResponse.json({ error: 'Selected GD is not assigned to this brand' }, { status: 400 });
   }
 
   // Check no other non-Approved cycle exists for this brand

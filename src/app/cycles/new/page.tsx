@@ -30,12 +30,10 @@ export default function NewCyclePage() {
 
   // Fetch all active GD users on mount
   useEffect(() => {
-    fetch('/api/admin/users')
+    fetch('/api/users/gd-options')
       .then(r => r.ok ? r.json() : [])
       .then(users => {
-        if (Array.isArray(users)) {
-          setGdUsers(users.filter((u: UserProfile) => u.role === 'GD' && u.is_active));
-        }
+        if (Array.isArray(users)) setGdUsers(users);
       })
       .catch(() => {});
   }, []);
