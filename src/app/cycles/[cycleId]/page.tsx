@@ -220,7 +220,6 @@ export default function CycleDetailPage() {
       {!canActivate && cycle.status === 'Draft' && (
         <div style={{ marginTop: SPACING.sm, color: COLORS.textMuted, fontSize: 13 }}>
           {!allRequiredValidated && 'Upload and validate all required files. '}
-          {!cycle.assigned_gd_id && 'Assign a GD. '}
           {!cycle.defaults_confirmed && 'Review and confirm defaults. '}
         </div>
       )}
