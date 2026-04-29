@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Form, Input, Select, Button, message, Typography, Card } from 'antd';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useBrand } from '@/contexts/BrandContext';
+import type { UserProfile } from '@/types/otb';
 
 const { Title } = Typography;
 
@@ -16,6 +17,8 @@ const QUARTERS = [
 export default function NewCyclePage() {
   const { brands, selectedBrandId } = useBrand();
   const [loading, setLoading] = useState(false);
+  const [gdUsers, setGdUsers] = useState<UserProfile[]>([]);
+  const [filteredGds, setFilteredGds] = useState<UserProfile[]>([]);
   const router = useRouter();
   const [form] = Form.useForm();
 
@@ -24,6 +27,38 @@ export default function NewCyclePage() {
   const brandOptions = selectedBrandId
     ? brands.filter(b => b.id === selectedBrandId)
     : brands;
+
+  // Fetch all active GD users on mount
+  useEffect(() => {
+    fetch('/api/admin/users')
+      .then(r => r.ok ? r.json() : [])
+      .then(users => {
+        if (Array.isArray(users)) {
+          setGdUsers(users.filter((u: UserProfile) => u.role === 'GD' && u.is_active));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Watch brand field and filter GDs, auto-select if single match
+  const watchedBrandId = Form.useWatch('brand_id', form);
+
+  useEffect(() => {
+    if (!watchedBrandId) {
+      setFilteredGds([]);
+      form.setFieldValue('assigned_gd_id', undefined);
+      return;
+    }
+    const gds = gdUsers.filter(u =>
+      Array.isArray(u.assigned_brands) && u.assigned_brands.includes(watchedBrandId)
+    );
+    setFilteredGds(gds);
+    if (gds.length === 1) {
+      form.setFieldValue('assigned_gd_id', gds[0].id);
+    } else {
+      form.setFieldValue('assigned_gd_id', undefined);
+    }
+  }, [watchedBrandId, gdUsers, form]);
 
   const onFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
@@ -35,6 +70,7 @@ export default function NewCyclePage() {
           cycle_name: values.cycle_name,
           brand_id: values.brand_id,
           planning_quarter: values.planning_quarter,
+          assigned_gd_id: values.assigned_gd_id,
         }),
       });
       const data = await res.json();
@@ -71,6 +107,17 @@ export default function NewCyclePage() {
                 <Select.Option key={b.id} value={b.id}>{b.name}</Select.Option>
               ))}
             </Select>
+          </Form.Item>
+          <Form.Item
+            name="assigned_gd_id"
+            label="Assign GD"
+            rules={[{ required: true, message: 'Please assign a GD' }]}
+          >
+            <Select
+              placeholder={watchedBrandId ? 'Select GD' : 'Select a brand first'}
+              disabled={!watchedBrandId || filteredGds.length === 0}
+              options={filteredGds.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` }))}
+            />
           </Form.Item>
           <Form.Item name="planning_quarter" label="Planning Quarter" rules={[{ required: true }]}>
             <Select placeholder="Select quarter">
