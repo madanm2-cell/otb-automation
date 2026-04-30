@@ -1,13 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
-import { Button } from 'antd';
+import { Button, Tabs, Badge } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import type { PlanRow } from '@/types/otb';
 import { SelectFilter } from '@/components/SelectFilter';
 import { formatCrore, formatPct, formatQty, formatCurrency } from '@/lib/formatting';
+import './OtbGrid.css';
 
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -98,6 +99,15 @@ function recentMonthLabel(planningMonth: string): string {
   return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
 }
 
+function suggestionsForMonth(pendingSuggestions: Map<string, number> | undefined, month: string): number {
+  if (!pendingSuggestions) return 0;
+  let count = 0;
+  for (const key of pendingSuggestions.keys()) {
+    if (key.endsWith(`|${month}`)) count++;
+  }
+  return count;
+}
+
 const croreFormatter = (p: ValueFormatterParams) => formatCrore(p.value);
 const pctFormatter = (p: ValueFormatterParams) => formatPct(p.value);
 const qtyFormatter = (p: ValueFormatterParams) => formatQty(p.value);
@@ -112,6 +122,29 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
 ) {
   const gridRef = useRef<AgGridReact>(null);
   const flatRows = useMemo(() => flattenRows(rows, months), [rows, months]);
+
+  const sortedMonths = useMemo(() => [...months].sort(), [months]);
+  const [activeMonth, setActiveMonth] = useState<string>(() => sortedMonths[0] ?? '');
+
+  // Keep activeMonth valid if months prop changes (e.g. on data reload)
+  // If the current activeMonth is no longer in sortedMonths, reset to first
+  const validActiveMonth = sortedMonths.includes(activeMonth) ? activeMonth : (sortedMonths[0] ?? '');
+
+  const tabItems = sortedMonths.map(month => ({
+    key: month,
+    label: (
+      <Badge
+        count={suggestionsForMonth(pendingSuggestions, month)}
+        size="small"
+        offset={[6, -2]}
+        style={{ backgroundColor: '#1677ff' }}
+      >
+        <span style={{ paddingRight: suggestionsForMonth(pendingSuggestions, month) > 0 ? 8 : 0 }}>
+          {monthLabel(month)}
+        </span>
+      </Badge>
+    ),
+  }));
 
   useImperativeHandle(ref, () => ({
     getFilteredRows() {
@@ -320,29 +353,36 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
   }), []);
 
   return (
-    <div style={{ width: '100%', height: 'calc(100vh - 140px)' }} onPaste={handlePaste}>
-      <AgGridReact
-        ref={gridRef}
-        rowData={flatRows}
-        columnDefs={columnDefs}
-        defaultColDef={defaultColDef}
-        animateRows={false}
-        getRowId={(params) => params.data.id}
-        onCellValueChanged={(event) => {
-          if (!onCellValueChanged || !event.colDef.field) return;
-          const field = event.colDef.field;
-          // Parse "2026-01-01_nsq" → month + field name
-          const parts = field.split('_');
-          const month = parts[0]; // "2026-01-01"
-          const fieldName = parts.slice(1).join('_'); // "nsq", "inwards_qty", etc.
-          onCellValueChanged({
-            rowId: event.data.id,
-            month,
-            field: fieldName,
-            value: Number(event.newValue),
-          });
-        }}
+    <div style={{ width: '100%' }} onPaste={handlePaste}>
+      <Tabs
+        activeKey={validActiveMonth}
+        onChange={setActiveMonth}
+        items={tabItems}
+        size="small"
+        style={{ marginBottom: 0, paddingLeft: 4 }}
       />
+      <div style={{ height: 'calc(100vh - 188px)' }}>
+        <AgGridReact
+          ref={gridRef}
+          rowData={flatRows}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          animateRows={false}
+          getRowId={(params) => params.data.id}
+          onCellValueChanged={(event) => {
+            if (!onCellValueChanged || !event.colDef.field) return;
+            const field = event.colDef.field;
+            const month = field.substring(0, 10);
+            const fieldName = field.substring(11);
+            onCellValueChanged({
+              rowId: event.data.id,
+              month,
+              field: fieldName,
+              value: Number(event.newValue),
+            });
+          }}
+        />
+      </div>
     </div>
   );
 });
