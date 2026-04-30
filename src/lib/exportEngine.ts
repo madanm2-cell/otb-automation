@@ -9,7 +9,7 @@ export interface ExportCycleData {
   rows: PlanRow[];
 }
 
-const METRICS = ['NSQ', 'ASP', 'GMV', 'NSV', 'COGS', 'GM%', 'Inwards Qty', 'DoH'] as const;
+const METRICS = ['NSQ', 'ASP', 'GMV', 'NSV', 'COGS', 'GM%', 'Inwards Qty', 'Suggested Inwards', 'DoH'] as const;
 
 /**
  * Build an Excel workbook with 3 sheets:
@@ -56,10 +56,10 @@ export async function buildOtbWorkbook(
       if (md) {
         cells.push(
           md.nsq, md.asp, md.sales_plan_gmv, md.nsv,
-          md.cogs, md.gm_pct, md.inwards_qty, md.fwd_30day_doh,
+          md.cogs, md.gm_pct, md.inwards_qty, md.inwards_qty_suggested ?? null, md.fwd_30day_doh,
         );
       } else {
-        cells.push(null, null, null, null, null, null, null, null);
+        cells.push(null, null, null, null, null, null, null, null, null);
       }
     }
     planSheet.addRow(cells);

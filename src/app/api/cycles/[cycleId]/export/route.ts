@@ -86,7 +86,7 @@ export const GET = withAuth('export_otb', async (req, auth, { params }: Params) 
 
   if (format === 'csv') {
     // Build CSV from the same data
-    const METRICS = ['NSQ', 'ASP', 'GMV', 'NSV', 'COGS', 'GM%', 'Inwards Qty', 'DoH'] as const;
+    const METRICS = ['NSQ', 'ASP', 'GMV', 'NSV', 'COGS', 'GM%', 'Inwards Qty', 'Suggested Inwards', 'DoH'] as const;
 
     const escapeCSV = (val: any): string => {
       if (val == null) return '';
@@ -119,10 +119,10 @@ export const GET = withAuth('export_otb', async (req, auth, { params }: Params) 
         if (md) {
           cells.push(
             md.nsq, md.asp, md.sales_plan_gmv, md.nsv,
-            md.cogs, md.gm_pct, md.inwards_qty, md.fwd_30day_doh,
+            md.cogs, md.gm_pct, md.inwards_qty, md.inwards_qty_suggested ?? null, md.fwd_30day_doh,
           );
         } else {
-          cells.push(null, null, null, null, null, null, null, null);
+          cells.push(null, null, null, null, null, null, null, null, null);
         }
       }
       csvLines.push(cells.map(escapeCSV).join(','));
