@@ -238,90 +238,80 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
       { field: 'channel', headerName: 'Channel', pinned: 'left', width: 140, filter: SelectFilter },
     ];
 
-    // Per-month column groups
-    const monthGroups: ColGroupDef[] = months.map(month => {
-      const prefix = month;
-      const isLocked = false; // TODO: restore lockedMonths[month] === true
+    // Single active-month column groups (no outer month wrapper)
+    const month = validActiveMonth;
+    const prefix = month;
+    const isLocked = false; // TODO: restore lockedMonths[month] === true
 
-      const refCols: ColDef[] = [
-        { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', valueFormatter: qtyFormatter, width: 95 },
-        { field: `${prefix}_asp`, headerName: 'ASP', valueFormatter: currencyFormatter, width: 95 },
-        { field: `${prefix}_cogs`, headerName: 'COGS', valueFormatter: currencyFormatter, width: 90 },
-        { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', valueFormatter: qtyFormatter, width: 95 },
-        { field: `${prefix}_standard_doh`, headerName: 'Std DoH', valueFormatter: qtyFormatter, width: 80 },
-      ];
+    const refCols: ColDef[] = [
+      { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', valueFormatter: qtyFormatter, width: 95 },
+      { field: `${prefix}_asp`, headerName: 'ASP', valueFormatter: currencyFormatter, width: 95 },
+      { field: `${prefix}_cogs`, headerName: 'COGS', valueFormatter: currencyFormatter, width: 90 },
+      { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', valueFormatter: qtyFormatter, width: 95 },
+      { field: `${prefix}_standard_doh`, headerName: 'Std DoH', valueFormatter: qtyFormatter, width: 80 },
+    ];
 
-      const gdCols: ColDef[] = [
-        {
-          field: `${prefix}_nsq`,
-          headerName: 'NSQ',
-          editable: editable && !isLocked,
-          valueFormatter: qtyFormatter,
-          width: 85,
-          cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
+    const gdCols: ColDef[] = [
+      {
+        field: `${prefix}_nsq`,
+        headerName: 'NSQ',
+        editable: editable && !isLocked,
+        valueFormatter: qtyFormatter,
+        width: 85,
+        cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
+      },
+      {
+        field: `${prefix}_inwards_qty`,
+        headerName: 'Inwards',
+        editable: editable && !isLocked,
+        valueFormatter: qtyFormatter,
+        width: 85,
+        cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
+      },
+      {
+        colId: `${prefix}_inwards_qty_suggested_col`,
+        headerName: 'Sugg. Inwards',
+        editable: false,
+        width: 110,
+        valueGetter: (p: any) => pendingSuggestions?.get(`${p.data.id}|${month}`) ?? null,
+        valueFormatter: qtyFormatter,
+        cellStyle: { backgroundColor: '#fafafa' },
+        cellRenderer: (cellParams: any) => {
+          const sug: number | null = pendingSuggestions?.get(`${cellParams.data.id}|${month}`) ?? null;
+          if (sug == null) return <span style={{ color: '#bbb' }}>−</span>;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
+              <span style={{ color: '#1677ff', fontStyle: 'italic' }}>{sug.toLocaleString('en-IN')}</span>
+              {editable && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={e => {
+                    e.stopPropagation();
+                    onCellValueChanged?.({ rowId: cellParams.data.id, month, field: 'inwards_qty', value: sug });
+                  }}
+                  style={{ color: '#52c41a', padding: '0 2px', minWidth: 'unset' }}
+                  title="Accept suggestion"
+                />
+              )}
+            </div>
+          );
         },
-        {
-          field: `${prefix}_inwards_qty`,
-          headerName: 'Inwards',
-          editable: editable && !isLocked,
-          valueFormatter: qtyFormatter,
-          width: 85,
-          cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
-        },
-        {
-          colId: `${prefix}_inwards_qty_suggested_col`,
-          headerName: 'Sugg. Inwards',
-          editable: false,
-          width: 110,
-          valueGetter: (p: any) => pendingSuggestions?.get(`${p.data.id}|${month}`) ?? null,
-          valueFormatter: qtyFormatter,
-          cellStyle: { backgroundColor: '#fafafa' },
-          cellRenderer: (cellParams: any) => {
-            const sug: number | null = pendingSuggestions?.get(`${cellParams.data.id}|${month}`) ?? null;
-            if (sug == null) return <span style={{ color: '#bbb' }}>−</span>;
-            return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
-                <span style={{ color: '#1677ff', fontStyle: 'italic' }}>{sug.toLocaleString('en-IN')}</span>
-                {editable && (
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<CheckOutlined />}
-                    onClick={e => {
-                      e.stopPropagation();
-                      onCellValueChanged?.({ rowId: cellParams.data.id, month, field: 'inwards_qty', value: sug });
-                    }}
-                    style={{ color: '#52c41a', padding: '0 2px', minWidth: 'unset' }}
-                    title="Accept suggestion"
-                  />
-                )}
-              </div>
-            );
-          },
-        },
-      ];
+      },
+    ];
 
-      const calcCols: ColDef[] = [
-        { field: `${prefix}_sales_plan_gmv`, headerName: 'GMV', valueFormatter: croreFormatter, width: 90 },
-        { field: `${prefix}_goly_pct`, headerName: 'GOLY%', valueFormatter: pctFormatter, width: 80 },
-        { field: `${prefix}_nsv`, headerName: 'NSV', valueFormatter: croreFormatter, width: 90 },
-        { field: `${prefix}_inwards_val_cogs`, headerName: 'Inw Val', valueFormatter: croreFormatter, width: 90 },
-        { field: `${prefix}_opening_stock_val`, headerName: 'Op. Stock Val', valueFormatter: croreFormatter, width: 105 },
-        { field: `${prefix}_closing_stock_qty`, headerName: 'Cl. Stock', valueFormatter: qtyFormatter, width: 90 },
-        { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', valueFormatter: qtyFormatter, width: 85 },
-        { field: `${prefix}_gm_pct`, headerName: 'GM%', valueFormatter: pctFormatter, width: 75 },
-        { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', valueFormatter: croreFormatter, width: 105 },
-      ];
-
-      return {
-        headerName: monthLabel(month) + (isLocked ? ' 🔒' : ''),
-        children: [
-          { headerName: 'Reference', children: refCols },
-          { headerName: 'GD Inputs', children: gdCols },
-          { headerName: 'Calculated', children: calcCols },
-        ],
-      };
-    });
+    const calcCols: ColDef[] = [
+      { field: `${prefix}_sales_plan_gmv`, headerName: 'GMV', valueFormatter: croreFormatter, width: 90 },
+      { field: `${prefix}_goly_pct`, headerName: 'GOLY%', valueFormatter: pctFormatter, width: 80 },
+      { field: `${prefix}_nsv`, headerName: 'NSV', valueFormatter: croreFormatter, width: 90 },
+      { field: `${prefix}_inwards_val_cogs`, headerName: 'Inw Val', valueFormatter: croreFormatter, width: 90 },
+      { field: `${prefix}_opening_stock_val`, headerName: 'Op. Stock Val', valueFormatter: croreFormatter, width: 105 },
+      { field: `${prefix}_closing_stock_qty`, headerName: 'Cl. Stock', valueFormatter: qtyFormatter, width: 90 },
+      { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', valueFormatter: qtyFormatter, width: 85 },
+      { field: `${prefix}_gm_pct`, headerName: 'GM%', valueFormatter: pctFormatter, width: 75 },
+      { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', valueFormatter: croreFormatter, width: 105 },
+    ];
 
     const recentSalesGroup: ColGroupDef = {
       headerName: 'Recent Sales (3M)',
@@ -334,9 +324,9 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
           valueFormatter: qtyFormatter,
           width: 90,
         },
-        ...months.map(month => ({
-          field: `${month}_recent_sales_nsq`,
-          headerName: recentMonthLabel(month),
+        ...months.map(m => ({
+          field: `${m}_recent_sales_nsq`,
+          headerName: recentMonthLabel(m),
           columnGroupShow: 'open' as const,
           valueFormatter: qtyFormatter,
           width: 85,
@@ -344,8 +334,14 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
       ],
     };
 
-    return [...dimCols, recentSalesGroup, ...monthGroups];
-  }, [months, editable, lockedMonths, onCellValueChanged, pendingSuggestions]);
+    const activeMonthGroup: ColGroupDef[] = [
+      { headerName: 'Reference', children: refCols },
+      { headerName: 'GD Inputs', children: gdCols },
+      { headerName: 'Calculated', children: calcCols },
+    ];
+
+    return [...dimCols, recentSalesGroup, ...activeMonthGroup];
+  }, [validActiveMonth, months, editable, lockedMonths, onCellValueChanged, pendingSuggestions]);
 
   const defaultColDef = useMemo((): ColDef => ({
     sortable: true,
