@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Spin, Typography, Button, Space, Tag, Modal, message, Popconfirm, Collapse, List, Dropdown } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined, HistoryOutlined, RollbackOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import OtbGrid from '@/components/OtbGrid';
+import OtbGrid, { type OtbGridHandle } from '@/components/OtbGrid';
 import BulkEditModal from '@/components/BulkEditModal';
 import ImportGdModal from '@/components/ImportGdModal';
 import { ApprovalPanel } from '@/components/ApprovalPanel';
@@ -36,7 +36,9 @@ export default function GridPage() {
   const [loading, setLoading] = useState(true);
   const [dirtyRows, setDirtyRows] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const otbGridRef = useRef<OtbGridHandle>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditRows, setBulkEditRows] = useState<typeof rows>([]);
   const [importOpen, setImportOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -97,7 +99,10 @@ export default function GridPage() {
 
   // Undo/redo: apply a value change (from undo/redo stack)
   const handleUndoRedoApply = useCallback((rowId: string, month: string, field: string, value: number | null) => {
-    setRows(prev => applyChange(prev, months, { rowId, month, field, value: value ?? 0 }));
+    setRows(prev => {
+      const { rows: updatedRows } = applyChange(prev, months, { rowId, month, field, value: value ?? 0 });
+      return updatedRows;
+    });
     setDirtyRows(prev => new Set(prev).add(rowId));
     setSaveStatus('idle');
   }, [applyChange, months]);
@@ -109,7 +114,8 @@ export default function GridPage() {
     const row = rows.find(r => r.id === params.rowId);
     const oldValue = row?.months[params.month]?.[params.field as keyof typeof row.months[string]] as number | null ?? null;
 
-    setRows(prev => applyChange(prev, months, params));
+    const { rows: updatedRows } = applyChange(rows, months, params);
+    setRows(updatedRows);
     setDirtyRows(prev => new Set(prev).add(params.rowId));
     setSaveStatus('idle');
 
@@ -121,7 +127,8 @@ export default function GridPage() {
     let updated = rows;
     const dirty = new Set(dirtyRows);
     for (const change of changes) {
-      updated = applyChange(updated, months, change);
+      const { rows: next } = applyChange(updated, months, change);
+      updated = next;
       dirty.add(change.rowId);
     }
     setRows(updated);
@@ -138,7 +145,7 @@ export default function GridPage() {
       const row = rows.find(r => r.id === rowId);
       if (!row) continue;
       for (const month of months) {
-        if (lockedMonths[month]) continue;
+        // if (lockedMonths[month]) continue; // TODO: restore month locking
         const d = row.months[month];
         if (!d) continue;
         updates.push({
@@ -262,9 +269,9 @@ export default function GridPage() {
             <Dropdown
               menu={{
                 items: [
-                  { key: 'xlsx', label: 'Export as Excel', onClick: () => window.open(`/api/cycles/${cycleId}/export?format=xlsx`, '_blank') },
-                  { key: 'csv', label: 'Export as CSV', onClick: () => window.open(`/api/cycles/${cycleId}/export?format=csv`, '_blank') },
-                  { key: 'pdf', label: 'Export as PDF', onClick: () => window.open(`/api/cycles/${cycleId}/export?format=pdf`, '_blank') },
+                  { key: 'xlsx', label: 'Export as Excel', onClick: async () => { await handleSave(); window.open(`/api/cycles/${cycleId}/export?format=xlsx`, '_blank'); } },
+                  { key: 'csv', label: 'Export as CSV', onClick: async () => { await handleSave(); window.open(`/api/cycles/${cycleId}/export?format=csv`, '_blank'); } },
+                  { key: 'pdf', label: 'Export as PDF', onClick: async () => { await handleSave(); window.open(`/api/cycles/${cycleId}/export?format=pdf`, '_blank'); } },
                 ],
               }}
             >
@@ -279,7 +286,10 @@ export default function GridPage() {
           {isEditable && (
             <>
               <Button size="small" icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>Import Excel</Button>
-              <Button size="small" icon={<EditOutlined />} onClick={() => setBulkEditOpen(true)}>Bulk Edit</Button>
+              <Button size="small" icon={<EditOutlined />} onClick={() => {
+                setBulkEditRows(otbGridRef.current?.getFilteredRows() ?? rows);
+                setBulkEditOpen(true);
+              }}>Bulk Edit</Button>
               <Button size="small" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)">Undo</Button>
               <Button size="small" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Y)">Redo</Button>
               <Button
@@ -377,6 +387,7 @@ export default function GridPage() {
         />
       )}
       <OtbGrid
+        ref={otbGridRef}
         rows={rows}
         months={months}
         editable={isEditable}
@@ -388,7 +399,7 @@ export default function GridPage() {
           <BulkEditModal
             open={bulkEditOpen}
             onClose={() => setBulkEditOpen(false)}
-            rows={rows}
+            rows={bulkEditRows}
             months={months}
             lockedMonths={lockedMonths}
             onApply={handleBulkApply}

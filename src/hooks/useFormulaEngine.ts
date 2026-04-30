@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { calculateAll } from '@/lib/formulaEngine';
+import { calculateAll, calcSuggestedInwards } from '@/lib/formulaEngine';
 import type { PlanRow } from '@/types/otb';
 
 interface CellChange {
@@ -14,15 +14,17 @@ interface CellChange {
 /**
  * Hook that applies a cell change to the rows array,
  * recalculates formulas for the affected row (all months for chaining),
- * and returns the updated rows.
+ * and returns the updated rows plus an optional inwards suggestion when NSQ changes.
  */
 export function useFormulaEngine() {
   const applyChange = useCallback((
     rows: PlanRow[],
     months: string[],
-    change: CellChange
-  ): PlanRow[] => {
-    return rows.map(row => {
+    change: CellChange,
+  ): { rows: PlanRow[]; suggestion: { rowId: string; month: string; value: number } | null } => {
+    let suggestion: { rowId: string; month: string; value: number } | null = null;
+
+    const updatedRows = rows.map(row => {
       if (row.id !== change.rowId) return row;
 
       // Clone months data
@@ -38,8 +40,28 @@ export function useFormulaEngine() {
       if (change.field === 'nsq') monthData.nsq = change.value;
       else if (change.field === 'inwards_qty') monthData.inwards_qty = change.value;
 
-      // Recalculate all months (for month chaining)
       const sortedMonths = [...months].sort();
+      const mIdx = sortedMonths.indexOf(change.month);
+
+      // Compute suggestion when NSQ changes to non-zero
+      if (change.field === 'nsq' && change.value > 0) {
+        const nextMonthNsq = mIdx < sortedMonths.length - 1
+          ? (newMonths[sortedMonths[mIdx + 1]]?.nsq ?? null)
+          : null;
+
+        const suggestedVal = calcSuggestedInwards(
+          change.value,
+          nextMonthNsq,
+          monthData.standard_doh ?? null,
+          monthData.opening_stock_qty ?? null,
+        );
+
+        if (suggestedVal !== null) {
+          suggestion = { rowId: change.rowId, month: change.month, value: suggestedVal };
+        }
+      }
+
+      // Recalculate all months (for month chaining)
       for (let i = 0; i < sortedMonths.length; i++) {
         const m = sortedMonths[i];
         const d = newMonths[m];
@@ -55,7 +77,7 @@ export function useFormulaEngine() {
 
         // Next month NSQ for forward DoH
         const nextNsq = i < sortedMonths.length - 1
-          ? newMonths[sortedMonths[i + 1]]?.nsq ?? null
+          ? (newMonths[sortedMonths[i + 1]]?.nsq ?? null)
           : null;
 
         const result = calculateAll({
@@ -83,6 +105,8 @@ export function useFormulaEngine() {
 
       return { ...row, months: newMonths };
     });
+
+    return { rows: updatedRows, suggestion };
   }, []);
 
   return { applyChange };
