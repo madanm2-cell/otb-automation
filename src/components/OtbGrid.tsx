@@ -3,10 +3,11 @@
 import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
+import { Button } from 'antd';
+import { CheckOutlined } from '@ant-design/icons';
 import type { PlanRow } from '@/types/otb';
 import { SelectFilter } from '@/components/SelectFilter';
 import { formatCrore, formatPct, formatQty, formatCurrency } from '@/lib/formatting';
-import { InwardsCellRenderer } from '@/components/InwardsCellRenderer';
 
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -231,26 +232,37 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
           valueFormatter: qtyFormatter,
           width: 85,
           cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
-          cellRenderer: editable ? (cellParams: any) => {
-            const key = `${cellParams.data.id}|${month}`;
-            const suggestedValue = pendingSuggestions?.get(key) ?? null;
+        },
+        {
+          colId: `${prefix}_inwards_qty_suggested_col`,
+          headerName: 'Sugg. Inwards',
+          editable: false,
+          width: 110,
+          valueGetter: (p: any) => pendingSuggestions?.get(`${p.data.id}|${month}`) ?? null,
+          valueFormatter: qtyFormatter,
+          cellStyle: { backgroundColor: '#fafafa' },
+          cellRenderer: (cellParams: any) => {
+            const sug: number | null = pendingSuggestions?.get(`${cellParams.data.id}|${month}`) ?? null;
+            if (sug == null) return <span style={{ color: '#bbb' }}>−</span>;
             return (
-              <InwardsCellRenderer
-                value={cellParams.value}
-                suggestedValue={suggestedValue}
-                onAccept={() => {
-                  if (suggestedValue != null && onCellValueChanged) {
-                    onCellValueChanged({
-                      rowId: cellParams.data.id,
-                      month: month,
-                      field: 'inwards_qty',
-                      value: suggestedValue,
-                    });
-                  }
-                }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
+                <span style={{ color: '#1677ff', fontStyle: 'italic' }}>{sug.toLocaleString('en-IN')}</span>
+                {editable && (
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={e => {
+                      e.stopPropagation();
+                      onCellValueChanged?.({ rowId: cellParams.data.id, month, field: 'inwards_qty', value: sug });
+                    }}
+                    style={{ color: '#52c41a', padding: '0 2px', minWidth: 'unset' }}
+                    title="Accept suggestion"
+                  />
+                )}
+              </div>
             );
-          } : undefined,
+          },
         },
       ];
 
