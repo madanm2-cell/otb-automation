@@ -44,6 +44,7 @@ export default function GridPage() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [reverting, setReverting] = useState(false);
+  const [pendingSuggestions, setPendingSuggestions] = useState<Map<string, number>>(new Map());
 
   const { applyChange } = useFormulaEngine();
 
@@ -114,13 +115,35 @@ export default function GridPage() {
     const row = rows.find(r => r.id === params.rowId);
     const oldValue = row?.months[params.month]?.[params.field as keyof typeof row.months[string]] as number | null ?? null;
 
-    const { rows: updatedRows } = applyChange(rows, months, params);
+    const { rows: updatedRows, suggestion } = applyChange(rows, months, params);
     setRows(updatedRows);
     setDirtyRows(prev => new Set(prev).add(params.rowId));
     setSaveStatus('idle');
 
     // Push to undo stack
     pushUndo({ rowId: params.rowId, month: params.month, field: params.field, oldValue, newValue: params.value });
+
+    // Update pending suggestions
+    if (params.field === 'nsq') {
+      const currentInwards = row?.months[params.month]?.inwards_qty ?? null;
+      setPendingSuggestions(prev => {
+        const next = new Map(prev);
+        const key = `${params.rowId}|${params.month}`;
+        if (suggestion && (currentInwards == null || currentInwards === 0)) {
+          next.set(key, suggestion.value);
+        } else {
+          next.delete(key);
+        }
+        return next;
+      });
+    } else if (params.field === 'inwards_qty' && params.value !== 0) {
+      // GD manually entered inwards — clear suggestion for this cell
+      setPendingSuggestions(prev => {
+        const next = new Map(prev);
+        next.delete(`${params.rowId}|${params.month}`);
+        return next;
+      });
+    }
   }, [applyChange, months, rows, pushUndo]);
 
   const handleBulkApply = useCallback((changes: { rowId: string; month: string; field: string; value: number }[]) => {
@@ -135,6 +158,17 @@ export default function GridPage() {
     setDirtyRows(dirty);
     setSaveStatus('idle');
   }, [rows, dirtyRows, applyChange, months]);
+
+  const handleAcceptAll = useCallback(() => {
+    const changes = Array.from(pendingSuggestions.entries()).map(([key, value]) => {
+      const [rowId, month] = key.split('|');
+      return { rowId, month, field: 'inwards_qty', value };
+    });
+    if (changes.length > 0) {
+      handleBulkApply(changes);
+    }
+    setPendingSuggestions(new Map());
+  }, [pendingSuggestions, handleBulkApply]);
 
   const handleSave = useCallback(async () => {
     if (dirtyRows.size === 0) return;
@@ -153,6 +187,7 @@ export default function GridPage() {
           month,
           nsq: d.nsq,
           inwards_qty: d.inwards_qty,
+          inwards_qty_suggested: d.inwards_qty_suggested ?? null,
         });
       }
     }
@@ -290,6 +325,16 @@ export default function GridPage() {
                 setBulkEditRows(otbGridRef.current?.getFilteredRows() ?? rows);
                 setBulkEditOpen(true);
               }}>Bulk Edit</Button>
+              {pendingSuggestions.size > 0 && (
+                <Button
+                  size="small"
+                  type="dashed"
+                  onClick={handleAcceptAll}
+                  style={{ color: '#1677ff', borderColor: '#1677ff' }}
+                >
+                  Accept Suggestions ({pendingSuggestions.size})
+                </Button>
+              )}
               <Button size="small" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)">Undo</Button>
               <Button size="small" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Y)">Redo</Button>
               <Button
@@ -393,6 +438,7 @@ export default function GridPage() {
         editable={isEditable}
         lockedMonths={lockedMonths}
         onCellValueChanged={isEditable ? handleCellValueChanged : undefined}
+        pendingSuggestions={pendingSuggestions}
       />
       {isEditable && (
         <>
