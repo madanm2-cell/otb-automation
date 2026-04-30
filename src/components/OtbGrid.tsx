@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
+import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
 import { Button, Tabs, Badge } from 'antd';
@@ -130,12 +130,6 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
   // If the current activeMonth is no longer in sortedMonths, reset to first
   const validActiveMonth = sortedMonths.includes(activeMonth) ? activeMonth : (sortedMonths[0] ?? '');
 
-  useEffect(() => {
-    if (!sortedMonths.includes(activeMonth) && sortedMonths.length > 0) {
-      setActiveMonth(sortedMonths[0]);
-    }
-  }, [sortedMonths, activeMonth]);
-
   const tabItems = useMemo(() => sortedMonths.map(month => {
     const suggCount = suggestionsForMonth(pendingSuggestions, month);
     return {
@@ -222,7 +216,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
       const rowId = allRowNodes[startRowIdx + r].id;
       for (let c = 0; c < pastedRows[r].length && c < targetCols.length; c++) {
         const { month, field } = targetCols[c];
-        // if (lockedMonths[month]) continue; // TODO: restore month locking
+        if (lockedMonths[month]) continue;
 
         const val = parseFloat(pastedRows[r][c]);
         if (isNaN(val)) continue;
