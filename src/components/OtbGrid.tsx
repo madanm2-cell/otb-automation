@@ -130,21 +130,24 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
   // If the current activeMonth is no longer in sortedMonths, reset to first
   const validActiveMonth = sortedMonths.includes(activeMonth) ? activeMonth : (sortedMonths[0] ?? '');
 
-  const tabItems = sortedMonths.map(month => ({
-    key: month,
-    label: (
-      <Badge
-        count={suggestionsForMonth(pendingSuggestions, month)}
-        size="small"
-        offset={[6, -2]}
-        style={{ backgroundColor: '#1677ff' }}
-      >
-        <span style={{ paddingRight: suggestionsForMonth(pendingSuggestions, month) > 0 ? 8 : 0 }}>
-          {monthLabel(month)}
-        </span>
-      </Badge>
-    ),
-  }));
+  const tabItems = useMemo(() => sortedMonths.map(month => {
+    const suggCount = suggestionsForMonth(pendingSuggestions, month);
+    return {
+      key: month,
+      label: (
+        <Badge
+          count={suggCount}
+          size="small"
+          offset={[6, -2]}
+          style={{ backgroundColor: '#1677ff' }}
+        >
+          <span style={{ paddingRight: suggCount > 0 ? 8 : 0 }}>
+            {monthLabel(month)}
+          </span>
+        </Badge>
+      ),
+    };
+  }), [sortedMonths, pendingSuggestions]);
 
   useImperativeHandle(ref, () => ({
     getFilteredRows() {
@@ -189,7 +192,6 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
 
     // Determine which columns to paste into (starting from focused GD field)
     const gdFieldStartIdx = GD_FIELDS.indexOf(focusedFieldName);
-    const sortedMonths = [...months].sort();
     const monthStartIdx = sortedMonths.indexOf(focusedMonth);
     if (monthStartIdx === -1) return;
 
@@ -224,7 +226,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
         onCellValueChanged({ rowId, month, field, value: val });
       }
     }
-  }, [editable, onCellValueChanged, months, lockedMonths]);
+  }, [editable, onCellValueChanged, sortedMonths, lockedMonths]);
 
   const columnDefs = useMemo((): (ColDef | ColGroupDef)[] => {
     // Dimension columns — all visible, pinned left, using checkbox select filter
