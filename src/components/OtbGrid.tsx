@@ -64,6 +64,7 @@ function flattenRows(rows: PlanRow[], months: string[]): FlatRow[] {
       // GD inputs
       flat[`${prefix}_nsq`] = data.nsq;
       flat[`${prefix}_inwards_qty`] = data.inwards_qty;
+      flat[`${prefix}_inwards_qty_suggested`] = data.inwards_qty_suggested ?? null;
       // Calculated
       flat[`${prefix}_sales_plan_gmv`] = data.sales_plan_gmv;
       flat[`${prefix}_goly_pct`] = data.goly_pct;
