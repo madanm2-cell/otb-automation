@@ -1,13 +1,19 @@
 'use client';
 
-import { useMemo, useRef, useCallback } from 'react';
+import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
 import type { PlanRow } from '@/types/otb';
+import { SelectFilter } from '@/components/SelectFilter';
 import { formatCrore, formatPct, formatQty, formatCurrency } from '@/lib/formatting';
+import { InwardsCellRenderer } from '@/components/InwardsCellRenderer';
 
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+export interface OtbGridHandle {
+  getFilteredRows: () => PlanRow[];
+}
 
 interface OtbGridProps {
   rows: PlanRow[];
@@ -15,6 +21,7 @@ interface OtbGridProps {
   editable?: boolean;
   lockedMonths?: Record<string, boolean>;
   onCellValueChanged?: (params: { rowId: string; month: string; field: string; value: number }) => void;
+  pendingSuggestions?: Map<string, number>;
 }
 
 // Flatten PlanRow into a single-level object for AG Grid
@@ -69,12 +76,23 @@ function flattenRows(rows: PlanRow[], months: string[]): FlatRow[] {
       flat[`${prefix}_gross_margin`] = data.gross_margin;
     }
 
+    flat['recent_sales_total'] = months.reduce(
+      (sum, m) => sum + (Number(row.months[m]?.recent_sales_nsq) || 0), 0
+    );
+
     return flat;
   });
 }
 
 function monthLabel(month: string): string {
   const d = new Date(month + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+}
+
+// Each planning month maps to the recent month 3 months prior (Q1 Apr→Jan, May→Feb, Jun→Mar)
+function recentMonthLabel(planningMonth: string): string {
+  const d = new Date(planningMonth + 'T00:00:00');
+  d.setMonth(d.getMonth() - 3);
   return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
 }
 
@@ -86,9 +104,22 @@ const currencyFormatter = (p: ValueFormatterParams) => formatCurrency(p.value);
 // Fields that GD can edit (used for paste mapping)
 const GD_FIELDS = ['nsq', 'inwards_qty'];
 
-export default function OtbGrid({ rows, months, editable = false, lockedMonths = {}, onCellValueChanged }: OtbGridProps) {
+const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
+  { rows, months, editable = false, lockedMonths = {}, onCellValueChanged, pendingSuggestions },
+  ref
+) {
   const gridRef = useRef<AgGridReact>(null);
   const flatRows = useMemo(() => flattenRows(rows, months), [rows, months]);
+
+  useImperativeHandle(ref, () => ({
+    getFilteredRows() {
+      const api = gridRef.current?.api;
+      if (!api) return rows;
+      const visibleIds = new Set<string>();
+      api.forEachNodeAfterFilter(node => { if (node.data?.id) visibleIds.add(node.data.id); });
+      return rows.filter(r => visibleIds.has(r.id));
+    },
+  }));
 
   // Custom paste handler for Excel copy-paste support
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -150,7 +181,7 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
       const rowId = allRowNodes[startRowIdx + r].id;
       for (let c = 0; c < pastedRows[r].length && c < targetCols.length; c++) {
         const { month, field } = targetCols[c];
-        if (lockedMonths[month]) continue;
+        // if (lockedMonths[month]) continue; // TODO: restore month locking
 
         const val = parseFloat(pastedRows[r][c]);
         if (isNaN(val)) continue;
@@ -161,19 +192,19 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
   }, [editable, onCellValueChanged, months, lockedMonths]);
 
   const columnDefs = useMemo((): (ColDef | ColGroupDef)[] => {
-    // Dimension columns — all visible, pinned left, using Community text filter
+    // Dimension columns — all visible, pinned left, using checkbox select filter
     const dimCols: ColDef[] = [
-      { field: 'sub_brand', headerName: 'Sub Brand', pinned: 'left', width: 130 },
-      { field: 'sub_category', headerName: 'Sub Category', pinned: 'left', width: 120 },
-      { field: 'wear_type', headerName: 'Wear Type', pinned: 'left', width: 100 },
-      { field: 'gender', headerName: 'Gender', pinned: 'left', width: 80 },
-      { field: 'channel', headerName: 'Channel', pinned: 'left', width: 140 },
+      { field: 'sub_brand', headerName: 'Sub Brand', pinned: 'left', width: 130, filter: SelectFilter },
+      { field: 'sub_category', headerName: 'Sub Category', pinned: 'left', width: 120, filter: SelectFilter },
+      { field: 'wear_type', headerName: 'Wear Type', pinned: 'left', width: 100, filter: SelectFilter },
+      { field: 'gender', headerName: 'Gender', pinned: 'left', width: 80, filter: SelectFilter },
+      { field: 'channel', headerName: 'Channel', pinned: 'left', width: 140, filter: SelectFilter },
     ];
 
     // Per-month column groups
     const monthGroups: ColGroupDef[] = months.map(month => {
       const prefix = month;
-      const isLocked = lockedMonths[month] === true;
+      const isLocked = false; // TODO: restore lockedMonths[month] === true
 
       const refCols: ColDef[] = [
         { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', valueFormatter: qtyFormatter, width: 95 },
@@ -199,6 +230,26 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
           valueFormatter: qtyFormatter,
           width: 85,
           cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
+          cellRenderer: editable ? (cellParams: any) => {
+            const key = `${cellParams.data.id}|${month}`;
+            const suggestedValue = pendingSuggestions?.get(key) ?? null;
+            return (
+              <InwardsCellRenderer
+                value={cellParams.value}
+                suggestedValue={suggestedValue}
+                onAccept={() => {
+                  if (suggestedValue != null && onCellValueChanged) {
+                    onCellValueChanged({
+                      rowId: cellParams.data.id,
+                      month: month,
+                      field: 'inwards_qty',
+                      value: suggestedValue,
+                    });
+                  }
+                }}
+              />
+            );
+          } : undefined,
         },
       ];
 
@@ -224,12 +275,33 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
       };
     });
 
-    return [...dimCols, ...monthGroups];
-  }, [months, editable, lockedMonths]);
+    const recentSalesGroup: ColGroupDef = {
+      headerName: 'Recent Sales (3M)',
+      openByDefault: false,
+      children: [
+        {
+          field: 'recent_sales_total',
+          headerName: 'Total',
+          columnGroupShow: 'closed',
+          valueFormatter: qtyFormatter,
+          width: 90,
+        },
+        ...months.map(month => ({
+          field: `${month}_recent_sales_nsq`,
+          headerName: recentMonthLabel(month),
+          columnGroupShow: 'open' as const,
+          valueFormatter: qtyFormatter,
+          width: 85,
+        })),
+      ],
+    };
+
+    return [...dimCols, recentSalesGroup, ...monthGroups];
+  }, [months, editable, lockedMonths, onCellValueChanged, pendingSuggestions]);
 
   const defaultColDef = useMemo((): ColDef => ({
     sortable: true,
-    filter: true,
+    filter: false,
     resizable: true,
     suppressMovable: true,
   }), []);
@@ -260,4 +332,6 @@ export default function OtbGrid({ rows, months, editable = false, lockedMonths =
       />
     </div>
   );
-}
+});
+
+export default OtbGrid;
