@@ -88,6 +88,7 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
       standard_doh: d.standard_doh as number | null,
       nsq: d.nsq as number | null,
       inwards_qty: d.inwards_qty as number | null,
+      inwards_qty_suggested: d.inwards_qty_suggested as number | null,
       sales_plan_gmv: d.sales_plan_gmv as number | null,
       goly_pct: d.goly_pct as number | null,
       nsv: d.nsv as number | null,

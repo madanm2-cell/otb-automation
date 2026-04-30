@@ -197,6 +197,7 @@ export interface PlanMonthData {
   // GD inputs
   nsq: number | null;
   inwards_qty: number | null;
+  inwards_qty_suggested: number | null;
   // Calculated
   sales_plan_gmv: number | null;
   goly_pct: number | null;
@@ -240,6 +241,7 @@ export interface BulkUpdateItem {
   month: string;
   nsq?: number | null;
   inwards_qty?: number | null;
+  inwards_qty_suggested?: number | null;
 }
 
 export interface PlanDataResponse {
