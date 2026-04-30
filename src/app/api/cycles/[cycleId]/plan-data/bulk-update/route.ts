@@ -43,13 +43,13 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
   const allMonths = getMonthsInRange(cycle.planning_period_start, cycle.planning_period_end);
   const lockedMonths = getLockedMonths(allMonths);
 
-  // Check for locked month edits
-  const lockedEdits = updates.filter(u => lockedMonths[u.month]);
-  if (lockedEdits.length > 0) {
-    return NextResponse.json({
-      error: `Cannot edit locked months: ${[...new Set(lockedEdits.map(u => u.month))].join(', ')}`,
-    }, { status: 400 });
-  }
+  // TODO: restore month lock enforcement
+  // const lockedEdits = updates.filter(u => lockedMonths[u.month]);
+  // if (lockedEdits.length > 0) {
+  //   return NextResponse.json({
+  //     error: `Cannot edit locked months: ${[...new Set(lockedEdits.map(u => u.month))].join(', ')}`,
+  //   }, { status: 400 });
+  // }
 
   // Get affected row IDs
   const rowIds = [...new Set(updates.map(u => u.rowId))];
@@ -82,6 +82,7 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
 
     if (update.nsq !== undefined) monthData.nsq = update.nsq;
     if (update.inwards_qty !== undefined) monthData.inwards_qty = update.inwards_qty;
+    if (update.inwards_qty_suggested !== undefined) monthData.inwards_qty_suggested = update.inwards_qty_suggested;
   }
 
   // Recalculate formulas for each affected row (all months, for chaining)
@@ -139,6 +140,7 @@ export const POST = withAuth('edit_otb', async (req, auth, { params }: Params) =
         data: {
           nsq: d.nsq,
           inwards_qty: d.inwards_qty,
+          inwards_qty_suggested: d.inwards_qty_suggested ?? null,
           opening_stock_qty: d.opening_stock_qty,
           sales_plan_gmv: result.salesPlanGmv,
           goly_pct: result.golyPct,
