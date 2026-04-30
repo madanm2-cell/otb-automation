@@ -248,17 +248,18 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     const isLocked = lockedMonths[month] === true;
 
     const refCols: ColDef[] = [
-      { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', valueFormatter: qtyFormatter, width: 95 },
-      { field: `${prefix}_asp`, headerName: 'ASP', valueFormatter: currencyFormatter, width: 95 },
-      { field: `${prefix}_cogs`, headerName: 'COGS', valueFormatter: currencyFormatter, width: 90 },
-      { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', valueFormatter: qtyFormatter, width: 95 },
-      { field: `${prefix}_standard_doh`, headerName: 'Std DoH', valueFormatter: qtyFormatter, width: 80 },
+      { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95 },
+      { field: `${prefix}_asp`, headerName: 'ASP', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: currencyFormatter, width: 95 },
+      { field: `${prefix}_cogs`, headerName: 'COGS', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: currencyFormatter, width: 90 },
+      { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95 },
+      { field: `${prefix}_standard_doh`, headerName: 'Std DoH', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 80 },
     ];
 
     const gdCols: ColDef[] = [
       {
         field: `${prefix}_nsq`,
         headerName: 'NSQ',
+        headerClass: 'otb-gd-col-header',
         editable: editable && !isLocked,
         valueFormatter: qtyFormatter,
         width: 85,
@@ -267,6 +268,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
       {
         field: `${prefix}_inwards_qty`,
         headerName: 'Inwards',
+        headerClass: 'otb-gd-col-header',
         editable: editable && !isLocked,
         valueFormatter: qtyFormatter,
         width: 85,
@@ -275,11 +277,12 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
       {
         colId: `${prefix}_inwards_qty_suggested_col`,
         headerName: 'Sugg. Inwards',
+        headerClass: 'otb-gd-col-header',
         editable: false,
         width: 110,
         valueGetter: (p: any) => pendingSuggestions?.get(`${p.data.id}|${month}`) ?? null,
         valueFormatter: qtyFormatter,
-        cellStyle: { backgroundColor: '#fafafa' },
+        cellStyle: { backgroundColor: '#f0f7ff' },
         cellRenderer: (cellParams: any) => {
           const sug: number | null = pendingSuggestions?.get(`${cellParams.data.id}|${month}`) ?? null;
           if (sug == null) return <span style={{ color: '#bbb' }}>−</span>;
@@ -306,15 +309,15 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     ];
 
     const calcCols: ColDef[] = [
-      { field: `${prefix}_sales_plan_gmv`, headerName: 'GMV', valueFormatter: croreFormatter, width: 90 },
-      { field: `${prefix}_goly_pct`, headerName: 'GOLY%', valueFormatter: pctFormatter, width: 80 },
-      { field: `${prefix}_nsv`, headerName: 'NSV', valueFormatter: croreFormatter, width: 90 },
-      { field: `${prefix}_inwards_val_cogs`, headerName: 'Inw Val', valueFormatter: croreFormatter, width: 90 },
-      { field: `${prefix}_opening_stock_val`, headerName: 'Op. Stock Val', valueFormatter: croreFormatter, width: 105 },
-      { field: `${prefix}_closing_stock_qty`, headerName: 'Cl. Stock', valueFormatter: qtyFormatter, width: 90 },
-      { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', valueFormatter: qtyFormatter, width: 85 },
-      { field: `${prefix}_gm_pct`, headerName: 'GM%', valueFormatter: pctFormatter, width: 75 },
-      { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', valueFormatter: croreFormatter, width: 105 },
+      { field: `${prefix}_sales_plan_gmv`, headerName: 'GMV', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90 },
+      { field: `${prefix}_goly_pct`, headerName: 'GOLY%', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: pctFormatter, width: 80 },
+      { field: `${prefix}_nsv`, headerName: 'NSV', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90 },
+      { field: `${prefix}_inwards_val_cogs`, headerName: 'Inw Val', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90 },
+      { field: `${prefix}_opening_stock_val`, headerName: 'Op. Stock Val', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 105 },
+      { field: `${prefix}_closing_stock_qty`, headerName: 'Cl. Stock', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: qtyFormatter, width: 90 },
+      { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: qtyFormatter, width: 85 },
+      { field: `${prefix}_gm_pct`, headerName: 'GM%', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: pctFormatter, width: 75 },
+      { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 105 },
     ];
 
     const recentSalesGroup: ColGroupDef = {
@@ -339,9 +342,9 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     };
 
     const activeMonthGroup: ColGroupDef[] = [
-      { headerName: 'Reference', children: refCols },
-      { headerName: 'GD Inputs', children: gdCols },
-      { headerName: 'Calculated', children: calcCols },
+      { headerName: 'Reference', headerClass: 'otb-ref-header', children: refCols },
+      { headerName: 'GD Inputs', headerClass: 'otb-gd-header', children: gdCols },
+      { headerName: 'Calculated', headerClass: 'otb-calc-header', children: calcCols },
     ];
 
     return [...dimCols, recentSalesGroup, ...activeMonthGroup];
