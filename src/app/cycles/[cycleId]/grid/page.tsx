@@ -16,6 +16,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
 import { getLockedMonths } from '@/lib/monthLockout';
+import { calcSuggestedInwards } from '@/lib/formulaEngine';
 import type { PlanRow, OtbCycle } from '@/types/otb';
 
 const { Title } = Typography;
@@ -45,10 +46,12 @@ export default function GridPage() {
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [reverting, setReverting] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState<Map<string, number>>(new Map());
+  const suggestionsInitialized = useRef(false);
 
   const { applyChange } = useFormulaEngine();
 
   const fetchGridData = useCallback(async () => {
+    suggestionsInitialized.current = false;
     try {
       const [cycleData, planData] = await Promise.all([
         fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
@@ -81,6 +84,36 @@ export default function GridPage() {
     fetchGridData();
     fetchVersions();
   }, [fetchGridData, fetchVersions]);
+
+  // Compute initial suggestions on page load for rows that already have NSQ but no inwards
+  useEffect(() => {
+    if (rows.length === 0 || months.length === 0) return;
+    if (suggestionsInitialized.current) return;
+    suggestionsInitialized.current = true;
+
+    const sortedMonths = [...months].sort();
+    const initial = new Map<string, number>();
+
+    for (const row of rows) {
+      for (let i = 0; i < sortedMonths.length; i++) {
+        const month = sortedMonths[i];
+        const d = row.months[month];
+        if (!d || !d.nsq || d.nsq === 0) continue;
+        if (d.inwards_qty != null && d.inwards_qty !== 0) continue;
+
+        const nextMonthNsq = i < sortedMonths.length - 1
+          ? (row.months[sortedMonths[i + 1]]?.nsq ?? null)
+          : null;
+
+        const suggested = calcSuggestedInwards(d.nsq, nextMonthNsq, d.standard_doh, d.opening_stock_qty);
+        if (suggested !== null && suggested > 0) {
+          initial.set(`${row.id}|${month}`, suggested);
+        }
+      }
+    }
+
+    if (initial.size > 0) setPendingSuggestions(initial);
+  }, [rows, months]);
 
   const { profile } = useAuth();
   const lockedMonths = useMemo(() => getLockedMonths(months), [months]);
@@ -129,7 +162,7 @@ export default function GridPage() {
       setPendingSuggestions(prev => {
         const next = new Map(prev);
         const key = `${params.rowId}|${params.month}`;
-        if (suggestion && (currentInwards == null || currentInwards === 0)) {
+        if (suggestion && suggestion.value > 0 && (currentInwards == null || currentInwards === 0)) {
           next.set(key, suggestion.value);
         } else {
           next.delete(key);

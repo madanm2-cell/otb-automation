@@ -43,25 +43,8 @@ export function useFormulaEngine() {
       const sortedMonths = [...months].sort();
       const mIdx = sortedMonths.indexOf(change.month);
 
-      // Compute suggestion when NSQ changes to non-zero
-      if (change.field === 'nsq' && change.value > 0) {
-        const nextMonthNsq = mIdx < sortedMonths.length - 1
-          ? (newMonths[sortedMonths[mIdx + 1]]?.nsq ?? null)
-          : null;
-
-        const suggestedVal = calcSuggestedInwards(
-          change.value,
-          nextMonthNsq,
-          monthData.standard_doh ?? null,
-          monthData.opening_stock_qty ?? null,
-        );
-
-        if (suggestedVal !== null) {
-          suggestion = { rowId: change.rowId, month: change.month, value: suggestedVal };
-        }
-      }
-
       // Recalculate all months (for month chaining)
+      // Suggestion is computed AFTER this loop so months 2+ get their chained opening_stock_qty
       for (let i = 0; i < sortedMonths.length; i++) {
         const m = sortedMonths[i];
         const d = newMonths[m];
@@ -101,6 +84,25 @@ export function useFormulaEngine() {
         d.fwd_30day_doh = result.fwd30dayDoh;
         d.gm_pct = result.gmPct;
         d.gross_margin = result.grossMargin;
+      }
+
+      // Compute suggestion AFTER loop: months 2+ now have chained opening_stock_qty
+      if (change.field === 'nsq' && change.value > 0) {
+        const changedData = newMonths[change.month];
+        const nextMonthNsq = mIdx < sortedMonths.length - 1
+          ? (newMonths[sortedMonths[mIdx + 1]]?.nsq ?? null)
+          : null;
+
+        const suggestedVal = calcSuggestedInwards(
+          change.value,
+          nextMonthNsq,
+          changedData.standard_doh ?? null,
+          changedData.opening_stock_qty ?? null,
+        );
+
+        if (suggestedVal !== null) {
+          suggestion = { rowId: change.rowId, month: change.month, value: suggestedVal };
+        }
       }
 
       return { ...row, months: newMonths };
