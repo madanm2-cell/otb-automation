@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
+import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
 import { Button, Tabs, Badge } from 'antd';
@@ -130,6 +130,12 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
   // If the current activeMonth is no longer in sortedMonths, reset to first
   const validActiveMonth = sortedMonths.includes(activeMonth) ? activeMonth : (sortedMonths[0] ?? '');
 
+  useEffect(() => {
+    if (!sortedMonths.includes(activeMonth) && sortedMonths.length > 0) {
+      setActiveMonth(sortedMonths[0]);
+    }
+  }, [sortedMonths, activeMonth]);
+
   const tabItems = useMemo(() => sortedMonths.map(month => {
     const suggCount = suggestionsForMonth(pendingSuggestions, month);
     return {
@@ -195,13 +201,11 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     const monthStartIdx = sortedMonths.indexOf(focusedMonth);
     if (monthStartIdx === -1) return;
 
-    // Build target columns: iterate months × GD fields from focus point
+    // Build target columns: clamp to active month only (non-visible months must not be mutated)
     const targetCols: { month: string; field: string }[] = [];
-    for (let mi = monthStartIdx; mi < sortedMonths.length; mi++) {
-      const startField = mi === monthStartIdx ? gdFieldStartIdx : 0;
-      for (let fi = startField; fi < GD_FIELDS.length; fi++) {
-        targetCols.push({ month: sortedMonths[mi], field: GD_FIELDS[fi] });
-      }
+    const startField = gdFieldStartIdx;
+    for (let fi = startField; fi < GD_FIELDS.length; fi++) {
+      targetCols.push({ month: sortedMonths[monthStartIdx], field: GD_FIELDS[fi] });
     }
 
     // Get visible row nodes starting from focused row
@@ -241,7 +245,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     // Single active-month column groups (no outer month wrapper)
     const month = validActiveMonth;
     const prefix = month;
-    const isLocked = false; // TODO: restore lockedMonths[month] === true
+    const isLocked = lockedMonths[month] === true;
 
     const refCols: ColDef[] = [
       { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', valueFormatter: qtyFormatter, width: 95 },
