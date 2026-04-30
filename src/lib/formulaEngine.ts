@@ -54,6 +54,19 @@ export function calcGrossMargin(nsv: number | null, gmPct: number | null): numbe
   return nsv * (gmPct / 100);
 }
 
+// Suggested Inwards = max(0, round(StandardDoH × nextDemand/30 - OpeningStockQty + NSQ))
+// nextDemand = nextMonthNsq if provided and > 0, else current nsq
+export function calcSuggestedInwards(
+  nsq: number | null,
+  nextMonthNsq: number | null,
+  standardDoh: number | null,
+  openingStockQty: number | null,
+): number | null {
+  if (nsq == null || standardDoh == null || openingStockQty == null) return null;
+  const nextDemand = (nextMonthNsq != null && nextMonthNsq > 0) ? nextMonthNsq : nsq;
+  return Math.max(0, Math.round(standardDoh * nextDemand / 30 - openingStockQty + nsq));
+}
+
 // Full 9-step chain (GM only — CM1/CM2 removed per 2026-04-27 pivot)
 export function calculateAll(inputs: FormulaInputs): FormulaOutputs {
   const salesPlanGmv = calcSalesPlanGmv(inputs.nsq, inputs.asp);

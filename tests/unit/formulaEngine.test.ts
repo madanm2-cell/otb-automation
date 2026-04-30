@@ -3,6 +3,7 @@ import {
   calcSalesPlanGmv, calcGolyPct, calcNsv, calcInwardsValCogs,
   calcOpeningStockVal, calcClosingStockQty, calcFwd30dayDoh,
   calcGmPct, calcGrossMargin, calculateAll,
+  calcSuggestedInwards,
 } from '../../src/lib/formulaEngine';
 
 describe('Formula Engine — 9-step chain (GM only)', () => {
@@ -102,5 +103,36 @@ describe('Formula Engine — 9-step chain (GM only)', () => {
     expect(result.salesPlanGmv).toBeNull();
     expect(result.nsv).toBeNull();
     expect(result.grossMargin).toBeNull();
+  });
+});
+
+describe('calcSuggestedInwards', () => {
+  it('uses next month NSQ when available', () => {
+    // Standard_DoH=55, nextNsq=1000, opening=800, nsq=900
+    // = max(0, round(55 × 1000/30 - 800 + 900)) = max(0, round(1833.33 - 800 + 900)) = max(0, round(1933.33)) = 1933
+    expect(calcSuggestedInwards(900, 1000, 55, 800)).toBe(1933);
+  });
+
+  it('falls back to current NSQ when next month is null', () => {
+    // nextNsq=null → use nsq=900
+    // = max(0, round(55 × 900/30 - 800 + 900)) = max(0, round(1650 - 800 + 900)) = 1750
+    expect(calcSuggestedInwards(900, null, 55, 800)).toBe(1750);
+  });
+
+  it('returns 0 when result would be negative', () => {
+    // Large opening stock, small NSQ
+    expect(calcSuggestedInwards(100, null, 30, 5000)).toBe(0);
+  });
+
+  it('returns null when NSQ is null', () => {
+    expect(calcSuggestedInwards(null, null, 55, 800)).toBeNull();
+  });
+
+  it('returns null when standard_doh is null', () => {
+    expect(calcSuggestedInwards(900, null, null, 800)).toBeNull();
+  });
+
+  it('returns null when opening_stock is null', () => {
+    expect(calcSuggestedInwards(900, null, 55, null)).toBeNull();
   });
 });
