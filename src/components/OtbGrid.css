@@ -35,3 +35,13 @@
   background-color: #f6ffed !important;
   color: #389e0d !important;
 }
+
+/* Editable cell affordance — bottom border + text cursor */
+.otb-editable-cell {
+  border-bottom: 2px solid #91caff !important;
+  cursor: text !important;
+}
+
+.otb-editable-cell:hover {
+  background-color: #e8f4ff !important;
+}

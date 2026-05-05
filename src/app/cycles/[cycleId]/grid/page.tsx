@@ -99,7 +99,6 @@ export default function GridPage() {
         const month = sortedMonths[i];
         const d = row.months[month];
         if (!d || !d.nsq || d.nsq === 0) continue;
-        if (d.inwards_qty != null && d.inwards_qty !== 0) continue;
 
         const nextMonthNsq = i < sortedMonths.length - 1
           ? (row.months[sortedMonths[i + 1]]?.nsq ?? null)
@@ -158,11 +157,10 @@ export default function GridPage() {
 
     // Update pending suggestions
     if (params.field === 'nsq') {
-      const currentInwards = row?.months[params.month]?.inwards_qty ?? null;
       setPendingSuggestions(prev => {
         const next = new Map(prev);
         const key = `${params.rowId}|${params.month}`;
-        if (suggestion && suggestion.value > 0 && (currentInwards == null || currentInwards === 0)) {
+        if (suggestion && suggestion.value > 0) {
           next.set(key, suggestion.value);
         } else {
           next.delete(key);

@@ -239,7 +239,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     // Single active-month column groups (no outer month wrapper)
     const month = validActiveMonth;
     const prefix = month;
-    const isLocked = lockedMonths[month] === true;
+    const isLocked = false; // TODO: restore lockedMonths[month] === true
 
     const refCols: ColDef[] = [
       { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95 },
@@ -257,6 +257,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
         editable: editable && !isLocked,
         valueFormatter: qtyFormatter,
         width: 85,
+        cellClass: editable && !isLocked ? 'otb-editable-cell' : undefined,
         cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
       },
       {
@@ -266,6 +267,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
         editable: editable && !isLocked,
         valueFormatter: qtyFormatter,
         width: 85,
+        cellClass: editable && !isLocked ? 'otb-editable-cell' : undefined,
         cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
       },
       {
