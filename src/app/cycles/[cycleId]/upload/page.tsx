@@ -20,7 +20,7 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<FileType | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [lastResult, setLastResult] = useState<{ valid: boolean; errors: ValidationError[]; rowCount: number } | null>(null);
+  const [lastResult, setLastResult] = useState<{ valid: boolean; errors: ValidationError[]; rowCount: number; warnings?: string[]; refreshedCount?: number } | null>(null);
 
   const loadUploads = useCallback(() => {
     Promise.all([
@@ -63,10 +63,16 @@ export default function UploadPage() {
         valid: data.valid,
         errors: data.errors || [],
         rowCount: data.rowCount,
+        warnings: data.warnings,
+        refreshedCount: data.refreshedCount,
       });
 
       if (data.valid) {
-        message.success(`${FILE_TYPE_LABELS[selectedType]} uploaded successfully`);
+        const refreshMsg = data.refreshedCount != null ? ` Grid data refreshed (${data.refreshedCount} rows updated).` : '';
+        message.success(`${FILE_TYPE_LABELS[selectedType]} uploaded successfully.${refreshMsg}`);
+        if (data.warnings?.length) {
+          data.warnings.forEach((w: string) => message.warning(w, 10));
+        }
       } else {
         message.error(`Validation failed for ${FILE_TYPE_LABELS[selectedType]}`);
       }
@@ -81,6 +87,14 @@ export default function UploadPage() {
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
 
+  // Determine which file types are uploadable in current status
+  const uploadableTypes = (() => {
+    if (cycleStatus === 'Draft') return ALL_FILE_TYPES.filter(ft => ft !== 'actuals');
+    if (cycleStatus === 'Filling') return ['ly_sales', 'recent_sales', 'soft_forecast'] as FileType[];
+    if (cycleStatus === 'Approved') return ['actuals'] as FileType[];
+    return [] as FileType[];
+  })();
+
   return (
     <ProtectedRoute permission="upload_data">
     <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
@@ -89,12 +103,17 @@ export default function UploadPage() {
           <Button icon={<ArrowLeftOutlined />}>Back to Cycle</Button>
         </Link>
       </Space>
-      <Title level={2}>Upload Input Files</Title>
+      <Title level={2}>{cycleStatus === 'Filling' ? 'Re-upload Reference Data' : 'Upload Input Files'}</Title>
+      {cycleStatus === 'Filling' && (
+        <div style={{ marginBottom: 16, padding: '8px 12px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6, fontSize: 13 }}>
+          In Filling status, you can re-upload LY Sales, Recent Sales, and Soft Forecast to refresh grid reference data. Opening stock cannot be changed after template generation.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 24 }}>
         {/* Left: file type cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {ALL_FILE_TYPES.filter(ft => ft !== 'soft_forecast' && (ft !== 'actuals' || cycleStatus === 'Approved')).map(ft => {
+          {uploadableTypes.map(ft => {
             const upload = uploadsByType.get(ft);
             const isRequired = REQUIRED_FILE_TYPES.includes(ft);
             const isSelected = selectedType === ft;
@@ -157,11 +176,23 @@ export default function UploadPage() {
               </Dragger>
 
               {lastResult && (
-                <ValidationReport
-                  valid={lastResult.valid}
-                  errors={lastResult.errors}
-                  rowCount={lastResult.rowCount}
-                />
+                <>
+                  <ValidationReport
+                    valid={lastResult.valid}
+                    errors={lastResult.errors}
+                    rowCount={lastResult.rowCount}
+                  />
+                  {lastResult.warnings?.map((w, i) => (
+                    <div key={i} style={{ marginTop: 8, padding: '8px 12px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6, fontSize: 13 }}>
+                      ⚠️ {w}
+                    </div>
+                  ))}
+                  {lastResult.refreshedCount != null && (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, fontSize: 13 }}>
+                      ✓ Grid reference data refreshed: {lastResult.refreshedCount} rows updated.
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           ) : (

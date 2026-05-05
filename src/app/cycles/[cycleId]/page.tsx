@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Button, Space, Typography, message, Spin } from 'antd';
+import { Card, Descriptions, Tag, Button, Space, Typography, message, Skeleton } from 'antd';
 import {
   UploadOutlined, TableOutlined, CheckCircleOutlined,
   BarChartOutlined,
@@ -83,7 +83,37 @@ export default function CycleDetailPage() {
     }
   };
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (loading) return (
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
+        <Skeleton.Input active style={{ width: 240, height: 28 }} />
+        <Skeleton.Button active style={{ width: 72, height: 22, borderRadius: 4 }} />
+      </div>
+      {/* Pipeline */}
+      <div style={{ marginBottom: SPACING.xl }}>
+        <Skeleton.Input active style={{ width: '100%', height: 40, borderRadius: 8 }} />
+      </div>
+      {/* Info card */}
+      <Card style={{ ...CARD_STYLES, marginBottom: SPACING.xl }}>
+        <Skeleton active paragraph={{ rows: 2 }} title={false} />
+      </Card>
+      {/* File uploads card */}
+      <Card style={{ ...CARD_STYLES, marginBottom: SPACING.xl }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} size="small" style={{ borderRadius: 8 }}>
+              <Skeleton active paragraph={false} title={{ width: '70%' }} />
+            </Card>
+          ))}
+        </div>
+      </Card>
+      {/* Defaults card */}
+      <Card style={{ ...CARD_STYLES, marginBottom: SPACING.xl }}>
+        <Skeleton active paragraph={{ rows: 1 }} />
+      </Card>
+    </div>
+  );
   if (!cycle) return <div style={{ padding: SPACING.xl }}>Cycle not found</div>;
 
   const uploadsByType = new Map(uploads.map(u => [u.file_type, u]));

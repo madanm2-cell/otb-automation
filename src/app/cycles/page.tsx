@@ -20,17 +20,21 @@ export default function CyclesPage() {
   const canCreate = profile ? hasPermission(profile.role, 'create_cycle') : false;
 
   useEffect(() => {
+    const controller = new AbortController();
     const url = selectedBrandId
       ? `/api/cycles?brandId=${selectedBrandId}`
       : '/api/cycles';
     setLoading(true);
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         setCycles(Array.isArray(data) ? data : []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(err => {
+        if (err.name !== 'AbortError') setLoading(false);
+      });
+    return () => controller.abort();
   }, [selectedBrandId]);
 
   const statusCounts = useMemo(() => {
@@ -39,14 +43,19 @@ export default function CyclesPage() {
     return counts;
   }, [cycles]);
 
+  const isGd = profile?.role === 'GD';
+
   const columns = [
     {
       title: 'Cycle Name',
       dataIndex: 'cycle_name',
       key: 'cycle_name',
-      render: (text: string, record: OtbCycle) => (
-        <Link href={`/cycles/${record.id}`} style={{ fontWeight: 500 }}>{text}</Link>
-      ),
+      render: (text: string, record: OtbCycle) => {
+        const href = isGd && ['Filling', 'InReview', 'Approved'].includes(record.status)
+          ? `/cycles/${record.id}/grid`
+          : `/cycles/${record.id}`;
+        return <Link href={href} style={{ fontWeight: 500 }}>{text}</Link>;
+      },
     },
     {
       title: 'Brand',

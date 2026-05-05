@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Table, InputNumber, Button, Space, Tag, message, Alert, Spin, Typography, Modal } from 'antd';
-import { CheckCircleOutlined, EditOutlined, ReloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, EditOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import type { CycleDefault, DefaultType } from '@/types/otb';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface Props {
   cycleId: string;
@@ -48,8 +48,22 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
     try {
       const res = await fetch(`/api/cycles/${cycleId}/defaults`);
       const data = await res.json();
-      setDefaults(data.defaults || []);
-      setConfirmed(data.defaults_confirmed || false);
+      if ((data.defaults || []).length === 0) {
+        // Auto-initialize from master data on first visit
+        setInitializing(true);
+        const postRes = await fetch(`/api/cycles/${cycleId}/defaults`, { method: 'POST' });
+        const postData = await postRes.json();
+        setInitializing(false);
+        if (!postRes.ok) {
+          message.error(postData.error || 'Failed to initialize defaults');
+        } else {
+          setDefaults(postData.defaults || []);
+          setConfirmed(postData.defaults_confirmed || false);
+        }
+      } else {
+        setDefaults(data.defaults || []);
+        setConfirmed(data.defaults_confirmed || false);
+      }
     } catch {
       message.error('Failed to load defaults');
     }
@@ -57,26 +71,6 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
   }, [cycleId]);
 
   useEffect(() => { loadDefaults(); }, [loadDefaults]);
-
-  const handleInitialize = async () => {
-    setInitializing(true);
-    try {
-      const res = await fetch(`/api/cycles/${cycleId}/defaults`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        message.error(data.error || 'Failed to initialize defaults');
-        return;
-      }
-      setDefaults(data.defaults || []);
-      setConfirmed(data.defaults_confirmed || false);
-      if (data.initialized) {
-        message.success(`Initialized ${data.defaults.length} default values from master data`);
-      }
-    } catch {
-      message.error('Network error');
-    }
-    setInitializing(false);
-  };
 
   const handleValueChange = (id: string, value: number | null) => {
     if (value === null) return;
@@ -162,28 +156,7 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
     setConfirming(false);
   };
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '48px auto' }} />;
-
-  // If no defaults loaded yet, show initialize button
-  if (defaults.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: 48 }}>
-        <Title level={4}>Review & Confirm Defaults</Title>
-        <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-          Load default values for ASP, COGS, Return%, Tax%, Sellex%, and Standard DoH from master data configuration.
-        </Text>
-        <Button
-          type="primary"
-          size="large"
-          icon={<ReloadOutlined />}
-          onClick={handleInitialize}
-          loading={initializing}
-        >
-          Load Defaults from Master Data
-        </Button>
-      </div>
-    );
-  }
+  if (loading || initializing) return <Spin size="large" style={{ display: 'block', margin: '48px auto' }} />;
 
   // Filter defaults for active tab
   const tabDefaults = defaults.filter(d => d.default_type === activeTab);

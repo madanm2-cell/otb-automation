@@ -128,7 +128,10 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   // Build lookup maps for uploaded data
   const openingStockMap = buildLookup(uploadedData.opening_stock, ['sub_brand', 'sub_category', 'gender', 'channel'], 'quantity');
   const lyMap = buildMonthLookup(uploadedData.ly_sales, ['sub_brand', 'sub_category', 'gender', 'channel'], 'nsq');
-  const recentMap = buildLookup(uploadedData.recent_sales, ['sub_brand', 'sub_category', 'gender'], 'nsq');
+  const recentMonthMap = buildMonthLookup(uploadedData.recent_sales, ['sub_brand', 'sub_category', 'gender', 'channel'], 'nsq');
+  const recentMonths = [...new Set(
+    uploadedData.recent_sales.map(r => normalizeMonth(r.month))
+  )].filter(Boolean).sort();
   const forecastMap = buildLookup(uploadedData.soft_forecast, ['sub_brand', 'sub_category', 'gender'], 'nsq');
 
   // Delete existing plan rows for this cycle (in case of re-generation)
@@ -179,7 +182,7 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
         cogs: cogsMap.get(sbScKey) ?? null,
         opening_stock_qty: mIdx === 0 ? (openingStockMap.get(fullKey) ?? null) : null,
         ly_sales_nsq: lyMap.get(`${fullKey}|${shiftYearBack(month)}`) ?? null,
-        recent_sales_nsq: recentMap.get(sbgKey) ?? null,
+        recent_sales_nsq: recentMonthMap.get(`${fullKey}|${recentMonths[mIdx] ?? ''}`) ?? null,
         soft_forecast_nsq: forecastMap.get(sbgKey) ?? null,
         return_pct: returnMap.get(sbScChKey) ?? null,
         tax_pct: taxMap.get(scKey) ?? null,
@@ -198,6 +201,115 @@ export async function generateTemplate(cycleId: string): Promise<{ rowCount: num
   }
 
   return { rowCount: insertedRows!.length, warnings: warnings.length > 0 ? warnings : undefined };
+}
+
+// --- Reference data refresh (for re-uploads in Filling status) ---
+
+const REF_FIELD_MAP = {
+  ly_sales: 'ly_sales_nsq',
+  recent_sales: 'recent_sales_nsq',
+  soft_forecast: 'soft_forecast_nsq',
+} as const;
+
+type RefFileType = keyof typeof REF_FIELD_MAP;
+
+/**
+ * Refresh a single reference data field in otb_plan_data without touching GD inputs.
+ * Called when ly_sales/recent_sales/soft_forecast is re-uploaded in Filling status.
+ */
+export async function refreshReferenceData(
+  cycleId: string,
+  fileType: RefFileType,
+  parsedRows: Record<string, unknown>[],
+  planningQuarter: string
+): Promise<{ updatedCount: number; warnings: string[] }> {
+  const adminDb = createAdminClient();
+  const warnings: string[] = [];
+  const dbField = REF_FIELD_MAP[fileType];
+
+  const { months } = getQuarterDates(planningQuarter);
+
+  const { data: planRows } = await adminDb
+    .from('otb_plan_rows')
+    .select('id, sub_brand, sub_category, gender, channel')
+    .eq('cycle_id', cycleId);
+
+  if (!planRows || planRows.length === 0) return { updatedCount: 0, warnings };
+
+  const rowIds = (planRows as any[]).map((r) => r.id as string);
+  const { data: planDataRows } = await adminDb
+    .from('otb_plan_data')
+    .select('id, row_id, month')
+    .in('row_id', rowIds);
+
+  if (!planDataRows || planDataRows.length === 0) return { updatedCount: 0, warnings };
+
+  const rowMap = new Map((planRows as any[]).map((r) => [r.id as string, r]));
+  const updates: { id: string; val: number | null }[] = [];
+
+  if (fileType === 'ly_sales') {
+    const lyMap = buildMonthLookup(parsedRows, ['sub_brand', 'sub_category', 'gender', 'channel'], 'nsq');
+
+    const shiftedMonths = months.map(shiftYearBack);
+    const hasAnyMatch = [...lyMap.keys()].some(k => shiftedMonths.some(m => k.endsWith('|' + m)));
+    if (!hasAnyMatch && parsedRows.length > 0) {
+      warnings.push(
+        `LY Sales months don't align with ${planningQuarter}. Expected LY period: ${shiftedMonths.join(', ')}.`
+      );
+    }
+
+    for (const d of planDataRows as any[]) {
+      const row = rowMap.get(d.row_id as string);
+      if (!row) continue;
+      const fullKey = lookupKey([(row as any).sub_brand, (row as any).sub_category, (row as any).gender, (row as any).channel]);
+      const val = lyMap.get(`${fullKey}|${shiftYearBack(d.month as string)}`) ?? null;
+      updates.push({ id: d.id as string, val });
+    }
+  } else {
+    const dataMap = buildLookup(parsedRows, ['sub_brand', 'sub_category', 'gender'], 'nsq');
+
+    for (const d of planDataRows as any[]) {
+      const row = rowMap.get(d.row_id as string);
+      if (!row) continue;
+      const key = lookupKey([(row as any).sub_brand, (row as any).sub_category, (row as any).gender]);
+      const val = dataMap.get(key) ?? null;
+      updates.push({ id: d.id as string, val });
+    }
+  }
+
+  // Execute updates in parallel batches of 50
+  const CHUNK = 50;
+  for (let i = 0; i < updates.length; i += CHUNK) {
+    await Promise.all(
+      updates.slice(i, i + CHUNK).map(({ id, val }) =>
+        adminDb.from('otb_plan_data').update({ [dbField]: val }).eq('id', id)
+      )
+    );
+  }
+
+  return { updatedCount: updates.length, warnings };
+}
+
+/**
+ * Check if LY sales months align with the planning quarter LY period.
+ * Returns a warning string if misaligned, null if OK.
+ */
+export function checkLySalesMonthAlignment(
+  rows: Record<string, unknown>[],
+  planningQuarter: string
+): string | null {
+  try {
+    const { months } = getQuarterDates(planningQuarter);
+    const shiftedMonths = new Set(months.map(shiftYearBack));
+    const fileMonths = new Set(rows.map(r => normalizeMonth(r.month)));
+    const hasMatch = [...fileMonths].some(m => shiftedMonths.has(m));
+    if (!hasMatch && rows.length > 0) {
+      return `LY Sales months in file (${[...fileMonths].filter(Boolean).slice(0, 3).join(', ')}...) don't match expected LY period for ${planningQuarter} (${[...shiftedMonths].join(', ')}).`;
+    }
+  } catch {
+    // ignore quarter parse errors
+  }
+  return null;
 }
 
 // --- Helper functions ---
