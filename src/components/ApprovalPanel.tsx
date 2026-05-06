@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Button, Tag, Modal, Input, message, Typography, Space } from 'antd';
 import {
-  CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
+  CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { StatusPipeline } from '@/components/ui/StatusPipeline';
 import type { PipelineStage } from '@/components/ui/StatusPipeline';
 import { COLORS, CARD_STYLES, SPACING } from '@/lib/designTokens';
 import type { ApprovalRecord, ApproverRole } from '@/types/otb';
+import { isRoleBlocked } from '@/lib/approvalEngine';
 
 const { Text, Title } = Typography;
 
@@ -19,10 +20,11 @@ interface ApprovalPanelProps {
   onStatusChange?: (newStatus: string) => void;
 }
 
-const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; tagColor: string }> = {
-  Approved: { color: COLORS.success, icon: <CheckCircleOutlined />, tagColor: 'success' },
-  Pending: { color: COLORS.warning, icon: <ClockCircleOutlined />, tagColor: 'warning' },
-  RevisionRequested: { color: COLORS.danger, icon: <ExclamationCircleOutlined />, tagColor: 'error' },
+const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; tagColor: string; label: string }> = {
+  Approved: { color: COLORS.success, icon: <CheckCircleOutlined />, tagColor: 'success', label: 'Approved' },
+  Pending: { color: COLORS.warning, icon: <ClockCircleOutlined />, tagColor: 'warning', label: 'Pending' },
+  RevisionRequested: { color: COLORS.danger, icon: <ExclamationCircleOutlined />, tagColor: 'error', label: 'Revision Requested' },
+  Waiting: { color: '#d9d9d9', icon: <MinusCircleOutlined />, tagColor: 'default', label: 'Waiting' },
 };
 
 const APPROVAL_ROLES: ApproverRole[] = ['Planning', 'GD', 'Finance', 'CXO'];
@@ -118,15 +120,19 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
   const approvedCount = records.filter(r => r.status === 'Approved').length;
   const userRole = profile?.role as ApproverRole | undefined;
   const userRecord = records.find(r => r.role === userRole);
-  const canAct = cycleStatus === 'InReview' && userRecord?.status === 'Pending';
+  const canAct =
+    cycleStatus === 'InReview' &&
+    userRecord?.status === 'Pending' &&
+    userRole !== undefined &&
+    !isRoleBlocked(userRole, records);
 
   // Build pipeline stages from records
   const pipelineStages: PipelineStage[] = APPROVAL_ROLES.map(role => {
     const record = records.find(r => r.role === role);
-    if (!record) return { key: role, label: role, status: 'pending' as const };
-    if (record.status === 'Approved') return { key: role, label: role, status: 'completed' as const };
-    if (record.status === 'RevisionRequested') return { key: role, label: role, status: 'error' as const };
-    return { key: role, label: role, status: 'pending' as const };
+    if (record?.status === 'Approved') return { key: role, label: role, status: 'completed' as const };
+    if (record?.status === 'RevisionRequested') return { key: role, label: role, status: 'error' as const };
+    const blocked = isRoleBlocked(role, records);
+    return { key: role, label: role, status: (blocked ? 'pending' : 'active') as 'pending' | 'active' };
   });
 
   return (
@@ -143,7 +149,9 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
 
       <Row gutter={[12, 12]}>
         {records.map(record => {
-          const cfg = STATUS_CONFIG[record.status] || STATUS_CONFIG.Pending;
+          const blocked = record.status === 'Pending' && isRoleBlocked(record.role, records);
+          const displayKey = blocked ? 'Waiting' : record.status;
+          const cfg = STATUS_CONFIG[displayKey] ?? STATUS_CONFIG.Pending;
           return (
             <Col key={record.role} xs={24} sm={12} md={6}>
               <Card
@@ -156,7 +164,7 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
                     {cfg.icon}
                     <Text strong>{record.role}</Text>
                   </Space>
-                  <Tag color={cfg.tagColor}>{record.status}</Tag>
+                  <Tag color={cfg.tagColor}>{cfg.label}</Tag>
                   {record.user_name && (
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       {record.user_name} {formatRelativeTime(record.decided_at)}
