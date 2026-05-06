@@ -73,9 +73,10 @@ const makeBrand = (overrides?: Partial<EnhancedBrandSummary>): EnhancedBrandSumm
     },
   ],
   top_categories: [
-    { sub_category: 'T-Shirts', gmv: 75000000, nsq: 25000, pct_of_total: 50 },
-    { sub_category: 'Joggers', gmv: 37500000, nsq: 12500, pct_of_total: 25 },
+    { sub_category: 'T-Shirts', gmv: 75000000, nsq: 25000, inwards_qty: 15000, pct_of_total: 50 },
+    { sub_category: 'Joggers', gmv: 37500000, nsq: 12500, inwards_qty: 7500, pct_of_total: 25 },
   ],
+  has_actuals: false,
   ...overrides,
 });
 
