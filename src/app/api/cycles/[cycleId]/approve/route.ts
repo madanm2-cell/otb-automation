@@ -104,7 +104,7 @@ export const POST = withAuth('approve_otb', async (req, auth, { params }: Params
 
   // Mirror revision comment to comments table so it surfaces in CommentsPanel and grid
   if (action === 'revision_requested') {
-    await adminClient
+    const { error: commentError } = await adminClient
       .from('comments')
       .insert({
         cycle_id: cycleId,
@@ -118,6 +118,10 @@ export const POST = withAuth('approve_otb', async (req, auth, { params }: Params
         author_name: auth.profile.full_name,
         author_role: auth.profile.role,
       });
+
+    if (commentError) {
+      return NextResponse.json({ error: commentError.message }, { status: 500 });
+    }
   }
 
   // Re-fetch all records to check aggregate state
