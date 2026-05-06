@@ -10,7 +10,7 @@ import { StatusPipeline } from '@/components/ui/StatusPipeline';
 import type { PipelineStage } from '@/components/ui/StatusPipeline';
 import { COLORS, CARD_STYLES, SPACING } from '@/lib/designTokens';
 import type { ApprovalRecord, ApproverRole } from '@/types/otb';
-import { isRoleBlocked } from '@/lib/approvalEngine';
+import { isRoleBlocked, canUserApprove, APPROVER_SEQUENCE } from '@/lib/approvalEngine';
 
 const { Text, Title } = Typography;
 
@@ -27,7 +27,6 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; tagC
   Waiting: { color: '#d9d9d9', icon: <MinusCircleOutlined />, tagColor: 'default', label: 'Waiting' },
 };
 
-const APPROVAL_ROLES: ApproverRole[] = ['Planning', 'GD', 'Finance', 'CXO'];
 
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -122,12 +121,11 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
   const userRecord = records.find(r => r.role === userRole);
   const canAct =
     cycleStatus === 'InReview' &&
-    userRecord?.status === 'Pending' &&
-    userRole !== undefined &&
-    !isRoleBlocked(userRole, records);
+    !!profile?.role &&
+    canUserApprove(profile.role, records);
 
   // Build pipeline stages from records
-  const pipelineStages: PipelineStage[] = APPROVAL_ROLES.map(role => {
+  const pipelineStages: PipelineStage[] = APPROVER_SEQUENCE.map(role => {
     const record = records.find(r => r.role === role);
     if (record?.status === 'Approved') return { key: role, label: role, status: 'completed' as const };
     if (record?.status === 'RevisionRequested') return { key: role, label: role, status: 'error' as const };
