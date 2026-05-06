@@ -102,6 +102,24 @@ export const POST = withAuth('approve_otb', async (req, auth, { params }: Params
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
+  // Mirror revision comment to comments table so it surfaces in CommentsPanel and grid
+  if (action === 'revision_requested') {
+    await adminClient
+      .from('comments')
+      .insert({
+        cycle_id: cycleId,
+        parent_id: null,
+        comment_type: 'general',
+        row_id: null,
+        month: null,
+        field: null,
+        text: comment.trim(),
+        author_id: auth.user.id,
+        author_name: auth.profile.full_name,
+        author_role: auth.profile.role,
+      });
+  }
+
   // Re-fetch all records to check aggregate state
   const { data: updatedRecords } = await adminClient
     .from('approval_tracking')
@@ -126,24 +144,6 @@ export const POST = withAuth('approve_otb', async (req, auth, { params }: Params
       .update({ status: 'Filling', updated_at: now })
       .eq('id', cycleId);
     newCycleStatus = 'Filling';
-
-    // Mirror revision reason to comments table so it surfaces in CommentsPanel and grid
-    if (comment?.trim()) {
-      await adminClient
-        .from('comments')
-        .insert({
-          cycle_id: cycleId,
-          parent_id: null,
-          comment_type: 'general',
-          row_id: null,
-          month: null,
-          field: null,
-          text: comment.trim(),
-          author_id: auth.user.id,
-          author_name: auth.profile.full_name,
-          author_role: auth.profile.role,
-        });
-    }
   }
 
   // Audit log
