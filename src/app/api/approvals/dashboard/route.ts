@@ -3,8 +3,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { getRiskFlags, getHighestRiskLevel } from '@/lib/riskIndicators';
 import type { CycleMetrics } from '@/lib/riskIndicators';
-import { APPROVER_SEQUENCE, getPredecessorRoles } from '@/lib/approvalEngine';
-import type { ApproverRole } from '@/types/otb';
+import { roleToApproverRole, canUserApprove } from '@/lib/approvalEngine';
+import type { ApprovalRecord } from '@/types/otb';
 
 // GET /api/approvals/dashboard — aggregated approval dashboard data
 export const GET = withAuth('approve_otb', async (req, auth) => {
@@ -28,22 +28,17 @@ export const GET = withAuth('approve_otb', async (req, auth) => {
   const { data: cycles, error: cyclesError } = await cycleQuery;
   if (cyclesError) return NextResponse.json({ error: cyclesError.message }, { status: 500 });
 
-  const userRole = auth.profile.role as ApproverRole;
-  const userIsApprover = APPROVER_SEQUENCE.includes(userRole);
+  const approverRole = roleToApproverRole(auth.profile.role);
+  const userIsApprover = approverRole !== null;
 
-  function computeNeedsMyApproval(cycleStatus: string, cycleApprovals: { role: string; status: string }[]): boolean {
+  function computeNeedsMyApproval(cycleStatus: string, cycleApprovals: ApprovalRecord[]): boolean {
     if (cycleStatus !== 'InReview' || !userIsApprover) return false;
-    const ownRecord = cycleApprovals.find(r => r.role === userRole);
-    if (!ownRecord || ownRecord.status !== 'Pending') return false;
-    return getPredecessorRoles(userRole).every(pred => {
-      const predRecord = cycleApprovals.find(r => r.role === pred);
-      return predRecord?.status === 'Approved';
-    });
+    return canUserApprove(auth.profile.role, cycleApprovals);
   }
 
   // Get approval records for all cycles
   const cycleIds = (cycles || []).map(c => c.id);
-  let approvalRecords: any[] = [];
+  let approvalRecords: ApprovalRecord[] = [];
   if (cycleIds.length > 0) {
     const { data } = await supabase
       .from('approval_tracking')
