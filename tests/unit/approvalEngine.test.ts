@@ -7,7 +7,6 @@ import {
   shouldCycleRevertToFilling,
   canUserApprove,
   roleToApproverRole,
-  buildInitialApprovalRecords,
   getPredecessorRoles,
   isRoleBlocked,
 } from '@/lib/approvalEngine';
@@ -221,36 +220,6 @@ describe('roleToApproverRole', () => {
 
   it('returns null for ReadOnly', () => {
     expect(roleToApproverRole('ReadOnly')).toBeNull();
-  });
-});
-
-describe('buildInitialApprovalRecords', () => {
-  it('creates 4 records for all approver roles', () => {
-    const records = buildInitialApprovalRecords('cycle-123');
-    expect(records).toHaveLength(4);
-  });
-
-  it('sets correct cycle_id on all records', () => {
-    const records = buildInitialApprovalRecords('cycle-123');
-    for (const record of records) {
-      expect(record.cycle_id).toBe('cycle-123');
-    }
-  });
-
-  it('sets all records to Pending with null user/comment/decided_at', () => {
-    const records = buildInitialApprovalRecords('cycle-123');
-    for (const record of records) {
-      expect(record.status).toBe('Pending');
-      expect(record.user_id).toBeNull();
-      expect(record.comment).toBeNull();
-      expect(record.decided_at).toBeNull();
-    }
-  });
-
-  it('includes all four approver roles in order', () => {
-    const records = buildInitialApprovalRecords('cycle-123');
-    const roles = records.map(r => r.role);
-    expect(roles).toEqual(['Planning', 'GD', 'Finance', 'CXO']);
   });
 });
 

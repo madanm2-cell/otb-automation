@@ -77,14 +77,3 @@ export function roleToApproverRole(role: Role): ApproverRole | null {
   return null;
 }
 
-/** Build initial approval records for a cycle submission. */
-export function buildInitialApprovalRecords(cycleId: string): Omit<ApprovalRecord, 'id' | 'created_at' | 'updated_at'>[] {
-  return APPROVER_SEQUENCE.map(role => ({
-    cycle_id: cycleId,
-    role,
-    user_id: null,
-    status: 'Pending',
-    comment: null,
-    decided_at: null,
-  }));
-}

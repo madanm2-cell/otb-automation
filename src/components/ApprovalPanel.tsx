@@ -117,8 +117,6 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
   };
 
   const approvedCount = records.filter(r => r.status === 'Approved').length;
-  const userRole = profile?.role as ApproverRole | undefined;
-  const userRecord = records.find(r => r.role === userRole);
   const canAct =
     cycleStatus === 'InReview' &&
     !!profile?.role &&

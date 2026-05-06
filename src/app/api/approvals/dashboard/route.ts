@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { getRiskFlags, getHighestRiskLevel } from '@/lib/riskIndicators';
 import type { CycleMetrics } from '@/lib/riskIndicators';
-import { roleToApproverRole, canUserApprove } from '@/lib/approvalEngine';
+import { roleToApproverRole, canUserApprove, APPROVER_SEQUENCE } from '@/lib/approvalEngine';
 import type { ApprovalRecord } from '@/types/otb';
 
 // GET /api/approvals/dashboard — aggregated approval dashboard data
@@ -72,7 +72,7 @@ export const GET = withAuth('approve_otb', async (req, auth) => {
       brand_id: cycle.brand_id,
       status: cycle.status,
       planning_quarter: cycle.planning_quarter,
-      approval_progress: { approved: approvedCount, pending: pendingCount, revision: revisionCount, total: 4 },
+      approval_progress: { approved: approvedCount, pending: pendingCount, revision: revisionCount, total: APPROVER_SEQUENCE.length },
       risk_level: riskLevel,
       risk_flags: riskFlags,
       updated_at: cycle.updated_at,

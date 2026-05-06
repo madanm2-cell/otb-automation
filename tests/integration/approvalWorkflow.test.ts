@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   APPROVER_ROLES,
+  APPROVER_SEQUENCE,
   getApprovalSummary,
   shouldCycleBeApproved,
   shouldCycleRevertToFilling,
   canUserApprove,
-  buildInitialApprovalRecords,
   roleToApproverRole,
 } from '@/lib/approvalEngine';
 import type { ApprovalRecord } from '@/types/otb';
@@ -32,7 +32,7 @@ function makeRecord(role: string, status: string, userId?: string): ApprovalReco
 describe('Approval Workflow — Full Flow', () => {
   describe('Submit → 4 Approvals → Approved', () => {
     it('initializes 4 Pending records on submit', () => {
-      const records = buildInitialApprovalRecords('cycle-1');
+      const records = APPROVER_SEQUENCE.map(role => makeRecord(role, 'Pending'));
       expect(records).toHaveLength(4);
       expect(records.every(r => r.status === 'Pending')).toBe(true);
       expect(records.map(r => r.role)).toEqual(APPROVER_ROLES);
@@ -89,18 +89,21 @@ describe('Approval Workflow — Full Flow', () => {
     });
 
     it('after reset, all records become Pending again', () => {
-      // Simulate reset: build fresh initial records
-      const reset = buildInitialApprovalRecords('cycle-1');
+      // Simulate reset: build fresh initial records inline
+      const reset = APPROVER_SEQUENCE.map(role => makeRecord(role, 'Pending'));
       expect(reset.every(r => r.status === 'Pending')).toBe(true);
       expect(reset.every(r => r.user_id === null)).toBe(true);
       expect(reset.every(r => r.decided_at === null)).toBe(true);
     });
 
-    it('after reset, all roles can approve again', () => {
+    it('after reset, Planning can approve again and sequential gating is enforced', () => {
       const resetRecords: ApprovalRecord[] = APPROVER_ROLES.map(role => makeRecord(role, 'Pending'));
-      for (const role of APPROVER_ROLES) {
-        expect(canUserApprove(role, resetRecords)).toBe(true);
-      }
+      // With sequential gating, only Planning (first role) can act on a fresh set
+      expect(canUserApprove('Planning', resetRecords)).toBe(true);
+      // All subsequent roles are blocked until their predecessors approve
+      expect(canUserApprove('GD', resetRecords)).toBe(false);
+      expect(canUserApprove('Finance', resetRecords)).toBe(false);
+      expect(canUserApprove('CXO', resetRecords)).toBe(false);
     });
   });
 
