@@ -134,7 +134,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
 
   const commentMapRef = useRef<Map<string, OtbComment[]>>(new Map());
   const [contextMenu, setContextMenu] = useState<{
-    x: number; y: number; rowId: string; month: string; field: string;
+    x: number; y: number; rowId: string; month: string; field: string; rect: DOMRect;
   } | null>(null);
   const [activePopover, setActivePopover] = useState<{
     rowId: string; month: string; field: string; rect: DOMRect; comments: OtbComment[];
@@ -194,7 +194,9 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     if (!parsed) return;
     const rowId = event.data?.id;
     if (!rowId) return;
-    setContextMenu({ x: e.clientX, y: e.clientY, rowId, month: parsed.month, field: parsed.fieldName });
+    const cellEl = (e.target as HTMLElement).closest('.ag-cell') as HTMLElement | null;
+    const rect = cellEl?.getBoundingClientRect() ?? new DOMRect(e.clientX, e.clientY, 0, 0);
+    setContextMenu({ x: e.clientX, y: e.clientY, rowId, month: parsed.month, field: parsed.fieldName, rect });
   }, [canComment]);
 
   const handleCellClicked = useCallback((event: CellClickedEvent) => {
@@ -464,12 +466,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
           onAddComment={() => {
             const key = buildCellKey(contextMenu.rowId, contextMenu.month, contextMenu.field);
             const comments = commentMapRef.current.get(key) ?? [];
-            const cellEl = document.querySelector(
-              `.ag-cell[col-id="${contextMenu.month}_${contextMenu.field}"]`
-            ) as HTMLElement | null;
-            const rect = cellEl?.getBoundingClientRect() ?? new DOMRect(contextMenu.x, contextMenu.y, 0, 0);
-            setActivePopover({ rowId: contextMenu.rowId, month: contextMenu.month, field: contextMenu.field, rect, comments });
-            setContextMenu(null);
+            setActivePopover({ rowId: contextMenu.rowId, month: contextMenu.month, field: contextMenu.field, rect: contextMenu.rect, comments });
           }}
           onClose={() => setContextMenu(null)}
         />
