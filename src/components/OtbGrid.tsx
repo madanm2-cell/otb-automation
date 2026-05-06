@@ -1,12 +1,17 @@
 'use client';
 
-import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
+import { useMemo, useRef, useCallback, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, ColDef, ColGroupDef, ValueFormatterParams, GridApi } from 'ag-grid-community';
+import type { CellContextMenuEvent, CellClickedEvent } from 'ag-grid-community';
 import { Button, Tabs, Badge } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import type { PlanRow } from '@/types/otb';
+import type { OtbComment } from '@/types/otb';
 import { SelectFilter } from '@/components/SelectFilter';
+import { CellContextMenu } from '@/components/CellContextMenu';
+import { CellCommentPopover } from '@/components/CellCommentPopover';
+import { buildCellKey, parseCellField } from '@/lib/cellComments';
 import { formatCrore, formatPct, formatQty, formatCurrency } from '@/lib/formatting';
 import './OtbGrid.css';
 
@@ -24,6 +29,10 @@ interface OtbGridProps {
   lockedMonths?: Record<string, boolean>;
   onCellValueChanged?: (params: { rowId: string; month: string; field: string; value: number }) => void;
   pendingSuggestions?: Map<string, number>;
+  commentMap?: Map<string, OtbComment[]>;
+  cycleId?: string;
+  userRole?: string;
+  onCommentAdded?: () => void;
 }
 
 // Flatten PlanRow into a single-level object for AG Grid
@@ -117,11 +126,19 @@ const currencyFormatter = (p: ValueFormatterParams) => formatCurrency(p.value);
 const GD_FIELDS = ['nsq', 'inwards_qty'];
 
 const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
-  { rows, months, editable = false, lockedMonths = {}, onCellValueChanged, pendingSuggestions },
+  { rows, months, editable = false, lockedMonths = {}, onCellValueChanged, pendingSuggestions, commentMap, cycleId, userRole, onCommentAdded },
   ref
 ) {
   const gridRef = useRef<AgGridReact>(null);
   const flatRows = useMemo(() => flattenRows(rows, months), [rows, months]);
+
+  const commentMapRef = useRef<Map<string, OtbComment[]>>(new Map());
+  const [contextMenu, setContextMenu] = useState<{
+    x: number; y: number; rowId: string; month: string; field: string;
+  } | null>(null);
+  const [activePopover, setActivePopover] = useState<{
+    rowId: string; month: string; field: string; rect: DOMRect; comments: OtbComment[];
+  } | null>(null);
 
   const sortedMonths = useMemo(() => [...months].sort(), [months]);
   const [activeMonth, setActiveMonth] = useState<string>(() => sortedMonths[0] ?? '');
@@ -158,6 +175,47 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
       return rows.filter(r => visibleIds.has(r.id));
     },
   }));
+
+  useEffect(() => {
+    commentMapRef.current = commentMap ?? new Map();
+    gridRef.current?.api?.refreshCells({ force: true });
+  }, [commentMap]);
+
+  const canComment = ['Admin', 'Planning', 'GD', 'Finance', 'CXO'].includes(userRole ?? '');
+
+  const handleCellContextMenu = useCallback((event: CellContextMenuEvent) => {
+    if (!canComment) return;
+    event.event?.preventDefault();
+    const e = event.event as MouseEvent;
+    if (!e) return;
+    const field = event.colDef?.field;
+    if (!field) return;
+    const parsed = parseCellField(field);
+    if (!parsed) return;
+    const rowId = event.data?.id;
+    if (!rowId) return;
+    setContextMenu({ x: e.clientX, y: e.clientY, rowId, month: parsed.month, field: parsed.fieldName });
+  }, [canComment]);
+
+  const handleCellClicked = useCallback((event: CellClickedEvent) => {
+    if (!event.event || !event.colDef?.field) return;
+    const e = event.event as MouseEvent;
+    const cellEl = (e.target as HTMLElement).closest('.ag-cell') as HTMLElement | null;
+    if (!cellEl || !cellEl.classList.contains('has-comment')) return;
+
+    const rect = cellEl.getBoundingClientRect();
+    const inTopRight = e.clientX >= rect.right - 14 && e.clientY <= rect.top + 14;
+    if (!inTopRight) return;
+
+    const parsed = parseCellField(event.colDef.field);
+    if (!parsed) return;
+    const rowId = event.data?.id;
+    if (!rowId) return;
+
+    const key = buildCellKey(rowId, parsed.month, parsed.fieldName);
+    const comments = commentMapRef.current.get(key) ?? [];
+    setActivePopover({ rowId, month: parsed.month, field: parsed.fieldName, rect, comments });
+  }, []);
 
   // Custom paste handler for Excel copy-paste support
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -227,6 +285,15 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
   }, [editable, onCellValueChanged, sortedMonths, lockedMonths]);
 
   const columnDefs = useMemo((): (ColDef | ColGroupDef)[] => {
+    const commentCellClassRules = {
+      'has-comment': (params: any) => {
+        if (!params.data?.id || !params.colDef?.field) return false;
+        const parsed = parseCellField(params.colDef.field);
+        if (!parsed) return false;
+        return commentMapRef.current.has(buildCellKey(params.data.id, parsed.month, parsed.fieldName));
+      },
+    };
+
     // Dimension columns — all visible, pinned left, using checkbox select filter
     const dimCols: ColDef[] = [
       { field: 'sub_brand', headerName: 'Sub Brand', pinned: 'left', width: 130, filter: SelectFilter },
@@ -242,11 +309,11 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     const isLocked = false; // TODO: restore lockedMonths[month] === true
 
     const refCols: ColDef[] = [
-      { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95 },
-      { field: `${prefix}_asp`, headerName: 'ASP', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: currencyFormatter, width: 95 },
-      { field: `${prefix}_cogs`, headerName: 'COGS', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: currencyFormatter, width: 90 },
-      { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95 },
-      { field: `${prefix}_standard_doh`, headerName: 'Std DoH', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 80 },
+      { field: `${prefix}_opening_stock_qty`, headerName: 'Op. Stock', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_asp`, headerName: 'ASP', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: currencyFormatter, width: 95, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_cogs`, headerName: 'COGS', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: currencyFormatter, width: 90, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_ly_sales_nsq`, headerName: 'LY NSQ', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 95, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_standard_doh`, headerName: 'Std DoH', headerClass: 'otb-ref-col-header', cellStyle: { backgroundColor: '#fafafa' }, valueFormatter: qtyFormatter, width: 80, cellClassRules: commentCellClassRules },
     ];
 
     const gdCols: ColDef[] = [
@@ -259,6 +326,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
         width: 85,
         cellClass: editable && !isLocked ? 'otb-editable-cell' : undefined,
         cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
+        cellClassRules: commentCellClassRules,
       },
       {
         field: `${prefix}_inwards_qty`,
@@ -269,6 +337,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
         width: 85,
         cellClass: editable && !isLocked ? 'otb-editable-cell' : undefined,
         cellStyle: isLocked ? { backgroundColor: '#f5f5f5' } : undefined,
+        cellClassRules: commentCellClassRules,
       },
       {
         colId: `${prefix}_inwards_qty_suggested_col`,
@@ -305,15 +374,15 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     ];
 
     const calcCols: ColDef[] = [
-      { field: `${prefix}_sales_plan_gmv`, headerName: 'GMV', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90 },
-      { field: `${prefix}_goly_pct`, headerName: 'GOLY%', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: pctFormatter, width: 80 },
-      { field: `${prefix}_nsv`, headerName: 'NSV', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90 },
-      { field: `${prefix}_inwards_val_cogs`, headerName: 'Inw Val', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90 },
-      { field: `${prefix}_opening_stock_val`, headerName: 'Op. Stock Val', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 105 },
-      { field: `${prefix}_closing_stock_qty`, headerName: 'Cl. Stock', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: qtyFormatter, width: 90 },
-      { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: qtyFormatter, width: 85 },
-      { field: `${prefix}_gm_pct`, headerName: 'GM%', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: pctFormatter, width: 75 },
-      { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 105 },
+      { field: `${prefix}_sales_plan_gmv`, headerName: 'GMV', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_goly_pct`, headerName: 'GOLY%', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: pctFormatter, width: 80, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_nsv`, headerName: 'NSV', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_inwards_val_cogs`, headerName: 'Inw Val', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 90, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_opening_stock_val`, headerName: 'Op. Stock Val', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 105, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_closing_stock_qty`, headerName: 'Cl. Stock', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: qtyFormatter, width: 90, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_fwd_30day_doh`, headerName: 'Fwd DoH', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: qtyFormatter, width: 85, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_gm_pct`, headerName: 'GM%', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: pctFormatter, width: 75, cellClassRules: commentCellClassRules },
+      { field: `${prefix}_gross_margin`, headerName: 'Gross Margin', headerClass: 'otb-calc-col-header', cellStyle: { backgroundColor: '#f9fff6' }, valueFormatter: croreFormatter, width: 105, cellClassRules: commentCellClassRules },
     ];
 
     const recentSalesGroup: ColGroupDef = {
@@ -333,6 +402,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
           columnGroupShow: 'open' as const,
           valueFormatter: qtyFormatter,
           width: 85,
+          cellClassRules: commentCellClassRules,
         })),
       ],
     };
@@ -382,8 +452,43 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
               value: Number(event.newValue),
             });
           }}
+          onCellContextMenu={handleCellContextMenu}
+          onCellClicked={handleCellClicked}
+          preventDefaultOnContextMenu
         />
       </div>
+      {contextMenu && (
+        <CellContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onAddComment={() => {
+            const key = buildCellKey(contextMenu.rowId, contextMenu.month, contextMenu.field);
+            const comments = commentMapRef.current.get(key) ?? [];
+            const cellEl = document.querySelector(
+              `.ag-cell[col-id="${contextMenu.month}_${contextMenu.field}"]`
+            ) as HTMLElement | null;
+            const rect = cellEl?.getBoundingClientRect() ?? new DOMRect(contextMenu.x, contextMenu.y, 0, 0);
+            setActivePopover({ rowId: contextMenu.rowId, month: contextMenu.month, field: contextMenu.field, rect, comments });
+            setContextMenu(null);
+          }}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {activePopover && cycleId && (
+        <CellCommentPopover
+          cycleId={cycleId}
+          rowId={activePopover.rowId}
+          month={activePopover.month}
+          field={activePopover.field}
+          cellRect={activePopover.rect}
+          comments={activePopover.comments}
+          onClose={() => setActivePopover(null)}
+          onCommentAdded={() => {
+            setActivePopover(null);
+            onCommentAdded?.();
+          }}
+        />
+      )}
     </div>
   );
 });
