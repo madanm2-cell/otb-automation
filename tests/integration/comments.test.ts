@@ -7,6 +7,53 @@ import type { OtbComment, CommentType } from '@/types/otb';
  * (API-level tests require Supabase; these test the data model patterns.)
  */
 
+// ---------------------------------------------------------------------------
+// Mirrors the validation logic in POST /api/cycles/:cycleId/comments
+// ---------------------------------------------------------------------------
+const API_VALID_COMMENT_TYPES: CommentType[] = ['general', 'metric'];
+
+interface PostCommentBody {
+  text?: string;
+  comment_type?: string;
+  month?: string | null;
+  field?: string | null;
+  row_id?: string | null;
+  parent_id?: string | null;
+}
+
+interface ValidationResult {
+  status: number;
+  error?: string;
+}
+
+/**
+ * Pure replica of the API's request validation — returns the same status/error
+ * the real endpoint would return, without needing a running server or Supabase.
+ */
+function validateCommentRequest(body: PostCommentBody): ValidationResult {
+  const { text, comment_type, month, field } = body;
+
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    return { status: 400, error: 'Comment text is required' };
+  }
+
+  if (!comment_type || !API_VALID_COMMENT_TYPES.includes(comment_type as CommentType)) {
+    return {
+      status: 400,
+      error: `comment_type must be one of: ${API_VALID_COMMENT_TYPES.join(', ')}`,
+    };
+  }
+
+  if (comment_type === 'metric') {
+    if (!month || !field) {
+      return { status: 400, error: 'Metric comments require month and field' };
+    }
+  }
+
+  // All validation passed — would proceed to DB insert (201)
+  return { status: 201 };
+}
+
 function makeComment(overrides: Partial<OtbComment> = {}): OtbComment {
   return {
     id: `cmt-${Math.random().toString(36).slice(2, 8)}`,
@@ -46,7 +93,7 @@ function buildThreadTree(comments: OtbComment[]): OtbComment[] {
   return roots;
 }
 
-const VALID_TYPES: CommentType[] = ['brand', 'metric', 'general'];
+const VALID_TYPES: CommentType[] = ['metric', 'general'];
 
 describe('Comments — Data Model', () => {
   describe('Comment types', () => {
@@ -70,9 +117,9 @@ describe('Comments — Data Model', () => {
       expect(c.field).toBeTruthy();
     });
 
-    it('brand comments are top-level cycle comments', () => {
-      const c = makeComment({ comment_type: 'brand' });
-      expect(c.comment_type).toBe('brand');
+    it('general comments are top-level cycle comments', () => {
+      const c = makeComment({ comment_type: 'general' });
+      expect(c.comment_type).toBe('general');
       expect(c.parent_id).toBeNull();
     });
 
@@ -149,6 +196,34 @@ describe('Comments — Data Model', () => {
       const tree = buildThreadTree(comments);
       expect(tree[0].author_role).toBe('Planning');
       expect(tree[0].replies![0].author_role).toBe('GD');
+    });
+  });
+
+  describe('API validation rules (post-migration)', () => {
+    it('rejects comment_type brand after migration', () => {
+      const result = validateCommentRequest({ text: 'hello', comment_type: 'brand' });
+      expect(result.status).toBe(400);
+      expect(result.error).toMatch(/comment_type must be one of/);
+    });
+
+    it('metric comment succeeds with month and field (no row_id)', () => {
+      const result = validateCommentRequest({
+        text: 'NSQ too high',
+        comment_type: 'metric',
+        month: '2026-04-01',
+        field: 'nsq',
+      });
+      expect(result.status).toBe(201);
+    });
+
+    it('metric comment fails without month', () => {
+      const result = validateCommentRequest({
+        text: 'NSQ too high',
+        comment_type: 'metric',
+        field: 'nsq',
+      });
+      expect(result.status).toBe(400);
+      expect(result.error).toMatch(/month and field/);
     });
   });
 });
