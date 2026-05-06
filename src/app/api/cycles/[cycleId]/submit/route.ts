@@ -72,6 +72,8 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const submitNow = new Date().toISOString();
+
   // Step 1: Create missing rows as Pending for first-time submit.
   // ignoreDuplicates: true leaves existing Approved rows untouched on resubmit.
   const { error: upsertError } = await adminClient
@@ -84,6 +86,7 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
         user_id: null,
         comment: null,
         decided_at: null,
+        updated_at: submitNow,
       })),
       { onConflict: 'cycle_id,role', ignoreDuplicates: true }
     );
@@ -93,7 +96,6 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
   }
 
   // Step 2: Reset any RevisionRequested rows back to Pending so the requester re-enters the queue.
-  const submitNow = new Date().toISOString();
   const { error: resetError } = await adminClient
     .from('approval_tracking')
     .update({
