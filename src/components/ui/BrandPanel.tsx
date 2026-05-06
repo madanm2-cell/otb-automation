@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message } from 'antd';
+import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message, Skeleton } from 'antd';
 import {
   RightOutlined,
   DownOutlined,
@@ -17,7 +17,9 @@ import type {
   EnhancedBrandSummary,
   BrandMonthBreakdown,
   VarianceReportData,
+  VarianceRow,
 } from '@/types/otb';
+import { DEFAULT_VARIANCE_THRESHOLDS } from '@/types/otb';
 
 const { Text } = Typography;
 
@@ -44,6 +46,31 @@ function formatMonth(dateStr: string): string {
   return `${monthNames[d.getMonth()]} '${shortYear}`;
 }
 
+type VarianceMetricKey = 'gmv' | 'nsq' | 'inwards' | 'closing_stock';
+
+function aggregateVariancePct(rows: VarianceRow[], metric: VarianceMetricKey): number | null {
+  let planned = 0;
+  let actual = 0;
+  let hasData = false;
+  for (const row of rows) {
+    const m = row[metric];
+    if (m.planned != null && m.actual != null) {
+      planned += m.planned;
+      actual += m.actual;
+      hasData = true;
+    }
+  }
+  if (!hasData || planned === 0) return null;
+  return ((actual - planned) / planned) * 100;
+}
+
+function varianceColor(pct: number, threshold: number): string {
+  const abs = Math.abs(pct);
+  if (abs <= threshold) return COLORS.success;
+  if (abs <= threshold * 2) return COLORS.warning;
+  return COLORS.danger;
+}
+
 // --- Inline Metric ---
 
 interface InlineMetricProps {
@@ -57,6 +84,25 @@ function InlineMetric({ label, value }: InlineMetricProps) {
       <div style={{ textAlign: 'center', minWidth: 70 }}>
         <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 2 }}>{label}</div>
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textPrimary }}>{value}</div>
+      </div>
+    </Tooltip>
+  );
+}
+
+// --- Variance Badge ---
+
+function VarianceBadge({ label, pct, threshold }: { label: string; pct: number | null; threshold: number }) {
+  return (
+    <Tooltip title={label}>
+      <div style={{ textAlign: 'center', minWidth: 80 }}>
+        <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 2 }}>{label}</div>
+        {pct === null ? (
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted }}>—</div>
+        ) : (
+          <div style={{ fontSize: 13, fontWeight: 600, color: varianceColor(pct, threshold) }}>
+            {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+          </div>
+        )}
       </div>
     </Tooltip>
   );
@@ -176,6 +222,63 @@ function TopCategories({ categories }: { categories: EnhancedBrandSummary['top_c
   );
 }
 
+// --- Variance Body ---
+
+function VarianceBody({ variance }: { variance: VarianceReportData }) {
+  const { summary } = variance;
+
+  const topVarColumns = [
+    { title: 'Month', dataIndex: 'month', key: 'month', render: (v: string) => formatMonth(v) },
+    { title: 'Sub-Category', dataIndex: 'sub_category', key: 'sub_category' },
+    { title: 'Channel', dataIndex: 'channel', key: 'channel' },
+    {
+      title: 'GMV Var%',
+      key: 'gmv',
+      render: (_: unknown, row: VarianceRow) =>
+        row.gmv.variance_pct != null ? (
+          <span style={{ color: varianceColor(row.gmv.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.gmv_pct), fontWeight: 600 }}>
+            {row.gmv.variance_pct >= 0 ? '+' : ''}{row.gmv.variance_pct.toFixed(1)}%
+          </span>
+        ) : '—',
+    },
+    {
+      title: 'NSQ Var%',
+      key: 'nsq',
+      render: (_: unknown, row: VarianceRow) =>
+        row.nsq.variance_pct != null ? (
+          <span style={{ color: varianceColor(row.nsq.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.nsq_pct), fontWeight: 600 }}>
+            {row.nsq.variance_pct >= 0 ? '+' : ''}{row.nsq.variance_pct.toFixed(1)}%
+          </span>
+        ) : '—',
+    },
+  ];
+
+  return (
+    <div style={{ marginTop: SPACING.lg }}>
+      {/* RAG Summary */}
+      <Space size={SPACING.lg} style={{ marginBottom: SPACING.md }}>
+        <span style={{ color: COLORS.danger, fontWeight: 600 }}>● {summary.red_count} red</span>
+        <span style={{ color: COLORS.warning, fontWeight: 600 }}>● {summary.yellow_count} amber</span>
+        <span style={{ color: COLORS.success, fontWeight: 600 }}>● {summary.green_count} green</span>
+      </Space>
+      {/* Top Variances */}
+      {summary.top_variances.length > 0 && (
+        <>
+          <Text strong style={{ fontSize: 13, color: COLORS.textSecondary }}>Top Variances</Text>
+          <Table
+            dataSource={summary.top_variances}
+            columns={topVarColumns}
+            rowKey={(row) => `${row.sub_category}-${row.channel}-${row.month}`}
+            size="small"
+            pagination={false}
+            style={{ marginTop: SPACING.sm }}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 // --- Zone Actions ---
 
 function ZoneActions({
@@ -273,6 +376,7 @@ export function BrandPanel(props: BrandPanelProps) {
   const {
     brand,
     zone,
+    variance,
     onLoadVariance,
     onActionComplete,
     approvalProgress,
@@ -391,21 +495,52 @@ export function BrandPanel(props: BrandPanelProps) {
           {/* Status Tag */}
           <Tag color={statusColor}>{statusLabel}</Tag>
 
-          {/* Inline Metrics */}
-          <div
-            style={{
-              display: 'flex',
-              gap: SPACING.lg,
-              marginLeft: 'auto',
-              flexWrap: 'wrap',
-            }}
-          >
-            <InlineMetric label="GMV" value={formatCrore(brand.gmv)} />
-            <InlineMetric label="NSV" value={formatCrore(brand.nsv)} />
-            <InlineMetric label="NSQ" value={formatQty(brand.nsq)} />
-            <InlineMetric label="Inwards" value={formatQty(brand.inwards_qty)} />
-            <InlineMetric label="Closing Stock" value={formatQty(brand.closing_stock_qty)} />
-            <InlineMetric label="DoH" value={String(Math.round(brand.avg_doh))} />
+          {/* Inline Metrics — plan view for review/approved; variance view for variance zone */}
+          <div style={{ display: 'flex', gap: SPACING.lg, marginLeft: 'auto', flexWrap: 'wrap' }}>
+            {zone === 'variance' ? (
+              variance ? (
+                <>
+                  <VarianceBadge
+                    label="GMV"
+                    pct={aggregateVariancePct(variance.rows, 'gmv')}
+                    threshold={DEFAULT_VARIANCE_THRESHOLDS.gmv_pct}
+                  />
+                  <VarianceBadge
+                    label="NSQ"
+                    pct={aggregateVariancePct(variance.rows, 'nsq')}
+                    threshold={DEFAULT_VARIANCE_THRESHOLDS.nsq_pct}
+                  />
+                  <VarianceBadge
+                    label="Inwards"
+                    pct={aggregateVariancePct(variance.rows, 'inwards')}
+                    threshold={DEFAULT_VARIANCE_THRESHOLDS.inwards_pct}
+                  />
+                  <VarianceBadge
+                    label="Closing Stock"
+                    pct={aggregateVariancePct(variance.rows, 'closing_stock')}
+                    threshold={DEFAULT_VARIANCE_THRESHOLDS.closing_stock_pct}
+                  />
+                </>
+              ) : (
+                <Space size={SPACING.lg}>
+                  {['GMV', 'NSQ', 'Inwards', 'Closing Stock'].map(label => (
+                    <div key={label} style={{ textAlign: 'center', minWidth: 80 }}>
+                      <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{label}</div>
+                      <Skeleton.Input active style={{ width: 60, height: 18 }} size="small" />
+                    </div>
+                  ))}
+                </Space>
+              )
+            ) : (
+              <>
+                <InlineMetric label="GMV" value={formatCrore(brand.gmv)} />
+                <InlineMetric label="NSV" value={formatCrore(brand.nsv)} />
+                <InlineMetric label="NSQ" value={formatQty(brand.nsq)} />
+                <InlineMetric label="Inwards" value={formatQty(brand.inwards_qty)} />
+                <InlineMetric label="Closing Stock" value={formatQty(brand.closing_stock_qty)} />
+                <InlineMetric label="DoH" value={String(Math.round(brand.avg_doh))} />
+              </>
+            )}
           </div>
         </div>
 
@@ -417,13 +552,18 @@ export function BrandPanel(props: BrandPanelProps) {
               borderTop: `1px solid ${COLORS.borderLight}`,
             }}
           >
-            {/* Monthly Breakdown */}
-            <MonthlyTable data={brand.monthly} />
-
-            {/* Top Sub-Categories */}
-            <TopCategories categories={brand.top_categories} />
-
-            {/* Zone Actions */}
+            {zone === 'variance' ? (
+              variance ? (
+                <VarianceBody variance={variance} />
+              ) : (
+                <Skeleton active paragraph={{ rows: 3 }} style={{ marginTop: SPACING.md }} />
+              )
+            ) : (
+              <>
+                <MonthlyTable data={brand.monthly} />
+                <TopCategories categories={brand.top_categories} />
+              </>
+            )}
             <ZoneActions
               zone={zone}
               brand={brand}
