@@ -23,13 +23,34 @@ interface CommentsPanelProps {
   cycleId: string;
   open: boolean;
   onClose: () => void;
+  months?: string[];
 }
 
 const COMMENT_TYPE_OPTIONS: { value: CommentType; label: string }[] = [
   { value: 'general', label: 'General' },
-  { value: 'brand', label: 'Brand' },
   { value: 'metric', label: 'Metric' },
 ];
+
+const METRIC_FIELD_OPTIONS = [
+  { value: 'nsq', label: 'NSQ' },
+  { value: 'inwards_qty', label: 'Inwards Qty' },
+  { value: 'sales_plan_gmv', label: 'Sales Plan GMV' },
+  { value: 'goly_pct', label: 'GOLY%' },
+  { value: 'nsv', label: 'NSV' },
+  { value: 'opening_stock_qty', label: 'Opening Stock' },
+  { value: 'closing_stock_qty', label: 'Closing Stock' },
+  { value: 'fwd_30day_doh', label: 'Forward DoH' },
+  { value: 'gm_pct', label: 'GM%' },
+  { value: 'gross_margin', label: 'Gross Margin' },
+  { value: 'asp', label: 'ASP' },
+  { value: 'cogs', label: 'COGS' },
+  { value: 'ly_sales_nsq', label: 'LY NSQ' },
+];
+
+function formatMonth(month: string): string {
+  const d = new Date(month + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+}
 
 const ROLE_COLORS: Record<string, string> = {
   Admin: 'red',
@@ -114,9 +135,11 @@ function CommentItem({
         <Paragraph style={{ marginBottom: 4, whiteSpace: 'pre-wrap' }}>
           {comment.text}
         </Paragraph>
-        {comment.comment_type === 'metric' && comment.field && (
+        {comment.comment_type === 'metric' && comment.field && comment.month && (
           <Text type="secondary" style={{ fontSize: 11 }}>
-            on {comment.field} ({comment.month})
+            {METRIC_FIELD_OPTIONS.find(o => o.value === comment.field)?.label ?? comment.field}
+            {' · '}
+            {formatMonth(comment.month)}
           </Text>
         )}
         <div>
@@ -143,7 +166,7 @@ function CommentItem({
   );
 }
 
-export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
+export function CommentsPanel({ cycleId, open, onClose, months = [] }: CommentsPanelProps) {
   const { profile } = useAuth();
   const [comments, setComments] = useState<OtbComment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -152,6 +175,8 @@ export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
   // New comment form state
   const [text, setText] = useState('');
   const [commentType, setCommentType] = useState<CommentType>('general');
+  const [metricMonth, setMetricMonth] = useState<string | null>(null);
+  const [metricField, setMetricField] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
 
   // Inline reply state
@@ -189,6 +214,7 @@ export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
+    if (commentType === 'metric' && (!metricMonth || !metricField)) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/cycles/${cycleId}/comments`, {
@@ -197,6 +223,7 @@ export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
         body: JSON.stringify({
           text: text.trim(),
           comment_type: commentType,
+          ...(commentType === 'metric' && { month: metricMonth, field: metricField }),
         }),
       });
       if (!res.ok) {
@@ -206,6 +233,8 @@ export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
       }
       setText('');
       setCommentType('general');
+      setMetricMonth(null);
+      setMetricField(null);
       await fetchComments();
     } catch {
       message.error('Failed to post comment');
@@ -267,20 +296,44 @@ export function CommentsPanel({ cycleId, open, onClose }: CommentsPanelProps) {
             placeholder="Write a comment..."
             autoSize={{ minRows: 2, maxRows: 6 }}
           />
-          <Space>
+          <Space wrap>
             <Select
               value={commentType}
-              onChange={setCommentType}
+              onChange={(val) => {
+                setCommentType(val);
+                setMetricMonth(null);
+                setMetricField(null);
+              }}
               options={COMMENT_TYPE_OPTIONS}
-              style={{ width: 120 }}
+              style={{ width: 110 }}
               size="small"
             />
+            {commentType === 'metric' && (
+              <>
+                <Select
+                  value={metricMonth}
+                  onChange={setMetricMonth}
+                  placeholder="Month"
+                  style={{ width: 100 }}
+                  size="small"
+                  options={months.map(m => ({ value: m, label: formatMonth(m) }))}
+                />
+                <Select
+                  value={metricField}
+                  onChange={setMetricField}
+                  placeholder="Field"
+                  style={{ width: 130 }}
+                  size="small"
+                  options={METRIC_FIELD_OPTIONS}
+                />
+              </>
+            )}
             <Button
               type="primary"
               size="small"
               icon={<SendOutlined />}
               loading={submitting}
-              disabled={!text.trim()}
+              disabled={!text.trim() || (commentType === 'metric' && (!metricMonth || !metricField))}
               onClick={handleSubmit}
             >
               Post

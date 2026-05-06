@@ -6,7 +6,7 @@ import type { CommentType } from '@/types/otb';
 
 type Params = { params: Promise<{ cycleId: string }> };
 
-const VALID_COMMENT_TYPES: CommentType[] = ['brand', 'metric', 'general'];
+const VALID_COMMENT_TYPES: CommentType[] = ['general', 'metric'];
 
 // GET /api/cycles/:cycleId/comments — fetch all comments for a cycle
 export const GET = withAuth('view_cycle', async (req, auth, { params }: Params) => {
@@ -61,11 +61,11 @@ export const POST = withAuth('view_cycle', async (req: NextRequest, auth, { para
     );
   }
 
-  // For metric comments, row_id, month, and field should be present
+  // For metric comments, month and field are required; row_id is optional (brand-level metric)
   if (comment_type === 'metric') {
-    if (!row_id || !month || !field) {
+    if (!month || !field) {
       return NextResponse.json(
-        { error: 'Metric comments require row_id, month, and field' },
+        { error: 'Metric comments require month and field' },
         { status: 400 }
       );
     }

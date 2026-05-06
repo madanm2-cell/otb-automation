@@ -282,7 +282,7 @@ export interface ApprovalRecord {
   user_name?: string;
 }
 
-export type CommentType = 'brand' | 'metric' | 'general';
+export type CommentType = 'general' | 'metric';
 
 export interface OtbComment {
   id: string;
