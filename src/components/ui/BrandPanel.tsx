@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Card, Tag, Table, Button, Space, Typography, Tooltip } from 'antd';
+import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message } from 'antd';
 import {
   RightOutlined,
   DownOutlined,
   CheckCircleOutlined,
+  ExclamationCircleOutlined,
   UndoOutlined,
   LinkOutlined,
 } from '@ant-design/icons';
@@ -29,9 +30,9 @@ export interface BrandPanelProps {
   zone: BrandPanelZone;
   variance?: VarianceReportData | null;
   onLoadVariance?: (cycleId: string) => void;
-  onApprove?: (cycleId: string) => void;
-  onRequestRevision?: (cycleId: string) => void;
+  onActionComplete?: () => void;
   approvalProgress?: { approved: number; pending: number; total: number };
+  needsMyApproval?: boolean;
 }
 
 // --- Helpers ---
@@ -126,35 +127,51 @@ function MonthlyTable({ data }: { data: BrandMonthBreakdown[] }) {
 function TopCategories({ categories }: { categories: EnhancedBrandSummary['top_categories'] }) {
   if (!categories || categories.length === 0) return null;
 
-  const display = categories.slice(0, 5);
+  const columns = [
+    {
+      title: 'Sub-Category',
+      dataIndex: 'sub_category',
+      key: 'sub_category',
+    },
+    {
+      title: 'GMV',
+      dataIndex: 'gmv',
+      key: 'gmv',
+      render: (v: number) => formatCrore(v),
+    },
+    {
+      title: 'NSQ',
+      dataIndex: 'nsq',
+      key: 'nsq',
+      render: (v: number) => formatQty(v),
+    },
+    {
+      title: 'Inwards',
+      dataIndex: 'inwards_qty',
+      key: 'inwards_qty',
+      render: (v: number) => formatQty(v),
+    },
+    {
+      title: 'GMV Share',
+      dataIndex: 'pct_of_total',
+      key: 'pct_of_total',
+      render: (v: number) => `${v.toFixed(1)}%`,
+    },
+  ];
 
   return (
     <div style={{ marginTop: SPACING.lg }}>
       <Text strong style={{ fontSize: 13, color: COLORS.textSecondary }}>
-        Top Sub-Categories
+        Top Sub-Categories by GMV
       </Text>
-      <div style={{ marginTop: SPACING.sm }}>
-        {display.map((cat) => (
-          <div
-            key={cat.sub_category}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: `${SPACING.xs}px 0`,
-              borderBottom: `1px solid ${COLORS.borderLight}`,
-            }}
-          >
-            <Text style={{ fontSize: 13 }}>{cat.sub_category}</Text>
-            <Space size={SPACING.md}>
-              <Text style={{ fontSize: 13, fontWeight: 600 }}>{formatCrore(cat.gmv)}</Text>
-              <Text style={{ fontSize: 12, color: COLORS.textMuted }}>
-                {cat.pct_of_total.toFixed(1)}%
-              </Text>
-            </Space>
-          </div>
-        ))}
-      </div>
+      <Table
+        dataSource={categories}
+        columns={columns}
+        rowKey="sub_category"
+        size="small"
+        pagination={false}
+        style={{ marginTop: SPACING.sm }}
+      />
     </div>
   );
 }
@@ -165,15 +182,27 @@ function ZoneActions({
   zone,
   brand,
   approvalProgress,
+  needsMyApproval,
+  actionLoading,
   onApprove,
   onRequestRevision,
 }: {
   zone: BrandPanelZone;
   brand: EnhancedBrandSummary;
   approvalProgress?: BrandPanelProps['approvalProgress'];
-  onApprove?: (cycleId: string) => void;
-  onRequestRevision?: (cycleId: string) => void;
+  needsMyApproval?: boolean;
+  actionLoading?: boolean;
+  onApprove?: () => void;
+  onRequestRevision?: () => void;
 }) {
+  const gridLink = (
+    <Link href={`/cycles/${brand.cycle_id}/grid`}>
+      <Button type="link" icon={<LinkOutlined />}>
+        Open OTB Grid
+      </Button>
+    </Link>
+  );
+
   if (zone === 'review') {
     return (
       <div
@@ -184,21 +213,32 @@ function ZoneActions({
           gap: SPACING.md,
         }}
       >
-        <Button
-          type="primary"
-          icon={<CheckCircleOutlined />}
-          onClick={() => onApprove?.(brand.cycle_id)}
-        >
-          Approve
-        </Button>
-        <Button icon={<UndoOutlined />} onClick={() => onRequestRevision?.(brand.cycle_id)}>
-          Request Revision
-        </Button>
+        {needsMyApproval && (
+          <>
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              loading={actionLoading}
+              onClick={onApprove}
+            >
+              Approve
+            </Button>
+            <Button
+              danger
+              icon={<UndoOutlined />}
+              loading={actionLoading}
+              onClick={onRequestRevision}
+            >
+              Request Revision
+            </Button>
+          </>
+        )}
         {approvalProgress && (
           <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginLeft: SPACING.sm }}>
             {approvalProgress.approved}/{approvalProgress.total} roles approved
           </Text>
         )}
+        <div style={{ marginLeft: 'auto' }}>{gridLink}</div>
       </div>
     );
   }
@@ -206,18 +246,15 @@ function ZoneActions({
   if (zone === 'approved') {
     return (
       <div style={{ marginTop: SPACING.lg }}>
-        <Link href={`/cycles/${brand.cycle_id}`}>
-          <Button type="link" icon={<LinkOutlined />}>
-            Open OTB Grid
-          </Button>
-        </Link>
+        {gridLink}
       </div>
     );
   }
 
   if (zone === 'variance') {
     return (
-      <div style={{ marginTop: SPACING.lg }}>
+      <div style={{ marginTop: SPACING.lg, display: 'flex', gap: SPACING.sm }}>
+        {gridLink}
         <Link href={`/cycles/${brand.cycle_id}?tab=variance`}>
           <Button type="link" icon={<LinkOutlined />}>
             Full Variance Report
@@ -237,11 +274,14 @@ export function BrandPanel(props: BrandPanelProps) {
     brand,
     zone,
     onLoadVariance,
-    onApprove,
-    onRequestRevision,
+    onActionComplete,
     approvalProgress,
+    needsMyApproval,
   } = props;
   const [expanded, setExpanded] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [revisionModalOpen, setRevisionModalOpen] = useState(false);
+  const [revisionComment, setRevisionComment] = useState('');
   const varianceLoadedRef = useRef(false);
 
   const handleToggle = () => {
@@ -255,93 +295,166 @@ export function BrandPanel(props: BrandPanelProps) {
     }
   };
 
+  const handleApprove = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/cycles/${brand.cycle_id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message.success('Approved successfully');
+        onActionComplete?.();
+      } else {
+        message.error(data.error || 'Failed to approve');
+      }
+    } catch {
+      message.error('Network error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRevisionSubmit = async () => {
+    if (!revisionComment.trim()) {
+      message.warning('Please provide a comment for the revision request');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/cycles/${brand.cycle_id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'revision_requested', comment: revisionComment }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message.success('Revision requested');
+        setRevisionModalOpen(false);
+        setRevisionComment('');
+        onActionComplete?.();
+      } else {
+        message.error(data.error || 'Failed to request revision');
+      }
+    } catch {
+      message.error('Network error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const statusColor =
     zone === 'approved' ? 'success' : (STATUS_TAG_COLORS[brand.status] || 'default');
 
   const statusLabel = zone === 'approved' ? 'Approved' : brand.status;
 
   return (
-    <Card
-      style={{
-        ...CARD_STYLES,
-        marginBottom: SPACING.md,
-        cursor: 'pointer',
-      }}
-      styles={{ body: { padding: 0 } }}
-    >
-      {/* Collapsed Header (always visible) */}
-      <div
-        onClick={handleToggle}
+    <>
+      <Card
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: `${SPACING.md}px ${SPACING.lg}px`,
-          gap: SPACING.md,
+          ...CARD_STYLES,
+          marginBottom: SPACING.md,
+          cursor: 'pointer',
         }}
+        styles={{ body: { padding: 0 } }}
       >
-        {/* Chevron */}
-        <span style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
-          {expanded ? <DownOutlined /> : <RightOutlined />}
-        </span>
-
-        {/* Brand + Cycle Info */}
-        <div style={{ minWidth: 160, flexShrink: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>
-            {brand.brand_name}
-          </div>
-          <div style={{ fontSize: 13, color: COLORS.textSecondary }}>{brand.cycle_name}</div>
-        </div>
-
-        {/* Planning Quarter */}
-        <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
-          {brand.planning_quarter}
-        </Text>
-
-        {/* Status Tag */}
-        <Tag color={statusColor}>{statusLabel}</Tag>
-
-        {/* Inline Metrics */}
+        {/* Collapsed Header (always visible) */}
         <div
+          onClick={handleToggle}
           style={{
             display: 'flex',
-            gap: SPACING.lg,
-            marginLeft: 'auto',
-            flexWrap: 'wrap',
+            alignItems: 'center',
+            padding: `${SPACING.md}px ${SPACING.lg}px`,
+            gap: SPACING.md,
           }}
         >
-          <InlineMetric label="GMV" value={formatCrore(brand.gmv)} />
-          <InlineMetric label="NSV" value={formatCrore(brand.nsv)} />
-          <InlineMetric label="NSQ" value={formatQty(brand.nsq)} />
-          <InlineMetric label="Inwards" value={formatQty(brand.inwards_qty)} />
-          <InlineMetric label="Closing Stock" value={formatQty(brand.closing_stock_qty)} />
-          <InlineMetric label="DoH" value={String(Math.round(brand.avg_doh))} />
+          {/* Chevron */}
+          <span style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
+            {expanded ? <DownOutlined /> : <RightOutlined />}
+          </span>
+
+          {/* Brand + Cycle Info */}
+          <div style={{ minWidth: 160, flexShrink: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>
+              {brand.brand_name}
+            </div>
+            <div style={{ fontSize: 13, color: COLORS.textSecondary }}>{brand.cycle_name}</div>
+          </div>
+
+          {/* Planning Quarter */}
+          <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
+            {brand.planning_quarter}
+          </Text>
+
+          {/* Status Tag */}
+          <Tag color={statusColor}>{statusLabel}</Tag>
+
+          {/* Inline Metrics */}
+          <div
+            style={{
+              display: 'flex',
+              gap: SPACING.lg,
+              marginLeft: 'auto',
+              flexWrap: 'wrap',
+            }}
+          >
+            <InlineMetric label="GMV" value={formatCrore(brand.gmv)} />
+            <InlineMetric label="NSV" value={formatCrore(brand.nsv)} />
+            <InlineMetric label="NSQ" value={formatQty(brand.nsq)} />
+            <InlineMetric label="Inwards" value={formatQty(brand.inwards_qty)} />
+            <InlineMetric label="Closing Stock" value={formatQty(brand.closing_stock_qty)} />
+            <InlineMetric label="DoH" value={String(Math.round(brand.avg_doh))} />
+          </div>
         </div>
-      </div>
 
-      {/* Expanded Body */}
-      {expanded && (
-        <div
-          style={{
-            padding: `0 ${SPACING.lg}px ${SPACING.lg}px`,
-            borderTop: `1px solid ${COLORS.borderLight}`,
-          }}
-        >
-          {/* Monthly Breakdown */}
-          <MonthlyTable data={brand.monthly} />
+        {/* Expanded Body */}
+        {expanded && (
+          <div
+            style={{
+              padding: `0 ${SPACING.lg}px ${SPACING.lg}px`,
+              borderTop: `1px solid ${COLORS.borderLight}`,
+            }}
+          >
+            {/* Monthly Breakdown */}
+            <MonthlyTable data={brand.monthly} />
 
-          {/* Top Sub-Categories */}
-          <TopCategories categories={brand.top_categories} />
+            {/* Top Sub-Categories */}
+            <TopCategories categories={brand.top_categories} />
 
-          {/* Zone Actions */}
-          <ZoneActions
-            zone={zone}
-            brand={brand}
-            approvalProgress={approvalProgress}
-            onApprove={onApprove}
-            onRequestRevision={onRequestRevision}
-          />
-        </div>
-      )}
-    </Card>
+            {/* Zone Actions */}
+            <ZoneActions
+              zone={zone}
+              brand={brand}
+              approvalProgress={approvalProgress}
+              needsMyApproval={needsMyApproval}
+              actionLoading={actionLoading}
+              onApprove={handleApprove}
+              onRequestRevision={() => setRevisionModalOpen(true)}
+            />
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        title="Request Revision"
+        open={revisionModalOpen}
+        onOk={handleRevisionSubmit}
+        onCancel={() => { setRevisionModalOpen(false); setRevisionComment(''); }}
+        confirmLoading={actionLoading}
+        okText="Submit Revision Request"
+        okButtonProps={{ danger: true, icon: <ExclamationCircleOutlined /> }}
+      >
+        <Text>Please explain what needs to be revised:</Text>
+        <Input.TextArea
+          rows={4}
+          value={revisionComment}
+          onChange={e => setRevisionComment(e.target.value)}
+          placeholder="Describe the required changes..."
+          style={{ marginTop: 8 }}
+        />
+      </Modal>
+    </>
   );
 }
