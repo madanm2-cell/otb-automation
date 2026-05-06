@@ -45,3 +45,20 @@
 .otb-editable-cell:hover {
   background-color: #e8f4ff !important;
 }
+
+/* Cell comment triangle indicator — GSheets style */
+.ag-cell.has-comment {
+  position: relative;
+}
+.ag-cell.has-comment::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+  border-top-color: #faad14;
+  border-right-color: #faad14;
+  pointer-events: none;
+}
