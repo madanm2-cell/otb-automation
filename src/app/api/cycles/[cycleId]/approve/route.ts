@@ -120,23 +120,30 @@ export const POST = withAuth('approve_otb', async (req, auth, { params }: Params
   }
   // Check if cycle should revert to Filling (any revision requested)
   else if (shouldCycleRevertToFilling(updatedRecords ?? [])) {
-    // Reset ALL approval rows to Pending
-    await adminClient
-      .from('approval_tracking')
-      .update({
-        status: 'Pending',
-        user_id: null,
-        comment: null,
-        decided_at: null,
-        updated_at: now,
-      })
-      .eq('cycle_id', cycleId);
-
+    // Only revert cycle — existing Approved rows are preserved intentionally
     await adminClient
       .from('otb_cycles')
       .update({ status: 'Filling', updated_at: now })
       .eq('id', cycleId);
     newCycleStatus = 'Filling';
+
+    // Mirror revision reason to comments table so it surfaces in CommentsPanel and grid
+    if (comment?.trim()) {
+      await adminClient
+        .from('comments')
+        .insert({
+          cycle_id: cycleId,
+          parent_id: null,
+          comment_type: 'general',
+          row_id: null,
+          month: null,
+          field: null,
+          text: comment.trim(),
+          author_id: auth.user.id,
+          author_name: auth.profile.full_name,
+          author_role: auth.profile.role,
+        });
+    }
   }
 
   // Audit log
