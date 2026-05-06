@@ -16,8 +16,9 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
 import { getLockedMonths } from '@/lib/monthLockout';
-import { calcSuggestedInwards } from '@/lib/formulaEngine';
-import type { PlanRow, OtbCycle } from '@/types/otb';
+import { calcSuggestedInwards, calculateAll } from '@/lib/formulaEngine';
+import { buildCommentMap } from '@/lib/cellComments';
+import type { PlanRow, OtbCycle, OtbComment } from '@/types/otb';
 
 const { Title } = Typography;
 
@@ -46,6 +47,7 @@ export default function GridPage() {
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [reverting, setReverting] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState<Map<string, number>>(new Map());
+  const [comments, setComments] = useState<OtbComment[]>([]);
   const suggestionsInitialized = useRef(false);
 
   const { applyChange } = useFormulaEngine();
@@ -53,13 +55,53 @@ export default function GridPage() {
   const fetchGridData = useCallback(async () => {
     suggestionsInitialized.current = false;
     try {
-      const [cycleData, planData] = await Promise.all([
+      const [cycleData, planData, commentsData] = await Promise.all([
         fetch(`/api/cycles/${cycleId}`).then(r => r.json()),
         fetch(`/api/cycles/${cycleId}/plan-data`).then(r => r.json()),
+        fetch(`/api/cycles/${cycleId}/comments`).then(r => r.json()).catch(() => []),
       ]);
       setCycle(cycleData);
-      setRows(planData.rows || []);
-      setMonths(planData.months || []);
+      setComments(Array.isArray(commentsData) ? commentsData : []);
+      const loadedMonths: string[] = planData.months || [];
+      const sortedM = [...loadedMonths].sort();
+
+      // Recalculate all computed fields client-side so DB NULLs (e.g. closing stock when
+      // inwards not yet entered) are filled in correctly using the formula engine.
+      const recalculated: PlanRow[] = (planData.rows || []).map((row: PlanRow) => {
+        const newMonths = { ...row.months };
+        for (const m of sortedM) {
+          if (newMonths[m]) newMonths[m] = { ...newMonths[m] };
+        }
+        for (let i = 0; i < sortedM.length; i++) {
+          const m = sortedM[i];
+          const d = newMonths[m];
+          if (!d) continue;
+          // Month chaining: M+1 opening = M closing
+          if (i > 0) {
+            const prev = newMonths[sortedM[i - 1]];
+            if (prev?.closing_stock_qty != null) d.opening_stock_qty = prev.closing_stock_qty;
+          }
+          const nextNsq = i < sortedM.length - 1 ? (newMonths[sortedM[i + 1]]?.nsq ?? null) : null;
+          const r = calculateAll({
+            nsq: d.nsq, inwardsQty: d.inwards_qty, asp: d.asp, cogs: d.cogs,
+            openingStockQty: d.opening_stock_qty, lySalesNsq: d.ly_sales_nsq,
+            returnPct: d.return_pct, taxPct: d.tax_pct, nextMonthNsq: nextNsq,
+          });
+          d.sales_plan_gmv = r.salesPlanGmv;
+          d.goly_pct = r.golyPct;
+          d.nsv = r.nsv;
+          d.inwards_val_cogs = r.inwardsValCogs;
+          d.opening_stock_val = r.openingStockVal;
+          d.closing_stock_qty = r.closingStockQty;
+          d.fwd_30day_doh = r.fwd30dayDoh;
+          d.gm_pct = r.gmPct;
+          d.gross_margin = r.grossMargin;
+        }
+        return { ...row, months: newMonths };
+      });
+
+      setRows(recalculated);
+      setMonths(loadedMonths);
       setDirtyRows(new Set());
     } catch {
       // ignore
@@ -105,7 +147,7 @@ export default function GridPage() {
           : null;
 
         const suggested = calcSuggestedInwards(d.nsq, nextMonthNsq, d.standard_doh, d.opening_stock_qty);
-        if (suggested !== null && suggested > 0) {
+        if (suggested !== null && suggested > 0 && suggested !== d.inwards_qty) {
           initial.set(`${row.id}|${month}`, suggested);
         }
       }
@@ -116,6 +158,16 @@ export default function GridPage() {
 
   const { profile } = useAuth();
   const lockedMonths = useMemo(() => getLockedMonths(months), [months]);
+  const commentMap = useMemo(() => buildCommentMap(comments), [comments]);
+
+  const refreshComments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/cycles/${cycleId}/comments`);
+      if (res.ok) setComments(await res.json());
+    } catch {
+      // non-critical
+    }
+  }, [cycleId]);
 
   // Editable: GD on assigned brand in Filling status, or Admin
   const isEditable = cycle?.status === 'Filling' && profile != null && (
@@ -157,10 +209,11 @@ export default function GridPage() {
 
     // Update pending suggestions
     if (params.field === 'nsq') {
+      const currentInwards = updatedRows.find(r => r.id === params.rowId)?.months[params.month]?.inwards_qty ?? null;
       setPendingSuggestions(prev => {
         const next = new Map(prev);
         const key = `${params.rowId}|${params.month}`;
-        if (suggestion && suggestion.value > 0) {
+        if (suggestion && suggestion.value > 0 && suggestion.value !== currentInwards) {
           next.set(key, suggestion.value);
         } else {
           next.delete(key);
@@ -470,6 +523,10 @@ export default function GridPage() {
         lockedMonths={lockedMonths}
         onCellValueChanged={isEditable ? handleCellValueChanged : undefined}
         pendingSuggestions={pendingSuggestions}
+        commentMap={commentMap}
+        cycleId={cycleId}
+        userRole={profile?.role}
+        onCommentAdded={refreshComments}
       />
       {isEditable && (
         <>
@@ -493,6 +550,7 @@ export default function GridPage() {
         cycleId={cycleId}
         open={commentsOpen}
         onClose={() => setCommentsOpen(false)}
+        months={months}
       />
     </div>
   );
