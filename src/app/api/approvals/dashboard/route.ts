@@ -3,6 +3,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { getRiskFlags, getHighestRiskLevel } from '@/lib/riskIndicators';
 import type { CycleMetrics } from '@/lib/riskIndicators';
+import { APPROVER_SEQUENCE, getPredecessorRoles } from '@/lib/approvalEngine';
+import type { ApproverRole } from '@/types/otb';
 
 // GET /api/approvals/dashboard — aggregated approval dashboard data
 export const GET = withAuth('approve_otb', async (req, auth) => {
@@ -25,6 +27,19 @@ export const GET = withAuth('approve_otb', async (req, auth) => {
 
   const { data: cycles, error: cyclesError } = await cycleQuery;
   if (cyclesError) return NextResponse.json({ error: cyclesError.message }, { status: 500 });
+
+  const userRole = auth.profile.role as ApproverRole;
+  const userIsApprover = APPROVER_SEQUENCE.includes(userRole);
+
+  function computeNeedsMyApproval(cycleStatus: string, cycleApprovals: { role: string; status: string }[]): boolean {
+    if (cycleStatus !== 'InReview' || !userIsApprover) return false;
+    const ownRecord = cycleApprovals.find(r => r.role === userRole);
+    if (!ownRecord || ownRecord.status !== 'Pending') return false;
+    return getPredecessorRoles(userRole).every(pred => {
+      const predRecord = cycleApprovals.find(r => r.role === pred);
+      return predRecord?.status === 'Approved';
+    });
+  }
 
   // Get approval records for all cycles
   const cycleIds = (cycles || []).map(c => c.id);
@@ -66,12 +81,13 @@ export const GET = withAuth('approve_otb', async (req, auth) => {
       risk_level: riskLevel,
       risk_flags: riskFlags,
       updated_at: cycle.updated_at,
+      needs_my_approval: computeNeedsMyApproval(cycle.status, cycleApprovals),
     };
   });
 
   // Summary cards
   const totalCycles = brandSummaries.length;
-  const pendingApproval = brandSummaries.filter(b => b.status === 'InReview').length;
+  const pendingApproval = brandSummaries.filter(b => b.needs_my_approval).length;
   const approved = brandSummaries.filter(b => b.status === 'Approved').length;
   const filling = brandSummaries.filter(b => b.status === 'Filling').length;
 
