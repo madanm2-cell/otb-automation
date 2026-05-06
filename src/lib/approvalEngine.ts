@@ -83,7 +83,7 @@ export function buildInitialApprovalRecords(cycleId: string): Omit<ApprovalRecor
     cycle_id: cycleId,
     role,
     user_id: null,
-    status: 'Pending' as ApprovalStatus,
+    status: 'Pending',
     comment: null,
     decided_at: null,
   }));

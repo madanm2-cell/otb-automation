@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { ApprovalRecord, Role } from '@/types/otb';
 import {
   APPROVER_ROLES,
-  APPROVER_SEQUENCE,
   getApprovalSummary,
   shouldCycleBeApproved,
   shouldCycleRevertToFilling,
@@ -132,8 +131,12 @@ describe('canUserApprove', () => {
     expect(canUserApprove('GD', [])).toBe(false);
   });
 
-  it('returns false for an approver role that already decided', () => {
-    const records = [makeRecord('Finance', 'Approved')];
+  it('returns false for Finance when Finance has already approved (own record decided)', () => {
+    const records = [
+      makeRecord('Planning', 'Approved'),
+      makeRecord('GD', 'Approved'),
+      makeRecord('Finance', 'Approved'),
+    ];
     expect(canUserApprove('Finance', records)).toBe(false);
   });
 
@@ -184,6 +187,14 @@ describe('canUserApprove', () => {
 
   it('returns true for Planning with no records', () => {
     expect(canUserApprove('Planning', [])).toBe(true);
+  });
+
+  it('returns false for GD when GD own record is RevisionRequested (must be reset first)', () => {
+    const records = [
+      makeRecord('Planning', 'Approved'),
+      makeRecord('GD', 'RevisionRequested'),
+    ];
+    expect(canUserApprove('GD', records)).toBe(false);
   });
 });
 
