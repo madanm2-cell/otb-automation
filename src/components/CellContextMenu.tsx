@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CommentOutlined } from '@ant-design/icons';
 
@@ -12,10 +12,11 @@ interface CellContextMenuProps {
 }
 
 export function CellContextMenu({ x, y, onAddComment, onClose }: CellContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
-      const el = document.getElementById('cell-context-menu');
-      if (el && !el.contains(e.target as Node)) onClose();
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -30,7 +31,7 @@ export function CellContextMenu({ x, y, onAddComment, onClose }: CellContextMenu
 
   return createPortal(
     <div
-      id="cell-context-menu"
+      ref={menuRef}
       style={{
         position: 'fixed',
         top: y,
