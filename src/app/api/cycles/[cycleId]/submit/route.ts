@@ -42,10 +42,12 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
   }
 
   // Check at least some NSQ values are filled (not all zero)
+  // otb_plan_data has no direct cycle_id — join via row_id
+  const rowIds = planRows.map(r => r.id);
   const { data: planData } = await supabase
     .from('otb_plan_data')
     .select('nsq')
-    .eq('cycle_id', cycleId)
+    .in('row_id', rowIds)
     .gt('nsq', 0)
     .limit(1);
 
@@ -56,8 +58,9 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
     );
   }
 
-  // Transition: Filling → InReview
-  const { data, error } = await supabase
+  // Transition: Filling → InReview (use admin client — GD role lacks cycle UPDATE via RLS)
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
     .from('otb_cycles')
     .update({
       status: 'InReview',
@@ -69,20 +72,43 @@ export const POST = withAuth('submit_otb', async (req, auth, { params }: Params)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Initialize approval tracking rows (use admin client — RLS blocks direct inserts)
-  const adminClient = createAdminClient();
-  const approvalRows = APPROVER_ROLES.map(role => ({
-    cycle_id: cycleId,
-    role,
-    status: 'Pending',
-    user_id: null,
-    comment: null,
-    decided_at: null,
-  }));
-
-  await adminClient
+  // Step 1: Create missing rows as Pending for first-time submit.
+  // ignoreDuplicates: true leaves existing Approved rows untouched on resubmit.
+  const { error: upsertError } = await adminClient
     .from('approval_tracking')
-    .upsert(approvalRows, { onConflict: 'cycle_id,role' });
+    .upsert(
+      APPROVER_ROLES.map(role => ({
+        cycle_id: cycleId,
+        role,
+        status: 'Pending',
+        user_id: null,
+        comment: null,
+        decided_at: null,
+      })),
+      { onConflict: 'cycle_id,role', ignoreDuplicates: true }
+    );
+
+  if (upsertError) {
+    return NextResponse.json({ error: upsertError.message }, { status: 500 });
+  }
+
+  // Step 2: Reset any RevisionRequested rows back to Pending so the requester re-enters the queue.
+  const submitNow = new Date().toISOString();
+  const { error: resetError } = await adminClient
+    .from('approval_tracking')
+    .update({
+      status: 'Pending',
+      user_id: null,
+      comment: null,
+      decided_at: null,
+      updated_at: submitNow,
+    })
+    .eq('cycle_id', cycleId)
+    .eq('status', 'RevisionRequested');
+
+  if (resetError) {
+    return NextResponse.json({ error: resetError.message }, { status: 500 });
+  }
 
   await logAudit({
     entityType: 'cycle',
