@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest';
 import type { ApprovalRecord, Role } from '@/types/otb';
 import {
   APPROVER_ROLES,
+  APPROVER_SEQUENCE,
   getApprovalSummary,
   shouldCycleBeApproved,
   shouldCycleRevertToFilling,
   canUserApprove,
   roleToApproverRole,
   buildInitialApprovalRecords,
+  getPredecessorRoles,
+  isRoleBlocked,
 } from '@/lib/approvalEngine';
 
 function makeRecord(
@@ -125,8 +128,8 @@ describe('canUserApprove', () => {
     expect(canUserApprove('Planning', records)).toBe(true);
   });
 
-  it('returns true for an approver role with no record yet', () => {
-    expect(canUserApprove('GD', [])).toBe(true);
+  it('returns false for GD when Planning has not approved', () => {
+    expect(canUserApprove('GD', [])).toBe(false);
   });
 
   it('returns false for an approver role that already decided', () => {
@@ -137,6 +140,50 @@ describe('canUserApprove', () => {
   it('returns false for non-approver roles', () => {
     expect(canUserApprove('Admin', [])).toBe(false);
     expect(canUserApprove('ReadOnly', [])).toBe(false);
+  });
+
+  it('returns false for GD when Planning is Pending', () => {
+    const records = [makeRecord('Planning', 'Pending')];
+    expect(canUserApprove('GD', records)).toBe(false);
+  });
+
+  it('returns true for GD when Planning has approved', () => {
+    const records = [makeRecord('Planning', 'Approved')];
+    expect(canUserApprove('GD', records)).toBe(true);
+  });
+
+  it('returns false for Finance when only Planning has approved', () => {
+    const records = [makeRecord('Planning', 'Approved')];
+    expect(canUserApprove('Finance', records)).toBe(false);
+  });
+
+  it('returns true for Finance when Planning and GD have approved', () => {
+    const records = [
+      makeRecord('Planning', 'Approved'),
+      makeRecord('GD', 'Approved'),
+    ];
+    expect(canUserApprove('Finance', records)).toBe(true);
+  });
+
+  it('returns false for CXO when Finance has not approved', () => {
+    const records = [
+      makeRecord('Planning', 'Approved'),
+      makeRecord('GD', 'Approved'),
+    ];
+    expect(canUserApprove('CXO', records)).toBe(false);
+  });
+
+  it('returns true for CXO when Planning, GD, Finance have approved', () => {
+    const records = [
+      makeRecord('Planning', 'Approved'),
+      makeRecord('GD', 'Approved'),
+      makeRecord('Finance', 'Approved'),
+    ];
+    expect(canUserApprove('CXO', records)).toBe(true);
+  });
+
+  it('returns true for Planning with no records', () => {
+    expect(canUserApprove('Planning', [])).toBe(true);
   });
 });
 
@@ -193,5 +240,40 @@ describe('buildInitialApprovalRecords', () => {
     const records = buildInitialApprovalRecords('cycle-123');
     const roles = records.map(r => r.role);
     expect(roles).toEqual(['Planning', 'GD', 'Finance', 'CXO']);
+  });
+});
+
+describe('getPredecessorRoles', () => {
+  it('returns empty array for Planning (first in sequence)', () => {
+    expect(getPredecessorRoles('Planning')).toEqual([]);
+  });
+  it('returns [Planning] for GD', () => {
+    expect(getPredecessorRoles('GD')).toEqual(['Planning']);
+  });
+  it('returns [Planning, GD] for Finance', () => {
+    expect(getPredecessorRoles('Finance')).toEqual(['Planning', 'GD']);
+  });
+  it('returns [Planning, GD, Finance] for CXO', () => {
+    expect(getPredecessorRoles('CXO')).toEqual(['Planning', 'GD', 'Finance']);
+  });
+});
+
+describe('isRoleBlocked', () => {
+  it('returns false for Planning (no predecessors)', () => {
+    expect(isRoleBlocked('Planning', [])).toBe(false);
+  });
+  it('returns true for GD when Planning is Pending', () => {
+    expect(isRoleBlocked('GD', [makeRecord('Planning', 'Pending')])).toBe(true);
+  });
+  it('returns false for GD when Planning is Approved', () => {
+    expect(isRoleBlocked('GD', [makeRecord('Planning', 'Approved')])).toBe(false);
+  });
+  it('returns true for CXO when Finance is RevisionRequested', () => {
+    const records = [
+      makeRecord('Planning', 'Approved'),
+      makeRecord('GD', 'Approved'),
+      makeRecord('Finance', 'RevisionRequested'),
+    ];
+    expect(isRoleBlocked('CXO', records)).toBe(true);
   });
 });
