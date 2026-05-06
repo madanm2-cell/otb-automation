@@ -395,6 +395,7 @@ export interface CategoryBreakdown {
   sub_category: string;
   gmv: number;
   nsq: number;
+  inwards_qty: number;
   pct_of_total: number; // percentage of brand total GMV
 }
 
@@ -415,6 +416,7 @@ export interface EnhancedBrandSummary {
   // Breakdowns
   monthly: BrandMonthBreakdown[];
   top_categories: CategoryBreakdown[];
+  has_actuals: boolean;
 }
 
 export interface DashboardKpiTotals {
