@@ -24,6 +24,8 @@ interface PostCommentBody {
 interface ValidationResult {
   status: number;
   error?: string;
+  comment_type?: string;
+  field?: string;
 }
 
 /**
@@ -51,7 +53,7 @@ function validateCommentRequest(body: PostCommentBody): ValidationResult {
   }
 
   // All validation passed — would proceed to DB insert (201)
-  return { status: 201 };
+  return { status: 201, comment_type, field: field ?? undefined };
 }
 
 function makeComment(overrides: Partial<OtbComment> = {}): OtbComment {
@@ -214,6 +216,8 @@ describe('Comments — Data Model', () => {
         field: 'nsq',
       });
       expect(result.status).toBe(201);
+      expect(result.comment_type).toBe('metric');
+      expect(result.field).toBe('nsq');
     });
 
     it('metric comment fails without month', () => {
