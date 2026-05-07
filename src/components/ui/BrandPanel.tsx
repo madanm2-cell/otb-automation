@@ -65,12 +65,6 @@ function aggregateVariancePct(rows: VarianceRow[], metric: VarianceMetricKey): n
   return ((actual - planned) / planned) * 100;
 }
 
-function varianceColor(pct: number, threshold: number): string {
-  const abs = Math.abs(pct);
-  if (abs < threshold) return COLORS.success;
-  return COLORS.danger;
-}
-
 function aggregateWorstLevel(rows: VarianceRow[], metric: VarianceMetricKey): VarianceLevel {
   let worst: VarianceLevel = 'green';
   for (const row of rows) {
@@ -243,7 +237,7 @@ const topVarColumns = [
     key: 'gmv',
     render: (_: unknown, row: VarianceRow) =>
       row.gmv.variance_pct != null ? (
-        <span style={{ color: varianceColor(row.gmv.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.gmv_pct), fontWeight: 600 }}>
+        <span style={{ color: VARIANCE_COLORS[row.gmv.level], fontWeight: 600 }}>
           {row.gmv.variance_pct >= 0 ? '+' : ''}{row.gmv.variance_pct.toFixed(1)}%
         </span>
       ) : '—',
@@ -253,7 +247,7 @@ const topVarColumns = [
     key: 'nsq',
     render: (_: unknown, row: VarianceRow) =>
       row.nsq.variance_pct != null ? (
-        <span style={{ color: varianceColor(row.nsq.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.nsq_pct), fontWeight: 600 }}>
+        <span style={{ color: VARIANCE_COLORS[row.nsq.level], fontWeight: 600 }}>
           {row.nsq.variance_pct >= 0 ? '+' : ''}{row.nsq.variance_pct.toFixed(1)}%
         </span>
       ) : '—',
