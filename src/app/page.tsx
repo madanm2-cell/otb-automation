@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Typography, Row, Col, Badge, Button, Empty, Alert,
+  Typography, Row, Col, Badge, Button, Empty, Alert, Card,
 } from 'antd';
 import {
   DollarOutlined, ShoppingCartOutlined, BarChartOutlined,
@@ -16,7 +16,8 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { BrandPanel } from '@/components/ui/BrandPanel';
 import { DashboardSkeleton } from '@/components/ui/PageSkeleton';
-import { COLORS, SPACING } from '@/lib/designTokens';
+import { COLORS, SPACING, CARD_STYLES } from '@/lib/designTokens';
+import type { EnhancedBrandSummary } from '@/types/otb';
 import { formatCrore, formatQty } from '@/lib/formatting';
 
 const { Title, Text } = Typography;
@@ -28,6 +29,37 @@ function getCurrentQuarter(): string {
   const fyYear = month >= 3 ? now.getFullYear() + 1 : now.getFullYear();
   const q = month >= 3 ? Math.ceil((month - 2) / 3) : 4;
   return `Q${q} FY${String(fyYear).slice(-2)}`;
+}
+
+function NoActualsRow({ brand }: { brand: EnhancedBrandSummary }) {
+  return (
+    <Card
+      style={{ ...CARD_STYLES, marginBottom: SPACING.md }}
+      styles={{ body: { padding: 0 } }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: `${SPACING.md}px ${SPACING.lg}px`,
+          gap: SPACING.md,
+        }}
+      >
+        <div style={{ minWidth: 160, flexShrink: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>
+            {brand.brand_name}
+          </div>
+          <div style={{ fontSize: 13, color: COLORS.textSecondary }}>{brand.cycle_name}</div>
+        </div>
+        <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
+          {brand.planning_quarter}
+        </Text>
+        <Text type="secondary" style={{ fontSize: 13, marginLeft: SPACING.md }}>
+          Actuals not yet uploaded
+        </Text>
+      </div>
+    </Card>
+  );
 }
 
 export default function CxoDashboard() {
@@ -89,6 +121,7 @@ export default function CxoDashboard() {
             value={hasApprovedData ? formatCrore(kpiTotals!.gmv) : '-'}
             icon={<DollarOutlined />}
             color={COLORS.info}
+            size="compact"
           />
         </Col>
         <Col xs={24} sm={12} lg={4}>
@@ -97,6 +130,7 @@ export default function CxoDashboard() {
             value={hasApprovedData ? formatCrore(kpiTotals!.nsv) : '-'}
             icon={<ShoppingCartOutlined />}
             color={COLORS.accent}
+            size="compact"
           />
         </Col>
         <Col xs={24} sm={12} lg={4}>
@@ -105,6 +139,7 @@ export default function CxoDashboard() {
             value={hasApprovedData ? formatQty(kpiTotals!.nsq) : '-'}
             icon={<BarChartOutlined />}
             color={COLORS.success}
+            size="compact"
           />
         </Col>
         <Col xs={24} sm={12} lg={4}>
@@ -113,6 +148,7 @@ export default function CxoDashboard() {
             value={hasApprovedData ? formatQty(kpiTotals!.inwards_qty) : '-'}
             icon={<InboxOutlined />}
             color={COLORS.warning}
+            size="compact"
           />
         </Col>
         <Col xs={24} sm={12} lg={4}>
@@ -121,6 +157,7 @@ export default function CxoDashboard() {
             value={hasApprovedData && kpiTotals!.avg_doh ? Math.round(kpiTotals!.avg_doh) : '-'}
             icon={<ClockCircleOutlined />}
             color={dohColor}
+            size="compact"
           />
         </Col>
         <Col xs={24} sm={12} lg={4}>
@@ -129,6 +166,7 @@ export default function CxoDashboard() {
             value={hasApprovedData ? formatQty(kpiTotals!.closing_stock_qty) : '-'}
             icon={<DatabaseOutlined />}
             color={COLORS.neutral600}
+            size="compact"
           />
         </Col>
       </Row>
@@ -153,8 +191,8 @@ export default function CxoDashboard() {
               key={brand.cycle_id}
               brand={brand}
               zone="review"
-              onApprove={(cycleId) => router.push(`/cycles/${cycleId}?action=approve`)}
-              onRequestRevision={(cycleId) => router.push(`/cycles/${cycleId}?action=revision`)}
+              onActionComplete={dashboard.refresh}
+              needsMyApproval={approvals?.brands.find(b => b.cycle_id === brand.cycle_id)?.needs_my_approval ?? false}
               approvalProgress={
                 approvals?.brands.find(b => b.cycle_id === brand.cycle_id)?.approval_progress
                   ? (() => {
@@ -189,36 +227,27 @@ export default function CxoDashboard() {
         )}
       </div>
 
-      {/* Zone 3 — Actuals vs Plan */}
-      <div style={{ marginBottom: SPACING.xl }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
-          <Title level={4} style={{ margin: 0 }}>Actuals vs Plan</Title>
+      {/* Zone 3 — Actuals vs Plan (only shown when at least one cycle has actuals) */}
+      {approvedBrands.some(b => b.has_actuals) && (
+        <div style={{ marginBottom: SPACING.xl }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
+            <Title level={4} style={{ margin: 0 }}>Actuals vs Plan</Title>
+          </div>
+          {approvedBrands.map(brand =>
+            brand.has_actuals ? (
+              <BrandPanel
+                key={brand.cycle_id}
+                brand={brand}
+                zone="variance"
+                variance={dashboard.varianceCache[brand.cycle_id] || null}
+                onLoadVariance={dashboard.loadVariance}
+              />
+            ) : (
+              <NoActualsRow key={brand.cycle_id} brand={brand} />
+            )
+          )}
         </div>
-        {approvedBrands.length > 0 ? (
-          approvedBrands.map(brand => (
-            <BrandPanel
-              key={brand.cycle_id}
-              brand={brand}
-              zone="variance"
-              variance={dashboard.varianceCache[brand.cycle_id] || null}
-              onLoadVariance={dashboard.loadVariance}
-            />
-          ))
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              <span>
-                <Text type="secondary">No actuals uploaded yet.</Text>
-                <br />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Upload actuals in an approved cycle to see variance here.
-                </Text>
-              </span>
-            }
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }
