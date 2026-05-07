@@ -27,6 +27,17 @@ vi.mock('antd', async () => {
     },
     Tooltip: ({ children }: { children: React.ReactNode }) =>
       React.createElement('div', null, children),
+    Modal: ({ children, open }: { children: React.ReactNode; open?: boolean; [key: string]: unknown }) =>
+      open ? React.createElement('div', { 'data-testid': 'modal' }, children) : null,
+    Input: {
+      TextArea: (props: { [key: string]: unknown }) =>
+        React.createElement('textarea', props),
+    },
+    message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+    Skeleton: Object.assign(
+      ({ active }: { active?: boolean }) => React.createElement('div', { 'data-testid': 'skeleton', 'data-active': active }),
+      { Input: ({ active }: { active?: boolean }) => React.createElement('div', { 'data-testid': 'skeleton-input', 'data-active': active }) },
+    ),
   };
 });
 
@@ -41,6 +52,7 @@ vi.mock('@ant-design/icons', () => {
     RightOutlined: icon('right'),
     DownOutlined: icon('down'),
     CheckCircleOutlined: icon('check-circle'),
+    ExclamationCircleOutlined: icon('exclamation-circle'),
     UndoOutlined: icon('undo'),
     LinkOutlined: icon('link'),
   };
