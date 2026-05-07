@@ -54,7 +54,7 @@ function NoActualsRow({ brand }: { brand: EnhancedBrandSummary }) {
         <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
           {brand.planning_quarter}
         </Text>
-        <Text type="secondary" style={{ fontSize: 13, marginLeft: SPACING.md }}>
+        <Text type="secondary" style={{ fontSize: 13 }}>
           Actuals not yet uploaded
         </Text>
       </div>
