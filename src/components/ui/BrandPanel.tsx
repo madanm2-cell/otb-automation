@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message, Skeleton } from 'antd';
 import {
   RightOutlined,
@@ -11,13 +11,14 @@ import {
   LinkOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
-import { COLORS, CARD_STYLES, SPACING, STATUS_TAG_COLORS } from '@/lib/designTokens';
+import { COLORS, CARD_STYLES, SPACING, STATUS_TAG_COLORS, VARIANCE_COLORS } from '@/lib/designTokens';
 import { formatCrore, formatQty } from '@/lib/formatting';
 import type {
   EnhancedBrandSummary,
   BrandMonthBreakdown,
   VarianceReportData,
   VarianceRow,
+  VarianceLevel,
 } from '@/types/otb';
 import { DEFAULT_VARIANCE_THRESHOLDS } from '@/types/otb';
 
@@ -66,9 +67,18 @@ function aggregateVariancePct(rows: VarianceRow[], metric: VarianceMetricKey): n
 
 function varianceColor(pct: number, threshold: number): string {
   const abs = Math.abs(pct);
-  if (abs <= threshold) return COLORS.success;
-  if (abs <= threshold * 2) return COLORS.warning;
+  if (abs < threshold) return COLORS.success;
   return COLORS.danger;
+}
+
+function aggregateWorstLevel(rows: VarianceRow[], metric: VarianceMetricKey): VarianceLevel {
+  let worst: VarianceLevel = 'green';
+  for (const row of rows) {
+    const level = row[metric].level;
+    if (level === 'red') return 'red';
+    if (level === 'yellow') worst = 'yellow';
+  }
+  return worst;
 }
 
 // --- Inline Metric ---
@@ -91,7 +101,7 @@ function InlineMetric({ label, value }: InlineMetricProps) {
 
 // --- Variance Badge ---
 
-function VarianceBadge({ label, pct, threshold }: { label: string; pct: number | null; threshold: number }) {
+function VarianceBadge({ label, pct, level }: { label: string; pct: number | null; level: VarianceLevel }) {
   return (
     <Tooltip title={label}>
       <div style={{ textAlign: 'center', minWidth: 80 }}>
@@ -99,7 +109,7 @@ function VarianceBadge({ label, pct, threshold }: { label: string; pct: number |
         {pct === null ? (
           <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted }}>—</div>
         ) : (
-          <div style={{ fontSize: 13, fontWeight: 600, color: varianceColor(pct, threshold) }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: VARIANCE_COLORS[level] }}>
             {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
           </div>
         )}
@@ -222,36 +232,38 @@ function TopCategories({ categories }: { categories: EnhancedBrandSummary['top_c
   );
 }
 
+// --- Top Variance Columns (module-level, stable reference) ---
+
+const topVarColumns = [
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (v: string) => formatMonth(v) },
+  { title: 'Sub-Category', dataIndex: 'sub_category', key: 'sub_category' },
+  { title: 'Channel', dataIndex: 'channel', key: 'channel' },
+  {
+    title: 'GMV Var%',
+    key: 'gmv',
+    render: (_: unknown, row: VarianceRow) =>
+      row.gmv.variance_pct != null ? (
+        <span style={{ color: varianceColor(row.gmv.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.gmv_pct), fontWeight: 600 }}>
+          {row.gmv.variance_pct >= 0 ? '+' : ''}{row.gmv.variance_pct.toFixed(1)}%
+        </span>
+      ) : '—',
+  },
+  {
+    title: 'NSQ Var%',
+    key: 'nsq',
+    render: (_: unknown, row: VarianceRow) =>
+      row.nsq.variance_pct != null ? (
+        <span style={{ color: varianceColor(row.nsq.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.nsq_pct), fontWeight: 600 }}>
+          {row.nsq.variance_pct >= 0 ? '+' : ''}{row.nsq.variance_pct.toFixed(1)}%
+        </span>
+      ) : '—',
+  },
+];
+
 // --- Variance Body ---
 
 function VarianceBody({ variance }: { variance: VarianceReportData }) {
   const { summary } = variance;
-
-  const topVarColumns = [
-    { title: 'Month', dataIndex: 'month', key: 'month', render: (v: string) => formatMonth(v) },
-    { title: 'Sub-Category', dataIndex: 'sub_category', key: 'sub_category' },
-    { title: 'Channel', dataIndex: 'channel', key: 'channel' },
-    {
-      title: 'GMV Var%',
-      key: 'gmv',
-      render: (_: unknown, row: VarianceRow) =>
-        row.gmv.variance_pct != null ? (
-          <span style={{ color: varianceColor(row.gmv.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.gmv_pct), fontWeight: 600 }}>
-            {row.gmv.variance_pct >= 0 ? '+' : ''}{row.gmv.variance_pct.toFixed(1)}%
-          </span>
-        ) : '—',
-    },
-    {
-      title: 'NSQ Var%',
-      key: 'nsq',
-      render: (_: unknown, row: VarianceRow) =>
-        row.nsq.variance_pct != null ? (
-          <span style={{ color: varianceColor(row.nsq.variance_pct, DEFAULT_VARIANCE_THRESHOLDS.nsq_pct), fontWeight: 600 }}>
-            {row.nsq.variance_pct >= 0 ? '+' : ''}{row.nsq.variance_pct.toFixed(1)}%
-          </span>
-        ) : '—',
-    },
-  ];
 
   return (
     <div style={{ marginTop: SPACING.lg }}>
@@ -268,7 +280,7 @@ function VarianceBody({ variance }: { variance: VarianceReportData }) {
           <Table
             dataSource={summary.top_variances}
             columns={topVarColumns}
-            rowKey={(row) => `${row.sub_category}-${row.channel}-${row.month}`}
+            rowKey={(row) => `${row.sub_brand}-${row.wear_type}-${row.sub_category}-${row.gender}-${row.channel}-${row.month}`}
             size="small"
             pagination={false}
             style={{ marginTop: SPACING.sm }}
@@ -392,12 +404,22 @@ export function BrandPanel(props: BrandPanelProps) {
     const willExpand = !expanded;
     setExpanded(willExpand);
 
-    // Lazy-load variance data on first expand
-    if (willExpand && zone === 'variance' && !varianceLoadedRef.current) {
+    // Lazy-load variance data on first expand; allow retry if variance still null
+    if (willExpand && zone === 'variance' && !varianceLoadedRef.current && variance == null) {
       varianceLoadedRef.current = true;
       onLoadVariance?.(brand.cycle_id);
     }
   };
+
+  const headerVariances = useMemo(() => {
+    if (!variance) return null;
+    return {
+      gmv: { pct: aggregateVariancePct(variance.rows, 'gmv'), level: aggregateWorstLevel(variance.rows, 'gmv') },
+      nsq: { pct: aggregateVariancePct(variance.rows, 'nsq'), level: aggregateWorstLevel(variance.rows, 'nsq') },
+      inwards: { pct: aggregateVariancePct(variance.rows, 'inwards'), level: aggregateWorstLevel(variance.rows, 'inwards') },
+      closing_stock: { pct: aggregateVariancePct(variance.rows, 'closing_stock'), level: aggregateWorstLevel(variance.rows, 'closing_stock') },
+    };
+  }, [variance]);
 
   const handleApprove = async () => {
     setActionLoading(true);
@@ -498,27 +520,27 @@ export function BrandPanel(props: BrandPanelProps) {
           {/* Inline Metrics — plan view for review/approved; variance view for variance zone */}
           <div style={{ display: 'flex', gap: SPACING.lg, marginLeft: 'auto', flexWrap: 'wrap' }}>
             {zone === 'variance' ? (
-              variance ? (
+              headerVariances ? (
                 <>
                   <VarianceBadge
                     label="GMV"
-                    pct={aggregateVariancePct(variance.rows, 'gmv')}
-                    threshold={DEFAULT_VARIANCE_THRESHOLDS.gmv_pct}
+                    pct={headerVariances.gmv.pct}
+                    level={headerVariances.gmv.level}
                   />
                   <VarianceBadge
                     label="NSQ"
-                    pct={aggregateVariancePct(variance.rows, 'nsq')}
-                    threshold={DEFAULT_VARIANCE_THRESHOLDS.nsq_pct}
+                    pct={headerVariances.nsq.pct}
+                    level={headerVariances.nsq.level}
                   />
                   <VarianceBadge
                     label="Inwards"
-                    pct={aggregateVariancePct(variance.rows, 'inwards')}
-                    threshold={DEFAULT_VARIANCE_THRESHOLDS.inwards_pct}
+                    pct={headerVariances.inwards.pct}
+                    level={headerVariances.inwards.level}
                   />
                   <VarianceBadge
                     label="Closing Stock"
-                    pct={aggregateVariancePct(variance.rows, 'closing_stock')}
-                    threshold={DEFAULT_VARIANCE_THRESHOLDS.closing_stock_pct}
+                    pct={headerVariances.closing_stock.pct}
+                    level={headerVariances.closing_stock.level}
                   />
                 </>
               ) : (
