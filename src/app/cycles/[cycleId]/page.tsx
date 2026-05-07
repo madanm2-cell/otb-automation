@@ -241,7 +241,13 @@ export default function CycleDetailPage() {
           </Button>
         )}
         {cycle.status === 'Approved' && canViewVariance && (
-          <Button size="large" icon={<BarChartOutlined />} onClick={() => router.push(`/cycles/${cycleId}/variance`)}>
+          <Button
+            size="large"
+            icon={<BarChartOutlined />}
+            disabled={uploadsByType.get('actuals')?.status !== 'validated'}
+            title={uploadsByType.get('actuals')?.status !== 'validated' ? 'Upload actuals to view variance report' : undefined}
+            onClick={() => router.push(`/cycles/${cycleId}/variance`)}
+          >
             View Variance Report
           </Button>
         )}
