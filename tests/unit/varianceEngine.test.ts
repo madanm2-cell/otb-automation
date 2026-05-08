@@ -82,4 +82,9 @@ describe('buildVarianceMetric', () => {
     const metric = buildVarianceMetric('gmv_pct', 80, 100, 15);
     expect(metric.level).toBe('red');
   });
+  it('unknown metric key falls back to higher_is_good', () => {
+    // unknown key → higher_is_good → over plan is green
+    const metric = buildVarianceMetric('unknown_key', 110, 100, 15);
+    expect(metric.level).toBe('green');
+  });
 });
