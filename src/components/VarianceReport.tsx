@@ -1,234 +1,383 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Row, Col, Table, Tabs, Select, Space, Typography, Card, Tag } from 'antd';
-import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, BarChartOutlined, UnorderedListOutlined } from '@ant-design/icons';
-import { MetricCard } from '@/components/ui/MetricCard';
-import { VarianceBadge } from '@/components/ui/VarianceBadge';
-import { COLORS, CARD_STYLES, SPACING } from '@/lib/designTokens';
-import type { ColumnsType } from 'antd/es/table';
-import type { VarianceReportData, VarianceRow, VarianceMetric, VarianceLevel } from '@/types/otb';
+import { Tabs, Select, Typography, Table, Collapse, Tag } from 'antd';
+import { BarChartOutlined } from '@ant-design/icons';
+import { COLORS, SPACING } from '@/lib/designTokens';
+import { formatCrore, formatQty } from '@/lib/formatting';
+import type { VarianceReportData, VarianceRow, VarianceLevel, VarianceMetric, VarianceThresholds } from '@/types/otb';
 
 const { Title, Text } = Typography;
 
-function formatVarianceValue(value: number | null): string {
-  if (value == null) return '-';
-  return value.toLocaleString('en-IN');
+// ─── Metric config ────────────────────────────────────────────────────────────
+
+const METRIC_KEYS = ['gmv', 'nsv', 'nsq', 'inwards', 'closing_stock', 'doh'] as const;
+type MetricKey = typeof METRIC_KEYS[number];
+
+const METRIC_LABELS: Record<MetricKey, string> = {
+  gmv: 'GMV (₹ Cr)',
+  nsv: 'NSV (₹ Cr)',
+  nsq: 'NSQ (Units)',
+  inwards: 'Inwards (₹ Cr)',
+  closing_stock: 'Closing Stock (₹ Cr)',
+  doh: 'DOH (Days)',
+};
+
+const POSITION_METRICS = new Set<MetricKey>(['closing_stock', 'doh']);
+
+// ─── Formatting ───────────────────────────────────────────────────────────────
+
+function fmtValue(key: MetricKey, value: number | null): string {
+  if (value == null) return '—';
+  if (key === 'nsq') return formatQty(value);
+  if (key === 'doh') return value.toFixed(1) + ' d';
+  return formatCrore(value);
 }
 
-function VarianceCell({ metric }: { metric: VarianceMetric }) {
+const LEVEL_TAG_COLOR: Record<VarianceLevel, string> = {
+  green: 'success',
+  yellow: 'warning',
+  red: 'error',
+};
+
+function VarPctCell({ metric }: { metric: Pick<VarianceMetric, 'variance_pct' | 'level'> | null }) {
+  if (!metric || metric.variance_pct == null) return <Text type="secondary">—</Text>;
+  const sign = metric.variance_pct > 0 ? '+' : '';
+  return (
+    <Tag color={LEVEL_TAG_COLOR[metric.level]} style={{ fontWeight: 600, fontSize: 12 }}>
+      {sign}{metric.variance_pct.toFixed(1)}%
+    </Tag>
+  );
+}
+
+function shortMonth(m: string) {
+  return new Date(m).toLocaleString('en-IN', { month: 'short', year: '2-digit' });
+}
+
+// ─── Aggregation ──────────────────────────────────────────────────────────────
+
+interface AggMetric {
+  planned: number | null;
+  actual: number | null;
+  variance_pct: number | null;
+  level: VarianceLevel;
+}
+
+function aggregateMetric(
+  rows: VarianceRow[],
+  key: MetricKey,
+  actualsMonths: string[],
+): AggMetric {
+  if (rows.length === 0) return { planned: null, actual: null, variance_pct: null, level: 'green' };
+
+  let planned: number | null = null;
+  let actual: number | null = null;
+
+  if (POSITION_METRICS.has(key)) {
+    // Use only the last actuals month
+    const lastMonth = actualsMonths[actualsMonths.length - 1];
+    const subset = lastMonth ? rows.filter(r => r.month === lastMonth) : rows;
+    for (const r of subset) {
+      const m = r[key];
+      if (m.planned != null) planned = (planned ?? 0) + m.planned;
+      if (m.actual != null) actual = (actual ?? 0) + m.actual;
+    }
+  } else {
+    // Sum across all rows
+    for (const r of rows) {
+      const m = r[key];
+      if (m.planned != null) planned = (planned ?? 0) + m.planned;
+      if (m.actual != null) actual = (actual ?? 0) + m.actual;
+    }
+  }
+
+  const variance_pct = actual != null && planned != null && planned !== 0
+    ? ((actual - planned) / planned) * 100
+    : null;
+
+  // Worst level among contributing rows
+  const levels = rows.map(r => r[key].level);
+  const level: VarianceLevel = levels.includes('red') ? 'red'
+    : levels.includes('yellow') ? 'yellow' : 'green';
+
+  return { planned, actual, variance_pct, level };
+}
+
+type AggRow = Record<MetricKey, AggMetric>;
+
+function aggregateRows(rows: VarianceRow[], actualsMonths: string[]): AggRow {
+  return Object.fromEntries(
+    METRIC_KEYS.map(k => [k, aggregateMetric(rows, k, actualsMonths)])
+  ) as AggRow;
+}
+
+// ─── Summary Tab ─────────────────────────────────────────────────────────────
+
+interface SummaryTabProps {
+  data: VarianceReportData;
+  channelFilter: string | null;
+}
+
+function SummaryTab({ data, channelFilter }: SummaryTabProps) {
+  const { all_months, actuals_months } = data;
+  const [expanded, setExpanded] = useState<string[]>([]);
+
+  const filteredRows = useMemo(
+    () => channelFilter ? data.rows.filter(r => r.channel === channelFilter) : data.rows,
+    [data.rows, channelFilter],
+  );
+
+  // Brand-level aggregate per month
+  const byMonth = useMemo(
+    () => Object.fromEntries(
+      all_months.map(m => [m, aggregateRows(filteredRows.filter(r => r.month === m), [m])])
+    ),
+    [filteredRows, all_months],
+  );
+
+  // Q-total: aggregate over all actuals months
+  const qTotal = useMemo(
+    () => aggregateRows(filteredRows.filter(r => actuals_months.includes(r.month)), actuals_months),
+    [filteredRows, actuals_months],
+  );
+
+  const qLabel = `Q Total (${actuals_months.length}/${all_months.length} months)`;
+
+  // Sub-categories sorted by GMV desc
+  const subCategories = useMemo(() => {
+    const cats = Array.from(new Set(filteredRows.map(r => r.sub_category)));
+    return cats.sort((a, b) => {
+      const gmvFor = (cat: string) =>
+        filteredRows
+          .filter(r => r.sub_category === cat && actuals_months.includes(r.month))
+          .reduce((s, r) => s + (r.gmv.actual ?? r.gmv.planned ?? 0), 0);
+      return gmvFor(b) - gmvFor(a);
+    });
+  }, [filteredRows, actuals_months]);
+
+  // Table: metrics as rows, months as column groups
+  const tableRows = METRIC_KEYS.map(k => ({ key: k, label: METRIC_LABELS[k] }));
+
+  const columns = [
+    {
+      title: 'Metric',
+      dataIndex: 'label',
+      key: 'label',
+      width: 190,
+      fixed: 'left' as const,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
+    ...all_months.flatMap(m => [
+      {
+        title: `${shortMonth(m)} Plan`,
+        key: `${m}_p`,
+        width: 110,
+        render: (_: unknown, row: { key: MetricKey }) => (
+          <Text type="secondary">{fmtValue(row.key, byMonth[m]?.[row.key]?.planned ?? null)}</Text>
+        ),
+      },
+      {
+        title: `${shortMonth(m)} Actual`,
+        key: `${m}_a`,
+        width: 110,
+        render: (_: unknown, row: { key: MetricKey }) =>
+          actuals_months.includes(m)
+            ? <Text strong>{fmtValue(row.key, byMonth[m]?.[row.key]?.actual ?? null)}</Text>
+            : <Text type="secondary">—</Text>,
+      },
+      {
+        title: `${shortMonth(m)} Var%`,
+        key: `${m}_v`,
+        width: 90,
+        align: 'right' as const,
+        render: (_: unknown, row: { key: MetricKey }) =>
+          actuals_months.includes(m)
+            ? <VarPctCell metric={byMonth[m]?.[row.key] ?? null} />
+            : <Text type="secondary">—</Text>,
+      },
+    ]),
+    {
+      title: `${qLabel} Plan`,
+      key: 'q_p',
+      width: 130,
+      render: (_: unknown, row: { key: MetricKey }) => (
+        <Text type="secondary">{fmtValue(row.key, qTotal[row.key]?.planned ?? null)}</Text>
+      ),
+    },
+    {
+      title: `${qLabel} Actual`,
+      key: 'q_a',
+      width: 130,
+      render: (_: unknown, row: { key: MetricKey }) => (
+        <Text strong>{fmtValue(row.key, qTotal[row.key]?.actual ?? null)}</Text>
+      ),
+    },
+    {
+      title: `${qLabel} Var%`,
+      key: 'q_v',
+      width: 100,
+      align: 'right' as const,
+      render: (_: unknown, row: { key: MetricKey }) => (
+        <VarPctCell metric={qTotal[row.key] ?? null} />
+      ),
+    },
+  ];
+
+  const buildSubCatTable = (cat: string) => {
+    const catRows = filteredRows.filter(r => r.sub_category === cat);
+    const catByMonth = Object.fromEntries(
+      all_months.map(m => [m, aggregateRows(catRows.filter(r => r.month === m), [m])])
+    );
+    const catQTotal = aggregateRows(
+      catRows.filter(r => actuals_months.includes(r.month)), actuals_months
+    );
+    const catTableRows = METRIC_KEYS.map(k => ({ key: k, label: METRIC_LABELS[k] }));
+
+    const catColumns = [
+      {
+        title: 'Metric', dataIndex: 'label', key: 'label', width: 190,
+        fixed: 'left' as const,
+        render: (v: string) => <Text>{v}</Text>,
+      },
+      ...all_months.flatMap(m => [
+        {
+          title: `${shortMonth(m)} Plan`, key: `${m}_p`, width: 110,
+          render: (_: unknown, row: { key: MetricKey }) => (
+            <Text type="secondary">{fmtValue(row.key, catByMonth[m]?.[row.key]?.planned ?? null)}</Text>
+          ),
+        },
+        {
+          title: `${shortMonth(m)} Actual`, key: `${m}_a`, width: 110,
+          render: (_: unknown, row: { key: MetricKey }) =>
+            actuals_months.includes(m)
+              ? <Text strong>{fmtValue(row.key, catByMonth[m]?.[row.key]?.actual ?? null)}</Text>
+              : <Text type="secondary">—</Text>,
+        },
+        {
+          title: `${shortMonth(m)} Var%`, key: `${m}_v`, width: 90, align: 'right' as const,
+          render: (_: unknown, row: { key: MetricKey }) =>
+            actuals_months.includes(m)
+              ? <VarPctCell metric={catByMonth[m]?.[row.key] ?? null} />
+              : <Text type="secondary">—</Text>,
+        },
+      ]),
+      {
+        title: `${qLabel} Plan`, key: 'q_p', width: 130,
+        render: (_: unknown, row: { key: MetricKey }) => (
+          <Text type="secondary">{fmtValue(row.key, catQTotal[row.key]?.planned ?? null)}</Text>
+        ),
+      },
+      {
+        title: `${qLabel} Actual`, key: 'q_a', width: 130,
+        render: (_: unknown, row: { key: MetricKey }) => (
+          <Text strong>{fmtValue(row.key, catQTotal[row.key]?.actual ?? null)}</Text>
+        ),
+      },
+      {
+        title: `${qLabel} Var%`, key: 'q_v', width: 100, align: 'right' as const,
+        render: (_: unknown, row: { key: MetricKey }) => (
+          <VarPctCell metric={catQTotal[row.key] ?? null} />
+        ),
+      },
+    ];
+
+    return (
+      <Table
+        key={cat}
+        columns={catColumns as any}
+        dataSource={catTableRows}
+        rowKey="key"
+        pagination={false}
+        size="small"
+        bordered
+        scroll={{ x: 'max-content' }}
+        style={{ marginBottom: SPACING.lg }}
+      />
+    );
+  };
+
   return (
     <div>
-      <VarianceBadge value={metric.variance_pct} level={metric.level} />
-      <div style={{ fontSize: 11, color: COLORS.textMuted, lineHeight: 1.3, marginTop: 3 }}>
-        P: {formatVarianceValue(metric.planned)} / A: {formatVarianceValue(metric.actual)}
-      </div>
+      <Table
+        columns={columns as any}
+        dataSource={tableRows}
+        rowKey="key"
+        pagination={false}
+        size="small"
+        bordered
+        scroll={{ x: 'max-content' }}
+        style={{ marginBottom: SPACING.lg }}
+      />
+
+      <Collapse
+        activeKey={expanded}
+        onChange={keys => setExpanded(keys as string[])}
+        items={[{
+          key: 'detail',
+          label: `Sub-Category Breakdown (${subCategories.length} categories, sorted by GMV)`,
+          children: (
+            <div>
+              {subCategories.map(cat => (
+                <div key={cat}>
+                  <Text strong style={{ display: 'block', marginBottom: 6, marginTop: 12 }}>
+                    {cat}
+                  </Text>
+                  {buildSubCatTable(cat)}
+                </div>
+              ))}
+            </div>
+          ),
+        }]}
+      />
     </div>
   );
 }
 
-function shortMonth(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleString('en-IN', { month: 'short', year: '2-digit' });
-}
-
-function getImpactLevel(row: VarianceRow): { label: string; color: string } {
-  const maxVar = Math.max(
-    Math.abs(row.nsq.variance_pct ?? 0),
-    Math.abs(row.gmv.variance_pct ?? 0),
-    Math.abs(row.inwards.variance_pct ?? 0),
-    Math.abs(row.closing_stock.variance_pct ?? 0),
-  );
-  if (maxVar >= 30) return { label: 'High', color: 'error' };
-  if (maxVar >= 15) return { label: 'Medium', color: 'warning' };
-  return { label: 'Low', color: 'success' };
-}
+// ─── Main component (metric tabs added in Task 8) ─────────────────────────────
 
 interface Props {
   data: VarianceReportData;
 }
 
 export function VarianceReport({ data }: Props) {
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
-
-  const subCategories = useMemo(() => {
-    const set = new Set<string>();
-    data.rows.forEach(r => set.add(r.sub_category));
-    return Array.from(set).sort();
-  }, [data.rows]);
-
-  const filteredRows = useMemo(() => {
-    let rows = data.rows;
-    if (selectedMonth) rows = rows.filter(r => r.month === selectedMonth);
-    if (selectedSubCategory) rows = rows.filter(r => r.sub_category === selectedSubCategory);
-    return rows;
-  }, [data.rows, selectedMonth, selectedSubCategory]);
-
-  const varianceColumns: ColumnsType<VarianceRow> = [
-    {
-      title: 'Sub Brand',
-      dataIndex: 'sub_brand',
-      key: 'sub_brand',
-      width: 120,
-      sorter: (a, b) => a.sub_brand.localeCompare(b.sub_brand),
-      render: (v: string) => <Text strong>{v}</Text>,
-    },
-    { title: 'Sub Category', dataIndex: 'sub_category', key: 'sub_category', width: 130, sorter: (a, b) => a.sub_category.localeCompare(b.sub_category) },
-    { title: 'Gender', dataIndex: 'gender', key: 'gender', width: 90 },
-    { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 100 },
-    { title: 'Month', dataIndex: 'month', key: 'month', width: 90, render: (m: string) => shortMonth(m), sorter: (a, b) => a.month.localeCompare(b.month) },
-    {
-      title: 'NSQ Var%', key: 'nsq', width: 130,
-      render: (_, record) => <VarianceCell metric={record.nsq} />,
-      sorter: (a, b) => (a.nsq.variance_pct ?? 0) - (b.nsq.variance_pct ?? 0),
-      align: 'right',
-    },
-    {
-      title: 'GMV Var%', key: 'gmv', width: 130,
-      render: (_, record) => <VarianceCell metric={record.gmv} />,
-      sorter: (a, b) => (a.gmv.variance_pct ?? 0) - (b.gmv.variance_pct ?? 0),
-      align: 'right',
-    },
-    {
-      title: 'Inwards Var%', key: 'inwards', width: 130,
-      render: (_, record) => <VarianceCell metric={record.inwards} />,
-      sorter: (a, b) => (a.inwards.variance_pct ?? 0) - (b.inwards.variance_pct ?? 0),
-      align: 'right',
-    },
-    {
-      title: 'Closing Stock Var%', key: 'closing_stock', width: 150,
-      render: (_, record) => <VarianceCell metric={record.closing_stock} />,
-      sorter: (a, b) => (a.closing_stock.variance_pct ?? 0) - (b.closing_stock.variance_pct ?? 0),
-      align: 'right',
-    },
-    {
-      title: 'Impact', key: 'impact', width: 90, align: 'center',
-      render: (_, record) => {
-        const impact = getImpactLevel(record);
-        return <Tag color={impact.color}>{impact.label}</Tag>;
-      },
-      sorter: (a, b) => {
-        const aMax = Math.max(Math.abs(a.nsq.variance_pct ?? 0), Math.abs(a.gmv.variance_pct ?? 0));
-        const bMax = Math.max(Math.abs(b.nsq.variance_pct ?? 0), Math.abs(b.gmv.variance_pct ?? 0));
-        return aMax - bMax;
-      },
-    },
-  ];
-
-  // Derive summary counts from rows (VarianceReportData no longer carries a summary field)
-  const greenCount = data.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')).length;
-  const redCount = data.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')).length;
-  const yellowCount = data.rows.length - redCount - greenCount;
-  const total = data.rows.length;
-  // Top 10 by worst absolute variance
-  const top10 = [...data.rows]
-    .sort((a, b) => {
-      const aMax = Math.max(...[a.nsq, a.gmv, a.nsv, a.inwards, a.closing_stock, a.doh].map(m => Math.abs(m.variance_pct ?? 0)));
-      const bMax = Math.max(...[b.nsq, b.gmv, b.nsv, b.inwards, b.closing_stock, b.doh].map(m => Math.abs(m.variance_pct ?? 0)));
-      return bMax - aMax;
-    })
-    .slice(0, 10);
+  const [channelFilter, setChannelFilter] = useState<string | null>(null);
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-      {/* Header */}
+    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       <div style={{ marginBottom: SPACING.xl }}>
         <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>
           <BarChartOutlined style={{ marginRight: 8 }} />
           Variance Report
         </Title>
         <Text type="secondary" style={{ fontSize: 13 }}>
-          {data.cycle_name} &middot; {data.brand_name} &middot; {data.planning_quarter}
+          {data.cycle_name} · {data.brand_name} · {data.planning_quarter}
+          {data.actuals_months.length > 0 && (
+            <> · Actuals: {data.actuals_months.map(m => shortMonth(m)).join(', ')}</>
+          )}
         </Text>
       </div>
 
-      {/* Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: SPACING.lg }}>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Total Rows" value={total} icon={<UnorderedListOutlined />} size="compact" />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Within Threshold" value={greenCount} icon={<CheckCircleOutlined />} color={COLORS.success} size="compact" />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Near Threshold" value={yellowCount} icon={<WarningOutlined />} color={COLORS.warning} size="compact" />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Exceeds Threshold" value={redCount} icon={<CloseCircleOutlined />} color={COLORS.danger} size="compact" />
-        </Col>
-      </Row>
+      <div style={{ marginBottom: SPACING.lg }}>
+        <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>Channel:</Text>
+        <Select
+          style={{ width: 180 }}
+          placeholder="All Channels"
+          allowClear
+          value={channelFilter}
+          onChange={v => setChannelFilter(v ?? null)}
+          options={data.channels.map(c => ({ label: c, value: c }))}
+        />
+      </div>
 
-      {/* Severity Distribution Bar */}
-      {total > 0 && (
-        <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: SPACING.xl }}>
-          <div style={{ width: `${(greenCount / total) * 100}%`, background: COLORS.success }} />
-          <div style={{ width: `${(yellowCount / total) * 100}%`, background: COLORS.warning }} />
-          <div style={{ width: `${(redCount / total) * 100}%`, background: COLORS.danger }} />
-        </div>
-      )}
-
-      {/* Filters */}
-      <Card size="small" style={{ ...CARD_STYLES, marginBottom: SPACING.xl }}>
-        <Space size="large">
-          <div>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Month</Text>
-            <Select
-              style={{ width: 180 }}
-              placeholder="All Months"
-              allowClear
-              value={selectedMonth}
-              onChange={setSelectedMonth}
-              options={data.actuals_months.map(m => ({ label: shortMonth(m), value: m }))}
-            />
-          </div>
-          <div>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Sub Category</Text>
-            <Select
-              style={{ width: 200 }}
-              placeholder="All Sub Categories"
-              allowClear
-              value={selectedSubCategory}
-              onChange={setSelectedSubCategory}
-              options={subCategories.map(sc => ({ label: sc, value: sc }))}
-            />
-          </div>
-        </Space>
-      </Card>
-
-      {/* Tabs */}
       <Tabs
-        defaultActiveKey="all"
+        defaultActiveKey="summary"
         items={[
           {
-            key: 'all',
-            label: `All Variances (${filteredRows.length})`,
-            children: (
-              <Table
-                columns={varianceColumns}
-                dataSource={filteredRows}
-                rowKey={(r) => `${r.sub_brand}-${r.sub_category}-${r.gender}-${r.channel}-${r.month}`}
-                pagination={{ pageSize: 50, showSizeChanger: true, pageSizeOptions: ['25', '50', '100'] }}
-                size="middle"
-                scroll={{ x: 1300 }}
-                rowClassName={(_, index) => index % 2 === 0 ? '' : 'ant-table-row-alt'}
-              />
-            ),
+            key: 'summary',
+            label: 'Summary',
+            children: <SummaryTab data={data} channelFilter={channelFilter} />,
           },
-          {
-            key: 'top10',
-            label: 'Top 10 Variances',
-            children: (
-              <Table
-                columns={varianceColumns}
-                dataSource={top10}
-                rowKey={(r) => `top-${r.sub_brand}-${r.sub_category}-${r.gender}-${r.channel}-${r.month}`}
-                pagination={false}
-                size="middle"
-                scroll={{ x: 1300 }}
-              />
-            ),
-          },
+          // Metric tabs added in Task 8
         ]}
       />
     </div>
