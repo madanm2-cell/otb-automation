@@ -257,22 +257,32 @@ const topVarColumns = [
 // --- Variance Body ---
 
 function VarianceBody({ variance }: { variance: VarianceReportData }) {
-  const { summary } = variance;
+  // Derive counts from rows (summary field removed from VarianceReportData)
+  const redCount = variance.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')).length;
+  const greenCount = variance.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')).length;
+  const yellowCount = variance.rows.length - redCount - greenCount;
+  const top10 = [...variance.rows]
+    .sort((a, b) => {
+      const aMax = Math.max(...[a.nsq, a.gmv, a.nsv, a.inwards, a.closing_stock, a.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      const bMax = Math.max(...[b.nsq, b.gmv, b.nsv, b.inwards, b.closing_stock, b.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      return bMax - aMax;
+    })
+    .slice(0, 10);
 
   return (
     <div style={{ marginTop: SPACING.lg }}>
       {/* RAG Summary */}
       <Space size={SPACING.lg} style={{ marginBottom: SPACING.md }}>
-        <span style={{ color: COLORS.danger, fontWeight: 600 }}>● {summary.red_count} red</span>
-        <span style={{ color: COLORS.warning, fontWeight: 600 }}>● {summary.yellow_count} amber</span>
-        <span style={{ color: COLORS.success, fontWeight: 600 }}>● {summary.green_count} green</span>
+        <span style={{ color: COLORS.danger, fontWeight: 600 }}>● {redCount} red</span>
+        <span style={{ color: COLORS.warning, fontWeight: 600 }}>● {yellowCount} amber</span>
+        <span style={{ color: COLORS.success, fontWeight: 600 }}>● {greenCount} green</span>
       </Space>
       {/* Top Variances */}
-      {summary.top_variances.length > 0 && (
+      {top10.length > 0 && (
         <>
           <Text strong style={{ fontSize: 13, color: COLORS.textSecondary }}>Top Variances</Text>
           <Table
-            dataSource={summary.top_variances}
+            dataSource={top10}
             columns={topVarColumns}
             rowKey={(row) => `${row.sub_brand}-${row.wear_type}-${row.sub_category}-${row.gender}-${row.channel}-${row.month}`}
             size="small"

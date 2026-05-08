@@ -79,8 +79,12 @@ export function buildVariancePdf(data: VarianceReportData): jsPDF {
   doc.text(`Variance Report: ${data.cycle_name}`, 14, 15);
   doc.setFontSize(10);
   doc.text(`Brand: ${data.brand_name} | Quarter: ${data.planning_quarter}`, 14, 22);
+  // Derive counts from rows (summary field removed from VarianceReportData)
+  const greenCount = data.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')).length;
+  const redCount = data.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')).length;
+  const yellowCount = data.rows.length - redCount - greenCount;
   doc.text(
-    `Summary: ${data.summary.green_count} OK | ${data.summary.yellow_count} Near Threshold | ${data.summary.red_count} Exceeds Threshold`,
+    `Summary: ${greenCount} OK | ${yellowCount} Near Threshold | ${redCount} Exceeds Threshold`,
     14,
     28,
   );

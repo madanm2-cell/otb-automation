@@ -2,13 +2,12 @@ import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { createServerClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
-import { buildVarianceMetric, getTopVariances } from '@/lib/varianceEngine';
+import { buildVarianceMetric } from '@/lib/varianceEngine';
 import { buildVariancePdf } from '@/lib/pdfExport';
 import {
   DEFAULT_VARIANCE_THRESHOLDS,
   type VarianceRow,
   type VarianceReportData,
-  type VarianceSummary,
   type VarianceLevel,
 } from '@/types/otb';
 
@@ -121,12 +120,15 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
   }
 
   // 5. Build variance rows
-  const monthSet = new Set<string>();
+  const allMonthSet = new Set<string>();
+  const actualsMonthSet = new Set<string>();
+  const channelSet = new Set<string>();
   const varianceRows: VarianceRow[] = [];
 
   for (const actual of actuals) {
     const monthStr = actual.month as string;
-    monthSet.add(monthStr);
+    actualsMonthSet.add(monthStr);
+    channelSet.add(actual.channel as string);
 
     const key = makeDimensionKey(
       actual.sub_brand,
@@ -139,11 +141,6 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
 
     const planned = planDataMap.get(key);
 
-    const plannedNsq = (planned?.nsq as number | null) ?? null;
-    const plannedGmv = (planned?.sales_plan_gmv as number | null) ?? null;
-    const plannedInwards = (planned?.inwards_qty as number | null) ?? null;
-    const plannedClosingStock = (planned?.closing_stock_qty as number | null) ?? null;
-
     const row: VarianceRow = {
       sub_brand: actual.sub_brand,
       wear_type: actual.wear_type,
@@ -151,53 +148,41 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
       gender: actual.gender,
       channel: actual.channel,
       month: monthStr,
-      nsq: buildVarianceMetric('nsq', actual.actual_nsq, plannedNsq, DEFAULT_VARIANCE_THRESHOLDS.nsq_pct),
-      gmv: buildVarianceMetric('gmv', actual.actual_gmv, plannedGmv, DEFAULT_VARIANCE_THRESHOLDS.gmv_pct),
-      inwards: buildVarianceMetric('inwards', actual.actual_inwards_qty, plannedInwards, DEFAULT_VARIANCE_THRESHOLDS.inwards_pct),
-      closing_stock: buildVarianceMetric('closing_stock', actual.actual_closing_stock_qty, plannedClosingStock, DEFAULT_VARIANCE_THRESHOLDS.closing_stock_pct),
+      nsq: buildVarianceMetric('nsq_pct', actual.actual_nsq, (planned?.nsq as number | null) ?? null, DEFAULT_VARIANCE_THRESHOLDS.nsq_pct),
+      gmv: buildVarianceMetric('gmv_pct', actual.actual_gmv, (planned?.sales_plan_gmv as number | null) ?? null, DEFAULT_VARIANCE_THRESHOLDS.gmv_pct),
+      nsv: buildVarianceMetric('nsv_pct', actual.actual_nsv, (planned?.nsv as number | null) ?? null, DEFAULT_VARIANCE_THRESHOLDS.nsv_pct),
+      inwards: buildVarianceMetric('inwards_pct', actual.actual_inwards_qty, (planned?.inwards_qty as number | null) ?? null, DEFAULT_VARIANCE_THRESHOLDS.inwards_pct),
+      closing_stock: buildVarianceMetric('closing_stock_pct', actual.actual_closing_stock_qty, (planned?.closing_stock_qty as number | null) ?? null, DEFAULT_VARIANCE_THRESHOLDS.closing_stock_pct),
+      doh: buildVarianceMetric('doh_pct', actual.actual_doh, (planned?.fwd_30day_doh as number | null) ?? null, DEFAULT_VARIANCE_THRESHOLDS.doh_pct),
     };
 
     varianceRows.push(row);
   }
 
-  // 6. Compute summary
-  let redCount = 0;
-  let yellowCount = 0;
-  let greenCount = 0;
-
-  for (const row of varianceRows) {
-    const worstLevel = getWorstLevel([
-      row.nsq.level,
-      row.gmv.level,
-      row.inwards.level,
-      row.closing_stock.level,
-    ]);
-
-    if (worstLevel === 'red') redCount++;
-    else if (worstLevel === 'yellow') yellowCount++;
-    else greenCount++;
+  // populate allMonthSet from plan data keys
+  for (const pd of allPlanData) {
+    allMonthSet.add(pd.month as string);
   }
 
-  const topVariances = getTopVariances(varianceRows, 10);
-
-  const summary: VarianceSummary = {
-    total_rows: varianceRows.length,
-    red_count: redCount,
-    yellow_count: yellowCount,
-    green_count: greenCount,
-    top_variances: topVariances,
-  };
-
-  const months = Array.from(monthSet).sort();
+  const topVariances = [...varianceRows]
+    .sort((a, b) => {
+      const aMax = Math.max(...[a.nsq, a.gmv, a.nsv, a.inwards, a.closing_stock, a.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      const bMax = Math.max(...[b.nsq, b.gmv, b.nsv, b.inwards, b.closing_stock, b.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      return bMax - aMax;
+    })
+    .slice(0, 10);
 
   const report: VarianceReportData = {
     cycle_id: cycleId,
     cycle_name: cycle.cycle_name,
     brand_name: brandName,
+    brand_id: '',
     planning_quarter: planningQuarter,
-    months,
+    all_months: Array.from(allMonthSet).sort(),
+    actuals_months: Array.from(actualsMonthSet).sort(),
+    thresholds: DEFAULT_VARIANCE_THRESHOLDS,
+    channels: Array.from(channelSet).sort(),
     rows: varianceRows,
-    summary,
   };
 
   // --- Export based on format ---
@@ -232,12 +217,17 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
   summarySheet.addRow({ field: 'Brand', value: report.brand_name });
   summarySheet.addRow({ field: 'Planning Quarter', value: report.planning_quarter });
   summarySheet.addRow({ field: 'Generated At', value: new Date().toLocaleString('en-IN') });
-  summarySheet.addRow({ field: 'Total Rows', value: summary.total_rows });
+  // Derive counts from rows
+  const exportRedCount = varianceRows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')).length;
+  const exportGreenCount = varianceRows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')).length;
+  const exportYellowCount = varianceRows.length - exportRedCount - exportGreenCount;
+
+  summarySheet.addRow({ field: 'Total Rows', value: varianceRows.length });
   summarySheet.addRow({});
 
-  const redRow = summarySheet.addRow({ field: 'Red (Exceeds Threshold)', value: summary.red_count });
-  const yellowRow = summarySheet.addRow({ field: 'Yellow (Near Threshold)', value: summary.yellow_count });
-  const greenRow = summarySheet.addRow({ field: 'Green (OK)', value: summary.green_count });
+  const redRow = summarySheet.addRow({ field: 'Red (Exceeds Threshold)', value: exportRedCount });
+  const yellowRow = summarySheet.addRow({ field: 'Yellow (Near Threshold)', value: exportYellowCount });
+  const greenRow = summarySheet.addRow({ field: 'Green (OK)', value: exportGreenCount });
 
   applyFillToRow(redRow, 'red');
   applyFillToRow(yellowRow, 'yellow');
@@ -276,11 +266,6 @@ function makeDimensionKey(
   return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`;
 }
 
-function getWorstLevel(levels: VarianceLevel[]): VarianceLevel {
-  if (levels.includes('red')) return 'red';
-  if (levels.includes('yellow')) return 'yellow';
-  return 'green';
-}
 
 function applyFillToRow(row: ExcelJS.Row, level: VarianceLevel): void {
   row.eachCell((cell) => {

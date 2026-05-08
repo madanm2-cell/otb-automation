@@ -116,8 +116,19 @@ export function VarianceReport({ data }: Props) {
     },
   ];
 
-  const { summary } = data;
-  const total = summary.green_count + summary.yellow_count + summary.red_count;
+  // Derive summary counts from rows (VarianceReportData no longer carries a summary field)
+  const greenCount = data.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')).length;
+  const redCount = data.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')).length;
+  const yellowCount = data.rows.length - redCount - greenCount;
+  const total = data.rows.length;
+  // Top 10 by worst absolute variance
+  const top10 = [...data.rows]
+    .sort((a, b) => {
+      const aMax = Math.max(...[a.nsq, a.gmv, a.nsv, a.inwards, a.closing_stock, a.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      const bMax = Math.max(...[b.nsq, b.gmv, b.nsv, b.inwards, b.closing_stock, b.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      return bMax - aMax;
+    })
+    .slice(0, 10);
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
@@ -135,25 +146,25 @@ export function VarianceReport({ data }: Props) {
       {/* Summary Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: SPACING.lg }}>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Total Rows" value={summary.total_rows} icon={<UnorderedListOutlined />} size="compact" />
+          <MetricCard title="Total Rows" value={total} icon={<UnorderedListOutlined />} size="compact" />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Within Threshold" value={summary.green_count} icon={<CheckCircleOutlined />} color={COLORS.success} size="compact" />
+          <MetricCard title="Within Threshold" value={greenCount} icon={<CheckCircleOutlined />} color={COLORS.success} size="compact" />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Near Threshold" value={summary.yellow_count} icon={<WarningOutlined />} color={COLORS.warning} size="compact" />
+          <MetricCard title="Near Threshold" value={yellowCount} icon={<WarningOutlined />} color={COLORS.warning} size="compact" />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Exceeds Threshold" value={summary.red_count} icon={<CloseCircleOutlined />} color={COLORS.danger} size="compact" />
+          <MetricCard title="Exceeds Threshold" value={redCount} icon={<CloseCircleOutlined />} color={COLORS.danger} size="compact" />
         </Col>
       </Row>
 
       {/* Severity Distribution Bar */}
       {total > 0 && (
         <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: SPACING.xl }}>
-          <div style={{ width: `${(summary.green_count / total) * 100}%`, background: COLORS.success }} />
-          <div style={{ width: `${(summary.yellow_count / total) * 100}%`, background: COLORS.warning }} />
-          <div style={{ width: `${(summary.red_count / total) * 100}%`, background: COLORS.danger }} />
+          <div style={{ width: `${(greenCount / total) * 100}%`, background: COLORS.success }} />
+          <div style={{ width: `${(yellowCount / total) * 100}%`, background: COLORS.warning }} />
+          <div style={{ width: `${(redCount / total) * 100}%`, background: COLORS.danger }} />
         </div>
       )}
 
@@ -168,7 +179,7 @@ export function VarianceReport({ data }: Props) {
               allowClear
               value={selectedMonth}
               onChange={setSelectedMonth}
-              options={data.months.map(m => ({ label: shortMonth(m), value: m }))}
+              options={data.actuals_months.map(m => ({ label: shortMonth(m), value: m }))}
             />
           </div>
           <div>
@@ -210,7 +221,7 @@ export function VarianceReport({ data }: Props) {
             children: (
               <Table
                 columns={varianceColumns}
-                dataSource={summary.top_variances}
+                dataSource={top10}
                 rowKey={(r) => `top-${r.sub_brand}-${r.sub_category}-${r.gender}-${r.channel}-${r.month}`}
                 pagination={false}
                 size="middle"
