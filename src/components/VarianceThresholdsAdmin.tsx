@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, InputNumber, Button, message, Typography, Spin, Alert } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { DEFAULT_VARIANCE_THRESHOLDS, type VarianceThresholds } from '@/types/otb';
@@ -28,34 +28,44 @@ export function VarianceThresholdsAdmin({ brandId }: Props) {
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    const ctrl = new AbortController();
     setLoading(true);
     setError(null);
-    const res = await fetch(`/api/admin/variance-thresholds?brandId=${brandId}`);
-    if (res.ok) {
-      setThresholds(await res.json());
-    } else {
-      setError('Failed to load thresholds');
-    }
-    setLoading(false);
+    fetch(`/api/admin/variance-thresholds?brandId=${brandId}`, { signal: ctrl.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load thresholds');
+        return res.json();
+      })
+      .then(data => setThresholds(data))
+      .catch(err => {
+        if (err.name !== 'AbortError') setError('Failed to load thresholds');
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+    return () => ctrl.abort();
   }, [brandId]);
-
-  useEffect(() => { load(); }, [load]);
 
   const save = async (metric: string) => {
     setSaving(metric);
-    const value = (thresholds as unknown as Record<string, number>)[metric];
-    const res = await fetch('/api/admin/variance-thresholds', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brandId, metric, threshold_pct: value }),
-    });
-    setSaving(null);
-    if (res.ok) {
-      message.success(`${METRIC_LABELS[metric]} threshold saved`);
-    } else {
-      const body = await res.json().catch(() => ({}));
-      message.error((body as Record<string, string>).error ?? 'Save failed');
+    try {
+      const value = (thresholds as unknown as Record<string, number>)[metric];
+      const res = await fetch('/api/admin/variance-thresholds', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId, metric, threshold_pct: value }),
+      });
+      if (res.ok) {
+        message.success(`${METRIC_LABELS[metric]} threshold saved`);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        message.error((body as Record<string, string>).error ?? 'Save failed');
+      }
+    } catch {
+      message.error('Network error — please try again');
+    } finally {
+      setSaving(null);
     }
   };
 
