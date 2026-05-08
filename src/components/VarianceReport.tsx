@@ -18,7 +18,7 @@ const METRIC_LABELS: Record<MetricKey, string> = {
   gmv: 'GMV (₹ Cr)',
   nsv: 'NSV (₹ Cr)',
   nsq: 'NSQ (Units)',
-  inwards: 'Inwards (₹ Cr)',
+  inwards: 'Inwards (Units)',
   closing_stock: 'Closing Stock (₹ Cr)',
   doh: 'DOH (Days)',
 };
@@ -30,6 +30,7 @@ const POSITION_METRICS = new Set<MetricKey>(['closing_stock', 'doh']);
 function fmtValue(key: MetricKey, value: number | null): string {
   if (value == null) return '—';
   if (key === 'nsq') return formatQty(value);
+  if (key === 'inwards') return formatQty(value);
   if (key === 'doh') return value.toFixed(1) + ' d';
   return formatCrore(value);
 }
@@ -470,7 +471,9 @@ function MetricTab({ metricKey, data, channelFilter }: MetricTabProps) {
       size="small"
       bordered
       scroll={{ x: 'max-content' }}
-      rowClassName={(row: TabRow) => row.isBrand ? 'ant-table-row-bold' : ''}
+      onRow={(row: TabRow) => ({
+        style: row.isBrand ? { fontWeight: 600, background: '#fafafa' } : {},
+      })}
     />
   );
 }

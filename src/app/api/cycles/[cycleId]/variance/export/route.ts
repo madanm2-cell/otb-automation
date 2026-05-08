@@ -180,25 +180,6 @@ export const GET = withAuth('view_variance', async (req, _auth, { params }: Para
   summarySheet.addRow({ field: 'Planning Quarter', value: planningQuarter });
   summarySheet.addRow({ field: 'Generated At', value: new Date().toLocaleString('en-IN') });
 
-  const exportRedCount = varianceRows.filter(r =>
-    [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')
-  ).length;
-  const exportGreenCount = varianceRows.filter(r =>
-    [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')
-  ).length;
-  const exportYellowCount = varianceRows.length - exportRedCount - exportGreenCount;
-
-  summarySheet.addRow({ field: 'Total Rows', value: varianceRows.length });
-  summarySheet.addRow({});
-
-  const redRow = summarySheet.addRow({ field: 'Red (Exceeds Threshold)', value: exportRedCount });
-  const yellowRow = summarySheet.addRow({ field: 'Yellow (Near Threshold)', value: exportYellowCount });
-  const greenRow = summarySheet.addRow({ field: 'Green (OK)', value: exportGreenCount });
-
-  applyFillToRow(redRow, 'red');
-  applyFillToRow(yellowRow, 'yellow');
-  applyFillToRow(greenRow, 'green');
-
   summarySheet.getRow(1).font = { bold: true };
 
   // Sheet 2: Variance Detail
@@ -230,16 +211,6 @@ function dimKey(
   month: string,
 ): string {
   return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`.toLowerCase();
-}
-
-function applyFillToRow(row: ExcelJS.Row, level: VarianceLevel): void {
-  row.eachCell((cell) => {
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: LEVEL_FILLS[level] },
-    };
-  });
 }
 
 function buildVarianceSheet(
