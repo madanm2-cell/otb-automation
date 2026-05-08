@@ -1,4 +1,5 @@
-import type { VarianceLevel, VarianceMetric, VarianceRow } from '@/types/otb';
+import type { VarianceLevel, VarianceMetric, MetricDirection } from '@/types/otb';
+import { METRIC_DIRECTIONS } from '@/types/otb';
 import {
   calcSalesPlanGmv,
   calcNsv,
@@ -18,27 +19,35 @@ export function calcVariancePct(
 export function classifyVariance(
   variancePct: number | null,
   thresholdPct: number,
+  direction: MetricDirection = 'higher_is_good',
 ): VarianceLevel {
   if (variancePct == null) return 'green';
-  const abs = Math.abs(variancePct);
-  if (abs < thresholdPct) return 'green';
-  if (abs === thresholdPct) return 'yellow';
-  return 'red';
+
+  if (direction === 'higher_is_good') {
+    if (variancePct >= 0) return 'green';
+    if (Math.abs(variancePct) <= thresholdPct) return 'yellow';
+    return 'red';
+  } else {
+    if (variancePct <= 0) return 'green';
+    if (variancePct <= thresholdPct) return 'yellow';
+    return 'red';
+  }
 }
 
 export function buildVarianceMetric(
-  metric: string,
+  metricKey: string,
   actual: number | null,
   planned: number | null,
   thresholdPct: number,
 ): VarianceMetric {
   const variance_pct = calcVariancePct(actual, planned);
+  const direction: MetricDirection = METRIC_DIRECTIONS[metricKey] ?? 'higher_is_good';
   return {
-    metric,
+    metric: metricKey,
     planned,
     actual,
     variance_pct,
-    level: classifyVariance(variance_pct, thresholdPct),
+    level: classifyVariance(variance_pct, thresholdPct, direction),
   };
 }
 
@@ -71,22 +80,5 @@ export function calcActualDerived(inputs: ActualDerivedInputs): ActualDerivedOut
   );
   const actualDoh = calcFwd30dayDoh(actualClosingStockQty, inputs.nextMonthActualNsq);
   const actualGmPct = calcGmPct(inputs.asp, inputs.cogs);
-
   return { actualGmv, actualNsv, actualClosingStockQty, actualDoh, actualGmPct };
-}
-
-function maxAbsVariance(row: VarianceRow): number {
-  const values = [
-    row.nsq.variance_pct,
-    row.gmv.variance_pct,
-    row.inwards.variance_pct,
-    row.closing_stock.variance_pct,
-  ];
-  return Math.max(...values.map(v => Math.abs(v ?? 0)));
-}
-
-export function getTopVariances(rows: VarianceRow[], n: number): VarianceRow[] {
-  return [...rows]
-    .sort((a, b) => maxAbsVariance(b) - maxAbsVariance(a))
-    .slice(0, n);
 }
