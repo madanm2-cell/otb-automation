@@ -13,6 +13,7 @@ import { CellContextMenu } from '@/components/CellContextMenu';
 import { CellCommentPopover } from '@/components/CellCommentPopover';
 import { buildCellKey, parseCellField } from '@/lib/cellComments';
 import { formatCrore, formatPct, formatQty, formatCurrency } from '@/lib/formatting';
+import { calcSuggestedInwards } from '@/lib/formulaEngine';
 import './OtbGrid.css';
 
 // Register AG Grid Community modules
@@ -347,16 +348,27 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
         headerClass: 'otb-gd-col-header',
         editable: false,
         width: 110,
-        valueGetter: (p: any) => pendingSuggestions?.get(`${p.data.id}|${month}`) ?? null,
+        valueGetter: (p: any) => {
+          const mIdx = sortedMonths.indexOf(month);
+          const nextMonth = mIdx < sortedMonths.length - 1 ? sortedMonths[mIdx + 1] : null;
+          const nextNsq = nextMonth ? (p.data[`${nextMonth}_nsq`] as number | null) : null;
+          return calcSuggestedInwards(
+            p.data[`${prefix}_nsq`] as number | null,
+            nextNsq,
+            p.data[`${prefix}_standard_doh`] as number | null,
+            p.data[`${prefix}_opening_stock_qty`] as number | null,
+          );
+        },
         valueFormatter: qtyFormatter,
         cellStyle: { backgroundColor: '#f0f7ff' },
         cellRenderer: (cellParams: any) => {
-          const sug: number | null = pendingSuggestions?.get(`${cellParams.data.id}|${month}`) ?? null;
-          if (sug == null) return <span style={{ color: '#bbb' }}>−</span>;
+          const sug: number | null = cellParams.value;
+          if (sug == null || sug === 0) return <span style={{ color: '#bbb' }}>−</span>;
+          const isPending = editable && pendingSuggestions?.has(`${cellParams.data.id}|${month}`);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
               <span style={{ color: '#1677ff', fontStyle: 'italic' }}>{sug.toLocaleString('en-IN')}</span>
-              {editable && (
+              {isPending && (
                 <Button
                   type="text"
                   size="small"
@@ -416,7 +428,7 @@ const OtbGrid = forwardRef<OtbGridHandle, OtbGridProps>(function OtbGrid(
     ];
 
     return [...dimCols, recentSalesGroup, ...activeMonthGroup];
-  }, [validActiveMonth, months, editable, lockedMonths, onCellValueChanged, pendingSuggestions]);
+  }, [validActiveMonth, months, editable, lockedMonths, onCellValueChanged, pendingSuggestions, sortedMonths]);
 
   const defaultColDef = useMemo((): ColDef => ({
     sortable: true,

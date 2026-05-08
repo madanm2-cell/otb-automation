@@ -39,6 +39,9 @@ describe('Formula Engine — 9-step chain (GM only)', () => {
   it('step 4: inwardsValCogs = 500 × 350 = 175000', () => {
     expect(calcInwardsValCogs(500, 350)).toBe(175000);
   });
+  it('step 4: null inwards treated as 0 — inwardsValCogs = 0 × 350 = 0', () => {
+    expect(calcInwardsValCogs(null, 350)).toBe(0);
+  });
 
   // Step 5: Opening Stock Val = Opening Stock Qty × COGS
   it('step 5: openingStockVal = 15420 × 350 = 5397000', () => {
@@ -51,6 +54,9 @@ describe('Formula Engine — 9-step chain (GM only)', () => {
   });
   it('step 6: can go negative (validation catches this)', () => {
     expect(calcClosingStockQty(100, 50, 200)).toBe(-50);
+  });
+  it('step 6: null inwards treated as 0 — closingStockQty = 15420 + 0 - 1000 = 14420', () => {
+    expect(calcClosingStockQty(15420, null, 1000)).toBe(14420);
   });
 
   // Step 7: Fwd DoH = Closing / (NextMonthNSQ / 30)

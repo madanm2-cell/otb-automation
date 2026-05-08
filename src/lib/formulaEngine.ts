@@ -18,10 +18,10 @@ export function calcNsv(gmv: number | null, returnPct: number | null, taxPct: nu
   return gmv * (1 - returnPct / 100) * (1 - taxPct / 100);
 }
 
-// Step 4: Inwards Value = Inwards Qty × COGS
+// Step 4: Inwards Value = Inwards Qty × COGS (inwards defaults to 0 if not yet entered)
 export function calcInwardsValCogs(qty: number | null, cogs: number | null): number | null {
-  if (qty == null || cogs == null) return null;
-  return qty * cogs;
+  if (cogs == null) return null;
+  return (qty ?? 0) * cogs;
 }
 
 // Step 5: Opening Stock Value = Opening Stock Qty × COGS
@@ -30,16 +30,16 @@ export function calcOpeningStockVal(qty: number | null, cogs: number | null): nu
   return qty * cogs;
 }
 
-// Step 6: Closing Stock Qty = Opening + Inwards - NSQ
+// Step 6: Closing Stock Qty = Opening + Inwards - NSQ (inwards defaults to 0 if not yet entered)
 export function calcClosingStockQty(opening: number | null, inwards: number | null, nsq: number | null): number | null {
-  if (opening == null || inwards == null || nsq == null) return null;
-  return opening + inwards - nsq;
+  if (opening == null || nsq == null) return null;
+  return opening + (inwards ?? 0) - nsq;
 }
 
-// Step 7: Forward 30-day DoH = Closing Stock / (Next Month NSQ / 30)
+// Step 7: Forward 30-day DoH = Closing Stock / (Next Month NSQ / 30), rounded to nearest day
 export function calcFwd30dayDoh(closing: number | null, nextNsq: number | null): number | null {
   if (closing == null || nextNsq == null || nextNsq === 0) return null;
-  return closing / (nextNsq / 30);
+  return Math.round(closing / (nextNsq / 30));
 }
 
 // Step 8: GM% = (ASP - COGS) / ASP × 100

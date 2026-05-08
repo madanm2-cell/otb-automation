@@ -25,6 +25,7 @@ interface BrandApproval {
   risk_level: string;
   risk_flags: Array<{ flag: string; level: string }>;
   updated_at: string;
+  needs_my_approval: boolean;
 }
 
 interface ApprovalDashboardData {

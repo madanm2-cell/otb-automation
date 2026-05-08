@@ -256,6 +256,7 @@ export function CommentsPanel({ cycleId, open, onClose, months = [] }: CommentsP
           text: replyText.trim(),
           comment_type: parent?.comment_type ?? 'general',
           parent_id: parentId,
+          ...(parent?.comment_type === 'metric' && { month: parent.month, field: parent.field }),
         }),
       });
       if (!res.ok) {

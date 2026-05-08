@@ -127,35 +127,6 @@ export default function GridPage() {
     fetchVersions();
   }, [fetchGridData, fetchVersions]);
 
-  // Compute initial suggestions on page load for rows that already have NSQ but no inwards
-  useEffect(() => {
-    if (rows.length === 0 || months.length === 0) return;
-    if (suggestionsInitialized.current) return;
-    suggestionsInitialized.current = true;
-
-    const sortedMonths = [...months].sort();
-    const initial = new Map<string, number>();
-
-    for (const row of rows) {
-      for (let i = 0; i < sortedMonths.length; i++) {
-        const month = sortedMonths[i];
-        const d = row.months[month];
-        if (!d || !d.nsq || d.nsq === 0) continue;
-
-        const nextMonthNsq = i < sortedMonths.length - 1
-          ? (row.months[sortedMonths[i + 1]]?.nsq ?? null)
-          : null;
-
-        const suggested = calcSuggestedInwards(d.nsq, nextMonthNsq, d.standard_doh, d.opening_stock_qty);
-        if (suggested !== null && suggested > 0 && suggested !== d.inwards_qty) {
-          initial.set(`${row.id}|${month}`, suggested);
-        }
-      }
-    }
-
-    if (initial.size > 0) setPendingSuggestions(initial);
-  }, [rows, months]);
-
   const { profile } = useAuth();
   const lockedMonths = useMemo(() => getLockedMonths(months), [months]);
   const commentMap = useMemo(() => buildCommentMap(comments), [comments]);
@@ -181,6 +152,36 @@ export default function GridPage() {
   const canSubmit = profile?.role === 'GD' || profile?.role === 'Admin';
   const showApprovalPanel = cycle?.status === 'InReview' || cycle?.status === 'Approved';
   const canExport = profile != null && hasPermission(profile.role, 'export_otb');
+
+  // Compute initial suggestions on page load — only when the GD can still act on them
+  useEffect(() => {
+    if (!isEditable) return;
+    if (rows.length === 0 || months.length === 0) return;
+    if (suggestionsInitialized.current) return;
+    suggestionsInitialized.current = true;
+
+    const sortedMonths = [...months].sort();
+    const initial = new Map<string, number>();
+
+    for (const row of rows) {
+      for (let i = 0; i < sortedMonths.length; i++) {
+        const month = sortedMonths[i];
+        const d = row.months[month];
+        if (!d || !d.nsq || d.nsq === 0) continue;
+
+        const nextMonthNsq = i < sortedMonths.length - 1
+          ? (row.months[sortedMonths[i + 1]]?.nsq ?? null)
+          : null;
+
+        const suggested = calcSuggestedInwards(d.nsq, nextMonthNsq, d.standard_doh, d.opening_stock_qty);
+        if (suggested !== null && suggested > 0 && suggested !== d.inwards_qty) {
+          initial.set(`${row.id}|${month}`, suggested);
+        }
+      }
+    }
+
+    if (initial.size > 0) setPendingSuggestions(initial);
+  }, [rows, months, isEditable]);
 
   // Undo/redo: apply a value change (from undo/redo stack)
   const handleUndoRedoApply = useCallback((rowId: string, month: string, field: string, value: number | null) => {
