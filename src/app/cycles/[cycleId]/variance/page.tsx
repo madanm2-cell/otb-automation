@@ -1,15 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Spin, Alert, Button, Space, Typography } from 'antd';
+import { Spin, Alert, Button } from 'antd';
 import { DownloadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { VarianceReport } from '@/components/VarianceReport';
 import type { VarianceReportData } from '@/types/otb';
-
-const { Title } = Typography;
 
 export default function VariancePage() {
   const { cycleId } = useParams<{ cycleId: string }>();
@@ -40,20 +38,12 @@ export default function VariancePage() {
             <Button icon={<ArrowLeftOutlined />} size="small">Back to Cycle</Button>
           </Link>
           {data && (
-            <Space>
-              <Button
-                icon={<DownloadOutlined />}
-                href={`/api/cycles/${cycleId}/variance/export?format=xlsx`}
-              >
-                Export Excel
-              </Button>
-              <Button
-                icon={<DownloadOutlined />}
-                href={`/api/cycles/${cycleId}/variance/export?format=pdf`}
-              >
-                Export PDF
-              </Button>
-            </Space>
+            <Button
+              icon={<DownloadOutlined />}
+              href={`/api/cycles/${cycleId}/variance/export`}
+            >
+              Export Excel
+            </Button>
           )}
         </div>
 
