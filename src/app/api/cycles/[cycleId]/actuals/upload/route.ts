@@ -91,14 +91,14 @@ export const POST = withAuth('upload_actuals', async (req, auth, { params }: Par
     const { data: planDataRows } = planRowIds.length > 0
       ? await supabase
           .from('otb_plan_data')
-          .select('plan_row_id, month, asp, cogs, opening_stock_qty, return_pct, tax_pct, nsq')
-          .in('plan_row_id', planRowIds)
+          .select('row_id, month, asp, cogs, opening_stock_qty, return_pct, tax_pct, nsq')
+          .in('row_id', planRowIds)
       : { data: [] };
 
     // Build plan data lookup: "planRowId|month" → plan data record
     const planDataMap = new Map<string, any>();
     for (const pd of planDataRows || []) {
-      const key = `${pd.plan_row_id}|${pd.month}`;
+      const key = `${pd.row_id}|${pd.month}`;
       planDataMap.set(key, pd);
     }
 

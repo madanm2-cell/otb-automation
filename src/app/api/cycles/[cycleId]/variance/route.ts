@@ -184,7 +184,7 @@ export const GET = withAuth('view_variance', async (req, auth, { params }: Param
   return NextResponse.json(report);
 });
 
-// Helper: build a dimension lookup key
+// Helper: build a dimension lookup key — lowercase to match actuals (stored lowercase by upload validator)
 function makeDimensionKey(
   subBrand: string,
   wearType: string,
@@ -193,7 +193,7 @@ function makeDimensionKey(
   channel: string,
   month: string,
 ): string {
-  return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`;
+  return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`.toLowerCase();
 }
 
 // Helper: determine the worst variance level from a set of levels
