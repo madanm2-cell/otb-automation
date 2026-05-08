@@ -324,7 +324,19 @@ export interface ActualsRow {
   uploaded_by: string;
 }
 
+// === Variance Types ===
+
 export type VarianceLevel = 'green' | 'yellow' | 'red';
+export type MetricDirection = 'higher_is_good' | 'lower_is_good';
+
+export const METRIC_DIRECTIONS: Record<string, MetricDirection> = {
+  gmv_pct: 'higher_is_good',
+  nsv_pct: 'higher_is_good',
+  nsq_pct: 'higher_is_good',
+  inwards_pct: 'lower_is_good',
+  closing_stock_pct: 'lower_is_good',
+  doh_pct: 'lower_is_good',
+};
 
 export interface VarianceMetric {
   metric: string;
@@ -343,40 +355,49 @@ export interface VarianceRow {
   month: string;
   nsq: VarianceMetric;
   gmv: VarianceMetric;
+  nsv: VarianceMetric;
   inwards: VarianceMetric;
   closing_stock: VarianceMetric;
+  doh: VarianceMetric;
 }
 
 export interface VarianceThresholds {
-  nsq_pct: number;          // ±15%
-  gmv_pct: number;          // ±15%
-  inwards_pct: number;      // ±20%
-  closing_stock_pct: number; // ±25%
+  nsq_pct: number;
+  gmv_pct: number;
+  nsv_pct: number;
+  inwards_pct: number;
+  closing_stock_pct: number;
+  doh_pct: number;
 }
 
 export const DEFAULT_VARIANCE_THRESHOLDS: VarianceThresholds = {
   nsq_pct: 15,
   gmv_pct: 15,
+  nsv_pct: 15,
   inwards_pct: 20,
   closing_stock_pct: 25,
+  doh_pct: 20,
 };
+
+export interface BrandVarianceThreshold {
+  brand_id: string;
+  metric: string;
+  threshold_pct: number;
+  updated_by: string | null;
+  updated_at: string;
+}
 
 export interface VarianceReportData {
   cycle_id: string;
   cycle_name: string;
   brand_name: string;
+  brand_id: string;
   planning_quarter: string;
-  months: string[];
+  all_months: string[];
+  actuals_months: string[];
+  thresholds: VarianceThresholds;
+  channels: string[];
   rows: VarianceRow[];
-  summary: VarianceSummary;
-}
-
-export interface VarianceSummary {
-  total_rows: number;
-  red_count: number;
-  yellow_count: number;
-  green_count: number;
-  top_variances: VarianceRow[]; // Top 10 by magnitude
 }
 
 // === Enhanced Dashboard Types ===
