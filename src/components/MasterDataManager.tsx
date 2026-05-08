@@ -6,6 +6,7 @@ import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
 import type { Brand, WearType } from '@/types/otb';
+import { VarianceThresholdsAdmin } from '@/components/VarianceThresholdsAdmin';
 
 interface MasterRecord {
   id: string;
@@ -177,10 +178,19 @@ export function MasterDataManager() {
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
-        items={TABS.map(t => ({ key: t.key, label: t.label, disabled: t.brandScoped && !selectedBrandId }))}
+        items={[
+          ...TABS.map(t => ({ key: t.key, label: t.label, disabled: t.brandScoped && !selectedBrandId })),
+          { key: 'variance_thresholds', label: 'Variance Thresholds', disabled: false },
+        ]}
       />
 
-      {brandScopedDisabled ? (
+      {activeTab === 'variance_thresholds' ? (
+        selectedBrandId ? (
+          <VarianceThresholdsAdmin brandId={selectedBrandId} />
+        ) : (
+          <Alert type="info" message="Select a brand above to manage variance thresholds" showIcon />
+        )
+      ) : brandScopedDisabled ? (
         <Alert message="Select a brand to manage its master data" type="info" showIcon />
       ) : (
         <Table dataSource={data} columns={columns} rowKey="id" loading={loading} />
