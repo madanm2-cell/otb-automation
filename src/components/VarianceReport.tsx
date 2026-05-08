@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Tabs, Select, Typography, Table, Collapse, Tag } from 'antd';
 import { BarChartOutlined } from '@ant-design/icons';
 import { COLORS, SPACING } from '@/lib/designTokens';
@@ -333,7 +333,149 @@ function SummaryTab({ data, channelFilter }: SummaryTabProps) {
   );
 }
 
-// ─── Main component (metric tabs added in Task 8) ─────────────────────────────
+// ─── Metric Tab ───────────────────────────────────────────────────────────────
+
+interface MetricTabProps {
+  metricKey: MetricKey;
+  data: VarianceReportData;
+  channelFilter: string | null;
+}
+
+function MetricTab({ metricKey, data, channelFilter }: MetricTabProps) {
+  const { all_months, actuals_months } = data;
+
+  const filteredRows = useMemo(
+    () => channelFilter ? data.rows.filter(r => r.channel === channelFilter) : data.rows,
+    [data.rows, channelFilter],
+  );
+
+  // Sub-categories sorted by GMV desc (same order across all tabs)
+  const subCategories = useMemo(() => {
+    const cats = Array.from(new Set(filteredRows.map(r => r.sub_category)));
+    return cats.sort((a, b) => {
+      const gmvFor = (cat: string) =>
+        filteredRows
+          .filter(r => r.sub_category === cat && actuals_months.includes(r.month))
+          .reduce((s, r) => s + (r.gmv.actual ?? r.gmv.planned ?? 0), 0);
+      return gmvFor(b) - gmvFor(a);
+    });
+  }, [filteredRows, actuals_months]);
+
+  // Aggregate for a set of rows over given months
+  const getAgg = useCallback(
+    (rows: VarianceRow[], forActualsMonths: string[]) =>
+      aggregateMetric(rows, metricKey, forActualsMonths),
+    [metricKey],
+  );
+
+  // Pre-compute brand total per month and Q-total
+  const brandByMonth = useMemo(
+    () => Object.fromEntries(all_months.map(m => [m, getAgg(filteredRows.filter(r => r.month === m), [m])])),
+    [filteredRows, all_months, getAgg],
+  );
+  const brandQTotal = useMemo(
+    () => getAgg(filteredRows.filter(r => actuals_months.includes(r.month)), actuals_months),
+    [filteredRows, actuals_months, getAgg],
+  );
+
+  // Pre-compute per sub-category
+  const subCatByMonth = useMemo(
+    () => Object.fromEntries(
+      subCategories.map(cat => {
+        const catRows = filteredRows.filter(r => r.sub_category === cat);
+        return [cat, Object.fromEntries(all_months.map(m => [m, getAgg(catRows.filter(r => r.month === m), [m])]))];
+      })
+    ),
+    [subCategories, filteredRows, all_months, getAgg],
+  );
+  const subCatQTotal = useMemo(
+    () => Object.fromEntries(
+      subCategories.map(cat => {
+        const catRows = filteredRows.filter(r => r.sub_category === cat && actuals_months.includes(r.month));
+        return [cat, getAgg(catRows, actuals_months)];
+      })
+    ),
+    [subCategories, filteredRows, actuals_months, getAgg],
+  );
+
+  const qLabel = `Q Total (${actuals_months.length}/${all_months.length})`;
+
+  interface TabRow { key: string; cat: string; isBrand: boolean }
+  const tableRows: TabRow[] = [
+    { key: '__brand__', cat: 'Brand Total', isBrand: true },
+    ...subCategories.map(cat => ({ key: cat, cat, isBrand: false })),
+  ];
+
+  const columns = [
+    {
+      title: 'Sub-Category', dataIndex: 'cat', key: 'cat', width: 180,
+      fixed: 'left' as const,
+      render: (v: string, row: TabRow) =>
+        row.isBrand ? <Text strong>{v}</Text> : <Text>{v}</Text>,
+    },
+    ...all_months.flatMap(m => [
+      {
+        title: `${shortMonth(m)} Plan`, key: `${m}_p`, width: 110,
+        render: (_: unknown, row: TabRow) => {
+          const agg = row.isBrand ? brandByMonth[m] : subCatByMonth[row.cat]?.[m];
+          return <Text type="secondary">{fmtValue(metricKey, agg?.planned ?? null)}</Text>;
+        },
+      },
+      {
+        title: `${shortMonth(m)} Actual`, key: `${m}_a`, width: 110,
+        render: (_: unknown, row: TabRow) => {
+          if (!actuals_months.includes(m)) return <Text type="secondary">—</Text>;
+          const agg = row.isBrand ? brandByMonth[m] : subCatByMonth[row.cat]?.[m];
+          return <Text strong>{fmtValue(metricKey, agg?.actual ?? null)}</Text>;
+        },
+      },
+      {
+        title: `${shortMonth(m)} Var%`, key: `${m}_v`, width: 90, align: 'right' as const,
+        render: (_: unknown, row: TabRow) => {
+          if (!actuals_months.includes(m)) return <Text type="secondary">—</Text>;
+          const agg = row.isBrand ? brandByMonth[m] : subCatByMonth[row.cat]?.[m];
+          return <VarPctCell metric={agg ?? null} />;
+        },
+      },
+    ]),
+    {
+      title: `${qLabel} Plan`, key: 'q_p', width: 130,
+      render: (_: unknown, row: TabRow) => {
+        const agg = row.isBrand ? brandQTotal : subCatQTotal[row.cat];
+        return <Text type="secondary">{fmtValue(metricKey, agg?.planned ?? null)}</Text>;
+      },
+    },
+    {
+      title: `${qLabel} Actual`, key: 'q_a', width: 130,
+      render: (_: unknown, row: TabRow) => {
+        const agg = row.isBrand ? brandQTotal : subCatQTotal[row.cat];
+        return <Text strong>{fmtValue(metricKey, agg?.actual ?? null)}</Text>;
+      },
+    },
+    {
+      title: `${qLabel} Var%`, key: 'q_v', width: 100, align: 'right' as const,
+      render: (_: unknown, row: TabRow) => {
+        const agg = row.isBrand ? brandQTotal : subCatQTotal[row.cat];
+        return <VarPctCell metric={agg ?? null} />;
+      },
+    },
+  ];
+
+  return (
+    <Table
+      columns={columns as any}
+      dataSource={tableRows}
+      rowKey="key"
+      pagination={false}
+      size="small"
+      bordered
+      scroll={{ x: 'max-content' }}
+      rowClassName={(row: TabRow) => row.isBrand ? 'ant-table-row-bold' : ''}
+    />
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
   data: VarianceReportData;
@@ -377,7 +519,18 @@ export function VarianceReport({ data }: Props) {
             label: 'Summary',
             children: <SummaryTab data={data} channelFilter={channelFilter} />,
           },
-          // Metric tabs added in Task 8
+          ...([
+            { key: 'gmv', label: 'GMV' },
+            { key: 'nsv', label: 'NSV' },
+            { key: 'nsq', label: 'NSQ' },
+            { key: 'inwards', label: 'Inwards' },
+            { key: 'closing_stock', label: 'Closing Stock' },
+            { key: 'doh', label: 'DOH' },
+          ] as { key: MetricKey; label: string }[]).map(({ key, label }) => ({
+            key,
+            label,
+            children: <MetricTab metricKey={key} data={data} channelFilter={channelFilter} />,
+          })),
         ]}
       />
     </div>
