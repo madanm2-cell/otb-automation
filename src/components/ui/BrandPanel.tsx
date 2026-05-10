@@ -374,7 +374,7 @@ function ZoneActions({
     return (
       <div style={{ marginTop: SPACING.lg, display: 'flex', gap: SPACING.sm }}>
         {gridLink}
-        <Link href={`/cycles/${brand.cycle_id}?tab=variance`}>
+        <Link href={`/cycles/${brand.cycle_id}/variance`}>
           <Button type="link" icon={<LinkOutlined />}>
             Full Variance Report
           </Button>

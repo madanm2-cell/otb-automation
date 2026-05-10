@@ -50,10 +50,11 @@ export function MasterDataManager() {
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
-  const tabConfig = TABS.find(t => t.key === activeTab)!;
+  const tabConfig = TABS.find(t => t.key === activeTab) ?? TABS[0];
   const isBrandsReadOnly = activeTab === 'brands' && profile?.role !== 'Admin';
 
   const loadData = useCallback(async (type: string, brandId: string | null) => {
+    if (type === 'variance_thresholds') return;
     setLoading(true);
     try {
       const tab = TABS.find(t => t.key === type)!;

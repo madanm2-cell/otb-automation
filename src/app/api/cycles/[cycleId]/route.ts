@@ -23,10 +23,11 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
   if (data.assigned_gd_id) {
     const { data: gdProfile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, email')
       .eq('id', data.assigned_gd_id)
       .single();
-    (data as Record<string, unknown>).assigned_gd_name = gdProfile?.full_name || null;
+    (data as Record<string, unknown>).assigned_gd_name =
+      gdProfile?.full_name || gdProfile?.email || null;
   }
 
   return NextResponse.json(data);
