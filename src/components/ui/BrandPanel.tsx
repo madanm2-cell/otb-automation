@@ -314,8 +314,8 @@ function ZoneActions({
   onApprove?: () => void;
   onRequestRevision?: () => void;
 }) {
-  const gridLink = (
-    <Link href={`/cycles/${brand.cycle_id}/grid`}>
+  const planLink = (
+    <Link href={`/cycles/${brand.cycle_id}?tab=plan`}>
       <Button type="link" icon={<LinkOutlined />}>
         Open OTB Grid
       </Button>
@@ -357,7 +357,13 @@ function ZoneActions({
             {approvalProgress.approved}/{approvalProgress.total} roles approved
           </Text>
         )}
-        <div style={{ marginLeft: 'auto' }}>{gridLink}</div>
+        <div style={{ marginLeft: 'auto' }}>
+          <Link href={`/cycles/${brand.cycle_id}?tab=review`}>
+            <Button type="link" icon={<LinkOutlined />}>
+              Open Review
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -365,7 +371,7 @@ function ZoneActions({
   if (zone === 'approved') {
     return (
       <div style={{ marginTop: SPACING.lg }}>
-        {gridLink}
+        {planLink}
       </div>
     );
   }
@@ -373,8 +379,8 @@ function ZoneActions({
   if (zone === 'variance') {
     return (
       <div style={{ marginTop: SPACING.lg, display: 'flex', gap: SPACING.sm }}>
-        {gridLink}
-        <Link href={`/cycles/${brand.cycle_id}/variance`}>
+        {planLink}
+        <Link href={`/cycles/${brand.cycle_id}?tab=analyze`}>
           <Button type="link" icon={<LinkOutlined />}>
             Full Variance Report
           </Button>
