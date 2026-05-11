@@ -11,7 +11,7 @@ type Params = { params: Promise<{ cycleId: string; fileType: string }> };
 // that were uploaded for the cycle.
 const FILE_TYPE_COLUMNS: Record<string, string[]> = {
   opening_stock: ['opening_stock_qty'],
-  ly_sales: ['ly_sales_gmv'],
+  ly_sales: ['ly_sales_nsq'],
   recent_sales: ['recent_sales_nsq'],
   asp: ['asp'],
   cogs: ['cogs'],
