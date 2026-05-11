@@ -15,11 +15,13 @@ import { DEFAULT_VARIANCE_THRESHOLDS, METRIC_DIRECTIONS } from '@/types/otb';
 import { classifyVariance } from '@/lib/varianceEngine';
 
 // Dimension key used to match an actuals row against the corresponding plan_data row.
+// Lowercased to match the variance API's behaviour — uploaded actuals and plan
+// dimensions sometimes differ in casing.
 function dimKey(
   subBrand: string, wearType: string, subCategory: string,
   gender: string, channel: string, month: string,
 ): string {
-  return [subBrand, wearType, subCategory, gender, channel, month].join('|');
+  return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`.toLowerCase();
 }
 
 interface MetricAccumulator { planned: number; actual: number; hasData: boolean; }
