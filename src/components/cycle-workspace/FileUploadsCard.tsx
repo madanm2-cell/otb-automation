@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Upload, Button, Tag, Typography, message, Space, Spin } from 'antd';
+import { Card, Upload, Button, Tag, Typography, message, Space, Spin, Table } from 'antd';
 import {
   InboxOutlined,
   DownloadOutlined,
@@ -16,6 +16,78 @@ import ValidationReport from '@/components/ValidationReport';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission } from '@/lib/auth/roles';
 import { COLORS } from '@/lib/designTokens';
+
+interface ReferencePreviewRow {
+  month: string;
+  sub_brand: string | null;
+  wear_type: string | null;
+  sub_category: string | null;
+  gender: string | null;
+  channel: string | null;
+  [valueColumn: string]: unknown;
+}
+
+interface ReferencePreviewResponse {
+  rows: ReferencePreviewRow[];
+  total: number;
+  columns: string[];
+  truncated: boolean;
+}
+
+function ReferencePreview({ cycleId, fileType }: { cycleId: string; fileType: FileType }) {
+  const [data, setData] = useState<ReferencePreviewResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/cycles/${cycleId}/upload/${fileType}/preview?limit=500`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: ReferencePreviewResponse | null) => {
+        if (!cancelled) setData(d);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [cycleId, fileType]);
+
+  if (loading) return <Spin size="small" style={{ display: 'block', margin: '24px auto' }} />;
+  if (!data || data.rows.length === 0) return <Typography.Text type="secondary">No data available.</Typography.Text>;
+
+  const valueColumns = data.columns.map(col => ({
+    title: col,
+    dataIndex: col,
+    key: col,
+    align: 'right' as const,
+    width: 110,
+    render: (v: unknown) => v == null ? '—' : typeof v === 'number' ? v.toLocaleString() : String(v),
+  }));
+
+  const columns = [
+    { title: 'Month', dataIndex: 'month', key: 'month', width: 100, fixed: 'left' as const },
+    { title: 'Sub Brand', dataIndex: 'sub_brand', key: 'sub_brand', width: 110 },
+    { title: 'Wear Type', dataIndex: 'wear_type', key: 'wear_type', width: 110 },
+    { title: 'Sub Category', dataIndex: 'sub_category', key: 'sub_category', width: 130 },
+    { title: 'Gender', dataIndex: 'gender', key: 'gender', width: 80 },
+    { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 100 },
+    ...valueColumns,
+  ];
+
+  return (
+    <>
+      <Space style={{ marginBottom: 8 }}>
+        <Tag>{data.total.toLocaleString()} rows</Tag>
+        {data.truncated && <Tag color="warning">Showing first {data.rows.length}</Tag>}
+      </Space>
+      <Table
+        dataSource={data.rows.map((r, i) => ({ ...r, key: i }))}
+        columns={columns}
+        size="small"
+        pagination={{ pageSize: 15, showSizeChanger: false }}
+        scroll={{ x: 'max-content' }}
+      />
+    </>
+  );
+}
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -171,14 +243,19 @@ export function FileUploadsCard({ cycleId, cycleStatus }: Props) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: canUpload ? '300px 1fr' : '1fr', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 24 }}>
             {/* Left: file type cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {visibleTypes.map(ft => {
                 const upload = uploadsByType.get(ft);
                 const isRequired = REQUIRED_FILE_TYPES.includes(ft);
                 const isSelected = selectedType === ft;
-                const interactive = canUpload && uploadableTypes.includes(ft);
+                // Card is clickable if either the user can upload to it OR it has
+                // validated data the user can view inline. Selecting drives the
+                // right panel content (upload UI and/or preview table).
+                const canView = upload?.status === 'validated';
+                const canUploadHere = canUpload && uploadableTypes.includes(ft);
+                const interactive = canUploadHere || canView;
                 return (
                   <Card
                     key={ft}
@@ -227,85 +304,93 @@ export function FileUploadsCard({ cycleId, cycleStatus }: Props) {
               })}
             </div>
 
-            {/* Right: upload zone (only when user has upload_data permission) */}
-            {canUpload && (
-              <div>
-                {selectedType ? (
-                  <Card title={`Upload: ${FILE_TYPE_LABELS[selectedType]}`} size="small">
-                    <Space style={{ marginBottom: 16 }}>
-                      <a href={`/api/templates/${selectedType}`} download>
-                        <Button icon={<DownloadOutlined />} size="small">Download Sample CSV</Button>
-                      </a>
-                    </Space>
-                    <Dragger
-                      accept=".csv,.xlsx,.xls"
-                      showUploadList={false}
-                      disabled={uploading}
-                      customRequest={({ file }) => {
-                        handleUpload(file as File);
-                      }}
-                    >
-                      <p className="ant-upload-drag-icon">
-                        <InboxOutlined />
-                      </p>
-                      <p className="ant-upload-text">
-                        {uploading ? 'Uploading & validating...' : 'Click or drag CSV/XLSX file here'}
-                      </p>
-                      <p className="ant-upload-hint">
-                        Max 50MB. File will be validated against master data.
-                      </p>
-                    </Dragger>
+            {/* Right: preview + upload UI when applicable */}
+            <div>
+              {selectedType ? (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  {/* Upload UI — only when the user can upload AND this file type is uploadable in current state */}
+                  {canUpload && uploadableTypes.includes(selectedType) && (
+                    <Card title={`Upload: ${FILE_TYPE_LABELS[selectedType]}`} size="small">
+                      <Space style={{ marginBottom: 16 }}>
+                        <a href={`/api/templates/${selectedType}`} download>
+                          <Button icon={<DownloadOutlined />} size="small">Download Sample CSV</Button>
+                        </a>
+                      </Space>
+                      <Dragger
+                        accept=".csv,.xlsx,.xls"
+                        showUploadList={false}
+                        disabled={uploading}
+                        customRequest={({ file }) => {
+                          handleUpload(file as File);
+                        }}
+                      >
+                        <p className="ant-upload-drag-icon">
+                          <InboxOutlined />
+                        </p>
+                        <p className="ant-upload-text">
+                          {uploading ? 'Uploading & validating...' : 'Click or drag CSV/XLSX file here'}
+                        </p>
+                        <p className="ant-upload-hint">
+                          Max 50MB. File will be validated against master data.
+                        </p>
+                      </Dragger>
 
-                    {lastResult && (
-                      <>
-                        <ValidationReport
-                          valid={lastResult.valid}
-                          errors={lastResult.errors}
-                          rowCount={lastResult.rowCount}
-                        />
-                        {lastResult.warnings?.map((w, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              marginTop: 8,
-                              padding: '8px 12px',
-                              background: COLORS.warningLight,
-                              border: `1px solid ${COLORS.warning}`,
-                              borderRadius: 6,
-                              fontSize: 13,
-                            }}
-                          >
-                            ⚠️ {w}
-                          </div>
-                        ))}
-                        {lastResult.refreshedCount != null && (
-                          <div
-                            style={{
-                              marginTop: 8,
-                              padding: '8px 12px',
-                              background: COLORS.successLight,
-                              border: `1px solid ${COLORS.success}`,
-                              borderRadius: 6,
-                              fontSize: 13,
-                            }}
-                          >
-                            ✓ Grid reference data refreshed: {lastResult.refreshedCount} rows updated.
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </Card>
-                ) : (
-                  <Card size="small">
-                    <div style={{ textAlign: 'center', padding: 48, color: COLORS.textMuted }}>
-                      {uploadableTypes.length === 0
-                        ? 'No files are uploadable in the current cycle status.'
-                        : 'Select a file type from the left to upload'}
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
+                      {lastResult && (
+                        <>
+                          <ValidationReport
+                            valid={lastResult.valid}
+                            errors={lastResult.errors}
+                            rowCount={lastResult.rowCount}
+                          />
+                          {lastResult.warnings?.map((w, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                marginTop: 8,
+                                padding: '8px 12px',
+                                background: COLORS.warningLight,
+                                border: `1px solid ${COLORS.warning}`,
+                                borderRadius: 6,
+                                fontSize: 13,
+                              }}
+                            >
+                              ⚠️ {w}
+                            </div>
+                          ))}
+                          {lastResult.refreshedCount != null && (
+                            <div
+                              style={{
+                                marginTop: 8,
+                                padding: '8px 12px',
+                                background: COLORS.successLight,
+                                border: `1px solid ${COLORS.success}`,
+                                borderRadius: 6,
+                                fontSize: 13,
+                              }}
+                            >
+                              ✓ Grid reference data refreshed: {lastResult.refreshedCount} rows updated.
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Preview — render whenever the selected file has validated data */}
+                  {uploadsByType.get(selectedType)?.status === 'validated' && (
+                    <Card title={`${FILE_TYPE_LABELS[selectedType]} — Data Preview`} size="small">
+                      <ReferencePreview cycleId={cycleId} fileType={selectedType} />
+                    </Card>
+                  )}
+                </Space>
+              ) : (
+                <Card size="small">
+                  <div style={{ textAlign: 'center', padding: 48, color: COLORS.textMuted }}>
+                    Select a file type from the left to {canUpload && uploadableTypes.length > 0 ? 'upload or ' : ''}view its data
+                  </div>
+                </Card>
+              )}
+            </div>
           </div>
         </>
       )}
