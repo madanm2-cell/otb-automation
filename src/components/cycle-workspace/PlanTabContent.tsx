@@ -1,14 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Spin, Typography, Button, Space, Tag, Modal, message, Popconfirm, Collapse, List, Dropdown } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined, HistoryOutlined, RollbackOutlined } from '@ant-design/icons';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { Spin, Button, Space, Modal, message, Popconfirm, Collapse, List, Dropdown } from 'antd';
+import { SaveOutlined, EditOutlined, SendOutlined, ImportOutlined, DownloadOutlined, CommentOutlined, HistoryOutlined, RollbackOutlined } from '@ant-design/icons';
 import OtbGrid, { type OtbGridHandle } from '@/components/OtbGrid';
 import BulkEditModal from '@/components/BulkEditModal';
 import ImportGdModal from '@/components/ImportGdModal';
-import { ApprovalPanel } from '@/components/ApprovalPanel';
 import { CommentsPanel } from '@/components/CommentsPanel';
 import { useFormulaEngine } from '@/hooks/useFormulaEngine';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -20,8 +17,6 @@ import { calcSuggestedInwards, calculateAll } from '@/lib/formulaEngine';
 import { buildCommentMap } from '@/lib/cellComments';
 import type { PlanRow, OtbCycle, OtbComment } from '@/types/otb';
 
-const { Title } = Typography;
-
 interface VersionEntry {
   id: string;
   version_number: number;
@@ -30,8 +25,11 @@ interface VersionEntry {
   created_at: string;
 }
 
-export default function GridPage() {
-  const { cycleId } = useParams<{ cycleId: string }>();
+interface PlanTabContentProps {
+  cycleId: string;
+}
+
+export function PlanTabContent({ cycleId }: PlanTabContentProps) {
   const [cycle, setCycle] = useState<OtbCycle | null>(null);
   const [rows, setRows] = useState<PlanRow[]>([]);
   const [months, setMonths] = useState<string[]>([]);
@@ -150,7 +148,6 @@ export default function GridPage() {
     || profile.assigned_brands?.includes(cycle?.brand_id ?? '')
   );
   const canSubmit = profile?.role === 'GD' || profile?.role === 'Admin';
-  const showApprovalPanel = cycle?.status === 'InReview' || cycle?.status === 'Approved';
   const canExport = profile != null && hasPermission(profile.role, 'export_otb');
 
   // Compute initial suggestions on page load — only when the GD can still act on them
@@ -370,21 +367,26 @@ export default function GridPage() {
   }[saveStatus];
 
   return (
-    <div style={{ padding: '16px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Space>
-          <Link href={`/cycles/${cycleId}`}>
-            <Button icon={<ArrowLeftOutlined />} size="small" />
-          </Link>
-          <Title level={3} style={{ margin: 0 }}>
-            {cycle?.cycle_name || 'OTB Grid'}
-          </Title>
-          {cycle && <Tag>{cycle.status}</Tag>}
-        </Space>
+    <div>
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          background: '#fff',
+          padding: '12px 24px',
+          borderBottom: '1px solid #f0f0f0',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <Space>
           <span style={{ color: '#999', fontSize: 13 }}>
             {rows.length} rows × {months.length} months
           </span>
+        </Space>
+        <Space>
           {canExport && (
             <Dropdown
               menu={{
@@ -452,17 +454,10 @@ export default function GridPage() {
           )}
         </Space>
       </div>
-      {showApprovalPanel && cycle && (
-        <ApprovalPanel
-          cycleId={cycleId}
-          cycleStatus={cycle.status}
-          onStatusChange={(newStatus) => setCycle(prev => prev ? { ...prev, status: newStatus as any } : prev)}
-        />
-      )}
       {versions.length > 0 && (
         <Collapse
           size="small"
-          style={{ marginBottom: 16 }}
+          style={{ margin: '16px 24px' }}
           items={[{
             key: 'version-history',
             label: (

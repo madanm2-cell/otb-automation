@@ -22,7 +22,7 @@ import type {
 } from '@/types/otb';
 import { DEFAULT_VARIANCE_THRESHOLDS } from '@/types/otb';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 // --- Types ---
 
@@ -47,7 +47,7 @@ function formatMonth(dateStr: string): string {
   return `${monthNames[d.getMonth()]} '${shortYear}`;
 }
 
-type VarianceMetricKey = 'gmv' | 'nsq' | 'inwards' | 'closing_stock';
+type VarianceMetricKey = 'gmv' | 'nsv' | 'nsq' | 'inwards' | 'closing_stock' | 'doh';
 
 function aggregateVariancePct(rows: VarianceRow[], metric: VarianceMetricKey): number | null {
   let planned = 0;
@@ -271,26 +271,49 @@ function VarianceBody({ variance }: { variance: VarianceReportData }) {
 
   return (
     <div style={{ marginTop: SPACING.lg }}>
-      {/* RAG Summary */}
-      <Space size={SPACING.lg} style={{ marginBottom: SPACING.md }}>
-        <span style={{ color: COLORS.danger, fontWeight: 600 }}>● {redCount} red</span>
-        <span style={{ color: COLORS.warning, fontWeight: 600 }}>● {yellowCount} amber</span>
-        <span style={{ color: COLORS.success, fontWeight: 600 }}>● {greenCount} green</span>
-      </Space>
+      {/* RAG Summary — tile-style */}
+      <div style={{ display: 'flex', gap: SPACING.md, marginBottom: SPACING.xl }}>
+        <RagTile label="BEHIND PLAN" count={redCount} color={COLORS.danger} />
+        <RagTile label="AT RISK" count={yellowCount} color={COLORS.warning} />
+        <RagTile label="ON TRACK" count={greenCount} color={COLORS.success} />
+      </div>
       {/* Top Variances */}
       {top10.length > 0 && (
         <>
-          <Text strong style={{ fontSize: 13, color: COLORS.textSecondary }}>Top Variances</Text>
+          <Title level={5} style={{ margin: 0, marginBottom: SPACING.sm, color: COLORS.textPrimary }}>
+            Top Variances
+          </Title>
           <Table
             dataSource={top10}
             columns={topVarColumns}
             rowKey={(row) => `${row.sub_brand}-${row.wear_type}-${row.sub_category}-${row.gender}-${row.channel}-${row.month}`}
             size="small"
             pagination={false}
-            style={{ marginTop: SPACING.sm }}
           />
         </>
       )}
+    </div>
+  );
+}
+
+function RagTile({ label, count, color }: { label: string; count: number; color: string }) {
+  return (
+    <div
+      style={{
+        flex: '0 0 auto',
+        minWidth: 128,
+        padding: `${SPACING.sm}px ${SPACING.md}px`,
+        borderLeft: `3px solid ${color}`,
+        background: COLORS.background,
+        borderRadius: 4,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: COLORS.textMuted }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 20, fontWeight: 700, color, lineHeight: 1.2 }}>
+        {count}
+      </div>
     </div>
   );
 }
@@ -314,8 +337,8 @@ function ZoneActions({
   onApprove?: () => void;
   onRequestRevision?: () => void;
 }) {
-  const gridLink = (
-    <Link href={`/cycles/${brand.cycle_id}/grid`}>
+  const planLink = (
+    <Link href={`/cycles/${brand.cycle_id}?tab=plan`}>
       <Button type="link" icon={<LinkOutlined />}>
         Open OTB Grid
       </Button>
@@ -357,7 +380,13 @@ function ZoneActions({
             {approvalProgress.approved}/{approvalProgress.total} roles approved
           </Text>
         )}
-        <div style={{ marginLeft: 'auto' }}>{gridLink}</div>
+        <div style={{ marginLeft: 'auto' }}>
+          <Link href={`/cycles/${brand.cycle_id}?tab=review`}>
+            <Button type="link" icon={<LinkOutlined />}>
+              Open Review
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -365,7 +394,7 @@ function ZoneActions({
   if (zone === 'approved') {
     return (
       <div style={{ marginTop: SPACING.lg }}>
-        {gridLink}
+        {planLink}
       </div>
     );
   }
@@ -373,8 +402,8 @@ function ZoneActions({
   if (zone === 'variance') {
     return (
       <div style={{ marginTop: SPACING.lg, display: 'flex', gap: SPACING.sm }}>
-        {gridLink}
-        <Link href={`/cycles/${brand.cycle_id}/variance`}>
+        {planLink}
+        <Link href={`/cycles/${brand.cycle_id}?tab=analyze`}>
           <Button type="link" icon={<LinkOutlined />}>
             Full Variance Report
           </Button>
@@ -408,22 +437,30 @@ export function BrandPanel(props: BrandPanelProps) {
     const willExpand = !expanded;
     setExpanded(willExpand);
 
-    // Lazy-load variance data on first expand; allow retry if variance still null
+    // Header badges render instantly from brand.variance_summary (pre-aggregated server-side).
+    // The full variance dataset is only needed when the user expands the row
+    // (for the Top Variances table and RAG counts), so load lazily here.
     if (willExpand && zone === 'variance' && !varianceLoadedRef.current && variance == null) {
       varianceLoadedRef.current = true;
       onLoadVariance?.(brand.cycle_id);
     }
   };
 
+  // Prefer the server-pre-aggregated variance_summary (rendered instantly on dashboard load);
+  // fall back to client-side aggregation only if the summary isn't present (older API responses,
+  // or when the expanded view loads the full variance and we want to reflect it immediately).
   const headerVariances = useMemo(() => {
+    if (brand.variance_summary) return brand.variance_summary;
     if (!variance) return null;
     return {
       gmv: { pct: aggregateVariancePct(variance.rows, 'gmv'), level: aggregateWorstLevel(variance.rows, 'gmv') },
+      nsv: { pct: aggregateVariancePct(variance.rows, 'nsv'), level: aggregateWorstLevel(variance.rows, 'nsv') },
       nsq: { pct: aggregateVariancePct(variance.rows, 'nsq'), level: aggregateWorstLevel(variance.rows, 'nsq') },
       inwards: { pct: aggregateVariancePct(variance.rows, 'inwards'), level: aggregateWorstLevel(variance.rows, 'inwards') },
       closing_stock: { pct: aggregateVariancePct(variance.rows, 'closing_stock'), level: aggregateWorstLevel(variance.rows, 'closing_stock') },
+      doh: { pct: aggregateVariancePct(variance.rows, 'doh'), level: aggregateWorstLevel(variance.rows, 'doh') },
     };
-  }, [variance]);
+  }, [brand.variance_summary, variance]);
 
   const handleApprove = async () => {
     setActionLoading(true);
@@ -532,6 +569,11 @@ export function BrandPanel(props: BrandPanelProps) {
                     level={headerVariances.gmv.level}
                   />
                   <VarianceBadge
+                    label="NSV"
+                    pct={headerVariances.nsv.pct}
+                    level={headerVariances.nsv.level}
+                  />
+                  <VarianceBadge
                     label="NSQ"
                     pct={headerVariances.nsq.pct}
                     level={headerVariances.nsq.level}
@@ -546,10 +588,15 @@ export function BrandPanel(props: BrandPanelProps) {
                     pct={headerVariances.closing_stock.pct}
                     level={headerVariances.closing_stock.level}
                   />
+                  <VarianceBadge
+                    label="DoH"
+                    pct={headerVariances.doh.pct}
+                    level={headerVariances.doh.level}
+                  />
                 </>
               ) : (
                 <Space size={SPACING.lg}>
-                  {['GMV', 'NSQ', 'Inwards', 'Closing Stock'].map(label => (
+                  {['GMV', 'NSV', 'NSQ', 'Inwards', 'Closing Stock', 'DoH'].map(label => (
                     <div key={label} style={{ textAlign: 'center', minWidth: 80 }}>
                       <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{label}</div>
                       <Skeleton.Input active style={{ width: 60, height: 18 }} size="small" />

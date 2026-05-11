@@ -7,16 +7,63 @@ import type {
   CategoryBreakdown,
   DashboardKpiTotals,
   DashboardSummaryResponse,
+  BrandVarianceSummary,
+  VarianceThresholds,
+  VarianceLevel,
 } from '@/types/otb';
+import { DEFAULT_VARIANCE_THRESHOLDS, METRIC_DIRECTIONS } from '@/types/otb';
+import { classifyVariance } from '@/lib/varianceEngine';
+import { getCurrentQuarterId, getQuarterDates } from '@/lib/quarterUtils';
+
+// Dimension key used to match an actuals row against the corresponding plan_data row.
+// Lowercased to match the variance API's behaviour — uploaded actuals and plan
+// dimensions sometimes differ in casing.
+function dimKey(
+  subBrand: string, wearType: string, subCategory: string,
+  gender: string, channel: string, month: string,
+): string {
+  return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`.toLowerCase();
+}
+
+interface MetricAccumulator { planned: number; actual: number; hasData: boolean; }
+
+function aggregatePair(
+  planned: number | null | undefined,
+  actual: number | null | undefined,
+  acc: MetricAccumulator,
+) {
+  if (planned != null && actual != null) {
+    acc.planned += planned;
+    acc.actual += actual;
+    acc.hasData = true;
+  }
+}
+
+function finalizeMetric(
+  acc: MetricAccumulator,
+  metricKey: string,
+  threshold: number,
+) {
+  if (!acc.hasData || acc.planned === 0) {
+    return { pct: null, level: 'green' as VarianceLevel };
+  }
+  const pct = ((acc.actual - acc.planned) / acc.planned) * 100;
+  const direction = METRIC_DIRECTIONS[metricKey] ?? 'higher_is_good';
+  return { pct, level: classifyVariance(pct, threshold, direction) };
+}
 
 // GET /api/summary — enhanced cross-brand OTB summary
 // Query params:
-//   ?quarter=Q1+FY27   — filter by planning quarter
-//   ?status=Approved    — filter by cycle status (default: InReview,Approved)
+//   ?quarter=Q1-FY27   — filter by quarter (canonical, hyphenated); defaults to current quarter
+//   ?status=Approved   — filter by cycle status (default: InReview,Approved)
+//   ?brandId=<uuid>    — restrict to a single brand
+//
+// Quarter filtering is applied via planning_period_start so it tolerates the
+// "Q1-FY27" / "Q1 FY27" string variants present in legacy data.
 export const GET = withAuth('view_all_otbs', async (req, auth) => {
   const supabase = await createServerClient();
   const url = new URL(req.url);
-  const quarter = url.searchParams.get('quarter');
+  const quarterParam = url.searchParams.get('quarter');
   const statusParam = url.searchParams.get('status');
 
   // Determine which statuses to fetch
@@ -27,11 +74,18 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
   // 1. Get cycles
   let cycleQuery = supabase
     .from('otb_cycles')
-    .select('id, cycle_name, brand_id, planning_quarter, status, brands(name)')
+    .select('id, cycle_name, brand_id, planning_quarter, planning_period_start, status, brands(name)')
     .in('status', statuses);
 
-  if (quarter) {
-    cycleQuery = cycleQuery.eq('planning_quarter', quarter);
+  // Default to current quarter when not specified — the dashboard surfaces this
+  // as "Q1 FY27 Overview", so multi-quarter sums in KPIs would be misleading.
+  const effectiveQuarter = quarterParam ?? getCurrentQuarterId();
+  try {
+    const quarterStart = getQuarterDates(effectiveQuarter).start;
+    cycleQuery = cycleQuery.eq('planning_period_start', quarterStart);
+  } catch {
+    // Caller passed a non-canonical string — fall back to direct match.
+    cycleQuery = cycleQuery.eq('planning_quarter', effectiveQuarter);
   }
 
   if (auth.profile.role !== 'Admin' && auth.profile.assigned_brands?.length > 0) {
@@ -69,18 +123,27 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     }
   }
 
-  // 2. Fetch plan rows (need sub_category for category breakdown)
+  // 2. Fetch plan rows. Dimension fields (sub_brand .. channel) are needed
+  // to match actuals rows against plan_data for variance aggregation below.
   const { data: planRows } = await supabase
     .from('otb_plan_rows')
-    .select('id, cycle_id, sub_category')
+    .select('id, cycle_id, sub_brand, wear_type, sub_category, gender, channel')
     .in('cycle_id', cycleIds);
 
   const rowIds = (planRows || []).map(r => r.id);
   const rowToCycle: Record<string, string> = {};
   const rowToSubCategory: Record<string, string> = {};
+  const rowToDims: Record<string, { sub_brand: string; wear_type: string; sub_category: string; gender: string; channel: string }> = {};
   for (const r of planRows || []) {
     rowToCycle[r.id] = r.cycle_id;
     rowToSubCategory[r.id] = r.sub_category;
+    rowToDims[r.id] = {
+      sub_brand: r.sub_brand,
+      wear_type: r.wear_type,
+      sub_category: r.sub_category,
+      gender: r.gender,
+      channel: r.channel,
+    };
   }
 
   // 3. Fetch plan data
@@ -106,8 +169,10 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     };
   }
 
-  // 5. Aggregate per brand
-  interface BrandAgg {
+  // 5. Aggregate per cycle. Keyed by cycle_id (not brand_id) so a brand with
+  // multiple cycles in scope — e.g. a revision sitting in InReview alongside a
+  // prior Approved plan — produces distinct rows rather than silently summing.
+  interface CycleAgg {
     brand_id: string;
     brand_name: string;
     cycle_id: string;
@@ -125,8 +190,13 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     categoryData: Record<string, { gmv: number; nsq: number; inwards_qty: number }>;
   }
 
-  const brandAgg: Record<string, BrandAgg> = {};
+  const cycleAgg: Record<string, CycleAgg> = {};
   const allMonths = new Set<string>();
+  // Per-cycle dim-key → planned values lookup, used below for variance aggregation.
+  const cyclePlanLookup: Record<string, Map<string, typeof planData[number]>> = {};
+  // Per-cycle set of months for which a plan exists, used to surface
+  // total_months_count alongside actuals_months_count.
+  const cyclePlanMonths: Record<string, Set<string>> = {};
 
   for (const pd of planData) {
     const cycleId = rowToCycle[pd.row_id];
@@ -135,8 +205,22 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     if (!brandInfo) continue;
     const subCategory = rowToSubCategory[pd.row_id] || 'Unknown';
 
-    if (!brandAgg[brandInfo.brand_id]) {
-      brandAgg[brandInfo.brand_id] = {
+    // Build per-cycle lookup for variance matching (cycles with actuals only).
+    if (cyclesWithActuals.has(cycleId)) {
+      const dims = rowToDims[pd.row_id];
+      if (dims) {
+        if (!cyclePlanLookup[cycleId]) cyclePlanLookup[cycleId] = new Map();
+        cyclePlanLookup[cycleId].set(
+          dimKey(dims.sub_brand, dims.wear_type, dims.sub_category, dims.gender, dims.channel, pd.month),
+          pd,
+        );
+        if (!cyclePlanMonths[cycleId]) cyclePlanMonths[cycleId] = new Set();
+        cyclePlanMonths[cycleId].add(pd.month);
+      }
+    }
+
+    if (!cycleAgg[cycleId]) {
+      cycleAgg[cycleId] = {
         ...brandInfo,
         totalGmv: 0, totalNsv: 0, totalNsq: 0,
         totalInwardsQty: 0, totalClosingStockQty: 0,
@@ -146,7 +230,7 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
       };
     }
 
-    const agg = brandAgg[brandInfo.brand_id];
+    const agg = cycleAgg[cycleId];
     agg.totalGmv += pd.sales_plan_gmv || 0;
     agg.totalNsv += pd.nsv || 0;
     agg.totalNsq += pd.nsq || 0;
@@ -178,8 +262,8 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     agg.categoryData[subCategory].inwards_qty += pd.inwards_qty || 0;
   }
 
-  // 6. Build enhanced brand summaries
-  const brands: EnhancedBrandSummary[] = Object.values(brandAgg).map(agg => {
+  // 6. Build enhanced cycle summaries (one entry per cycle)
+  const brands: EnhancedBrandSummary[] = Object.values(cycleAgg).map(agg => {
     // Monthly breakdown
     const monthly: BrandMonthBreakdown[] = Array.from(allMonths).sort().map(month => {
       const m = agg.monthData[month];
@@ -226,6 +310,117 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
       has_actuals: cyclesWithActuals.has(agg.cycle_id),
     };
   });
+
+  // 6b. Compute variance summaries server-side for has_actuals brands.
+  // This pre-aggregation lets the dashboard render the "Actuals vs Plan"
+  // row without per-panel /api/cycles/<id>/variance round-trips.
+  const cyclesWithActualsArr = Array.from(cyclesWithActuals);
+  const varianceByCycle: Record<string, BrandVarianceSummary> = {};
+
+  if (cyclesWithActualsArr.length > 0) {
+    // Fetch actuals + per-brand thresholds in parallel.
+    const brandIdsForThresholds = brands
+      .filter(b => cyclesWithActuals.has(b.cycle_id))
+      .map(b => b.brand_id);
+
+    const [{ data: actualsRows }, { data: thresholdRows }] = await Promise.all([
+      supabase
+        .from('otb_actuals')
+        .select('cycle_id, sub_brand, wear_type, sub_category, gender, channel, month, actual_nsq, actual_gmv, actual_nsv, actual_inwards_qty, actual_closing_stock_qty, actual_doh')
+        .in('cycle_id', cyclesWithActualsArr),
+      brandIdsForThresholds.length > 0
+        ? supabase
+            .from('brand_variance_thresholds')
+            .select('brand_id, metric, threshold_pct')
+            .in('brand_id', brandIdsForThresholds)
+        : Promise.resolve({ data: [] as { brand_id: string; metric: string; threshold_pct: number }[] }),
+    ]);
+
+    // Per-brand threshold lookup (fall back to defaults).
+    const thresholdsByBrand: Record<string, VarianceThresholds> = {};
+    for (const t of thresholdRows || []) {
+      if (!thresholdsByBrand[t.brand_id]) {
+        thresholdsByBrand[t.brand_id] = { ...DEFAULT_VARIANCE_THRESHOLDS };
+      }
+      const key = t.metric as keyof VarianceThresholds;
+      if (key in thresholdsByBrand[t.brand_id]) {
+        thresholdsByBrand[t.brand_id][key] = t.threshold_pct;
+      }
+    }
+
+    // Aggregate per cycle.
+    interface CycleAgg {
+      gmv: MetricAccumulator; nsv: MetricAccumulator; nsq: MetricAccumulator;
+      inwards: MetricAccumulator; closing_stock: MetricAccumulator; doh: MetricAccumulator;
+      actualsMonths: Set<string>;
+    }
+    const newAcc = (): MetricAccumulator => ({ planned: 0, actual: 0, hasData: false });
+    const newCycleAgg = (): CycleAgg => ({
+      gmv: newAcc(), nsv: newAcc(), nsq: newAcc(),
+      inwards: newAcc(), closing_stock: newAcc(), doh: newAcc(),
+      actualsMonths: new Set(),
+    });
+    const aggByCycle: Record<string, CycleAgg> = {};
+
+    for (const a of actualsRows || []) {
+      const cycleId = a.cycle_id as string;
+      const lookup = cyclePlanLookup[cycleId];
+      if (!lookup) continue;
+      const planned = lookup.get(dimKey(
+        a.sub_brand as string, a.wear_type as string, a.sub_category as string,
+        a.gender as string, a.channel as string, a.month as string,
+      ));
+      if (!planned) continue;
+      if (!aggByCycle[cycleId]) aggByCycle[cycleId] = newCycleAgg();
+      const agg = aggByCycle[cycleId];
+      agg.actualsMonths.add(a.month as string);
+      aggregatePair(planned.sales_plan_gmv, a.actual_gmv as number | null, agg.gmv);
+      aggregatePair(planned.nsv, a.actual_nsv as number | null, agg.nsv);
+      aggregatePair(planned.nsq, a.actual_nsq as number | null, agg.nsq);
+      aggregatePair(planned.inwards_qty, a.actual_inwards_qty as number | null, agg.inwards);
+      aggregatePair(planned.closing_stock_qty, a.actual_closing_stock_qty as number | null, agg.closing_stock);
+      aggregatePair(planned.fwd_30day_doh, a.actual_doh as number | null, agg.doh);
+    }
+
+    for (const brand of brands) {
+      if (!cyclesWithActuals.has(brand.cycle_id)) continue;
+      const agg = aggByCycle[brand.cycle_id];
+      const thresholds = thresholdsByBrand[brand.brand_id] ?? DEFAULT_VARIANCE_THRESHOLDS;
+      const planMonths = cyclePlanMonths[brand.cycle_id]?.size ?? 0;
+      if (!agg) {
+        // Brand has actuals rows but none matched plan data — surface a zero-state
+        // summary so the dashboard still renders the row consistently.
+        varianceByCycle[brand.cycle_id] = {
+          gmv: { pct: null, level: 'green' },
+          nsv: { pct: null, level: 'green' },
+          nsq: { pct: null, level: 'green' },
+          inwards: { pct: null, level: 'green' },
+          closing_stock: { pct: null, level: 'green' },
+          doh: { pct: null, level: 'green' },
+          actuals_months_count: 0,
+          total_months_count: planMonths,
+        };
+        continue;
+      }
+      varianceByCycle[brand.cycle_id] = {
+        gmv: finalizeMetric(agg.gmv, 'gmv_pct', thresholds.gmv_pct),
+        nsv: finalizeMetric(agg.nsv, 'nsv_pct', thresholds.nsv_pct),
+        nsq: finalizeMetric(agg.nsq, 'nsq_pct', thresholds.nsq_pct),
+        inwards: finalizeMetric(agg.inwards, 'inwards_pct', thresholds.inwards_pct),
+        closing_stock: finalizeMetric(agg.closing_stock, 'closing_stock_pct', thresholds.closing_stock_pct),
+        doh: finalizeMetric(agg.doh, 'doh_pct', thresholds.doh_pct),
+        actuals_months_count: agg.actualsMonths.size,
+        total_months_count: planMonths,
+      };
+    }
+
+    // Attach variance_summary to brand entries.
+    for (const brand of brands) {
+      if (varianceByCycle[brand.cycle_id]) {
+        brand.variance_summary = varianceByCycle[brand.cycle_id];
+      }
+    }
+  }
 
   // 7. KPI totals (from Approved-only brands)
   const approvedBrands = brands.filter(b => b.status === 'Approved');

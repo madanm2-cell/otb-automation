@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs, Table, InputNumber, Button, Space, Tag, message, Alert, Spin, Typography, Modal } from 'antd';
+import { Tabs, Table, InputNumber, Button, Space, Tag, message, Alert, Spin, Typography, Modal, Tooltip } from 'antd';
 import { CheckCircleOutlined, EditOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import type { CycleDefault, DefaultType } from '@/types/otb';
+import type { CycleDefault, CycleStatus, DefaultType } from '@/types/otb';
 
 const { Title } = Typography;
 
 interface Props {
   cycleId: string;
+  cycleStatus?: CycleStatus;
   onConfirmed: () => void;  // callback when defaults are confirmed
 }
 
@@ -33,7 +34,9 @@ const VALUE_SUFFIX: Record<DefaultType, string> = {
   standard_doh: 'days',
 };
 
-export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
+export function CycleDefaultsReview({ cycleId, cycleStatus, onConfirmed }: Props) {
+  const canEditDefaults = !cycleStatus || cycleStatus === 'Draft';
+  const isCycleApproved = cycleStatus === 'Approved';
   const [defaults, setDefaults] = useState<CycleDefault[]>([]);
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -110,7 +113,7 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
     Modal.confirm({
       title: 'Confirm Defaults',
       icon: <ExclamationCircleOutlined />,
-      content: 'Once confirmed, these values will be used to generate the OTB grid. You can un-confirm later to make further changes.',
+      content: 'Once confirmed, these values will be used to generate the OTB grid. You can unlock to edit later while the cycle is still in Draft.',
       onOk: async () => {
         setConfirming(true);
         try {
@@ -145,11 +148,11 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        message.error(data.error || 'Failed to un-confirm defaults');
+        message.error(data.error || 'Failed to unlock defaults');
         return;
       }
       setConfirmed(false);
-      message.success('Defaults un-confirmed. You can now edit values.');
+      message.success('Defaults unlocked. You can now edit values.');
     } catch {
       message.error('Network error');
     }
@@ -186,9 +189,23 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
             </Button>
           )}
           {confirmed ? (
-            <Button onClick={handleUnconfirm} loading={confirming}>
-              Un-confirm (Edit)
-            </Button>
+            <Tooltip
+              title={
+                canEditDefaults
+                  ? ''
+                  : isCycleApproved
+                  ? 'Cycle is approved — defaults cannot be edited.'
+                  : `Cycle is in ${cycleStatus} — defaults can only be edited while the cycle is in Draft.`
+              }
+            >
+              <Button
+                onClick={handleUnconfirm}
+                loading={confirming}
+                disabled={!canEditDefaults}
+              >
+                Unlock to Edit
+              </Button>
+            </Tooltip>
           ) : (
             <Button
               type="primary"
@@ -204,7 +221,13 @@ export function CycleDefaultsReview({ cycleId, onConfirmed }: Props) {
 
       {confirmed && (
         <Alert
-          message="Defaults are confirmed and locked. Click 'Un-confirm' to make changes."
+          message={
+            canEditDefaults
+              ? "Defaults are confirmed and locked. Click 'Unlock to Edit' to make changes."
+              : isCycleApproved
+              ? 'Defaults are confirmed and locked. The cycle has been approved, so defaults can no longer be edited.'
+              : `Defaults are confirmed and locked. The cycle is now in ${cycleStatus} — defaults can only be edited while the cycle is in Draft.`
+          }
           type="success"
           showIcon
           style={{ marginBottom: 16 }}

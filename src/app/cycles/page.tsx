@@ -52,7 +52,7 @@ export default function CyclesPage() {
       key: 'cycle_name',
       render: (text: string, record: OtbCycle) => {
         const href = isGd && ['Filling', 'InReview', 'Approved'].includes(record.status)
-          ? `/cycles/${record.id}/grid`
+          ? `/cycles/${record.id}?tab=plan`
           : `/cycles/${record.id}`;
         return <Link href={href} style={{ fontWeight: 500 }}>{text}</Link>;
       },

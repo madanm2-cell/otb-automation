@@ -5,7 +5,7 @@ import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
   UserOutlined, SettingOutlined, AuditOutlined, LogoutOutlined,
-  CheckSquareOutlined, DatabaseOutlined, SwapOutlined,
+  DatabaseOutlined, SwapOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
@@ -72,9 +72,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { key: '/cycles', icon: <TableOutlined />, label: 'OTB Cycles' },
   ];
 
-  if (hasPermission(role, 'approve_otb')) {
-    navItems.push({ key: '/approvals', icon: <CheckSquareOutlined />, label: 'Approvals' });
-  }
   // Admin section
   const adminItems: MenuProps['items'] = [];
   if (hasPermission(role, 'manage_users')) {
