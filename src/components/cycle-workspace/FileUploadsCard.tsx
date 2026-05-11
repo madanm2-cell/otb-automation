@@ -107,19 +107,19 @@ export function FileUploadsCard({ cycleId, cycleStatus }: Props) {
     }
   };
 
-  // Determine which file types are uploadable in current status
+  // Reference Data card always shows reference file types — actuals has its
+  // own dedicated card (ActualsUploadCard) in the Setup tab.
+  const visibleTypes = ALL_FILE_TYPES.filter(ft => ft !== 'actuals') as FileType[];
+
+  // Which of those types are uploadable right now depends on cycle status:
+  // - Draft: all reference files (pre-template-generation)
+  // - Filling: the refreshable subset
+  // - InReview / Approved: none — reference data is locked once the cycle has progressed
   const uploadableTypes = (() => {
-    if (cycleStatus === 'Draft') return ALL_FILE_TYPES.filter(ft => ft !== 'actuals');
+    if (cycleStatus === 'Draft') return visibleTypes;
     if (cycleStatus === 'Filling') return ['ly_sales', 'recent_sales', 'soft_forecast'] as FileType[];
-    if (cycleStatus === 'Approved') return ['actuals'] as FileType[];
     return [] as FileType[];
   })();
-
-  // File types to render in the status grid for read-only / no-uploadable cases:
-  // show all non-actuals types so users see status of each reference file.
-  const visibleTypes = uploadableTypes.length > 0
-    ? uploadableTypes
-    : (ALL_FILE_TYPES.filter(ft => ft !== 'actuals') as FileType[]);
 
   const titleNode = (
     <Space size={8}>
