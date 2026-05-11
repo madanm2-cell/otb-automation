@@ -224,7 +224,10 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
       <Tabs
         activeKey={activeTab}
         onChange={handleTabChange}
+        type="card"
+        size="large"
         items={tabItems.map(t => ({ key: t.key, label: t.label }))}
+        style={{ marginBottom: 16 }}
       />
 
       {mountedTabs.has('setup') && (

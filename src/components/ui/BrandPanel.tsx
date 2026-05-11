@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message, Skeleton } from 'antd';
 import {
   RightOutlined,
@@ -410,15 +410,17 @@ export function BrandPanel(props: BrandPanelProps) {
   const [revisionComment, setRevisionComment] = useState('');
   const varianceLoadedRef = useRef(false);
 
-  const handleToggle = () => {
-    const willExpand = !expanded;
-    setExpanded(willExpand);
-
-    // Lazy-load variance data on first expand; allow retry if variance still null
-    if (willExpand && zone === 'variance' && !varianceLoadedRef.current && variance == null) {
+  // Auto-load variance on mount for variance zone so header badges populate
+  // without requiring the user to expand the row.
+  useEffect(() => {
+    if (zone === 'variance' && !varianceLoadedRef.current && variance == null) {
       varianceLoadedRef.current = true;
       onLoadVariance?.(brand.cycle_id);
     }
+  }, [zone, variance, onLoadVariance, brand.cycle_id]);
+
+  const handleToggle = () => {
+    setExpanded(prev => !prev);
   };
 
   const headerVariances = useMemo(() => {
