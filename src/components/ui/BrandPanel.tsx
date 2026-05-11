@@ -22,7 +22,7 @@ import type {
 } from '@/types/otb';
 import { DEFAULT_VARIANCE_THRESHOLDS } from '@/types/otb';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 // --- Types ---
 
@@ -271,26 +271,49 @@ function VarianceBody({ variance }: { variance: VarianceReportData }) {
 
   return (
     <div style={{ marginTop: SPACING.lg }}>
-      {/* RAG Summary */}
-      <Space size={SPACING.lg} style={{ marginBottom: SPACING.md }}>
-        <span style={{ color: COLORS.danger, fontWeight: 600 }}>● {redCount} red</span>
-        <span style={{ color: COLORS.warning, fontWeight: 600 }}>● {yellowCount} amber</span>
-        <span style={{ color: COLORS.success, fontWeight: 600 }}>● {greenCount} green</span>
-      </Space>
+      {/* RAG Summary — tile-style */}
+      <div style={{ display: 'flex', gap: SPACING.md, marginBottom: SPACING.xl }}>
+        <RagTile label="RED" count={redCount} color={COLORS.danger} />
+        <RagTile label="AMBER" count={yellowCount} color={COLORS.warning} />
+        <RagTile label="GREEN" count={greenCount} color={COLORS.success} />
+      </div>
       {/* Top Variances */}
       {top10.length > 0 && (
         <>
-          <Text strong style={{ fontSize: 13, color: COLORS.textSecondary }}>Top Variances</Text>
+          <Title level={5} style={{ margin: 0, marginBottom: SPACING.sm, color: COLORS.textPrimary }}>
+            Top Variances
+          </Title>
           <Table
             dataSource={top10}
             columns={topVarColumns}
             rowKey={(row) => `${row.sub_brand}-${row.wear_type}-${row.sub_category}-${row.gender}-${row.channel}-${row.month}`}
             size="small"
             pagination={false}
-            style={{ marginTop: SPACING.sm }}
           />
         </>
       )}
+    </div>
+  );
+}
+
+function RagTile({ label, count, color }: { label: string; count: number; color: string }) {
+  return (
+    <div
+      style={{
+        flex: '0 0 auto',
+        minWidth: 96,
+        padding: `${SPACING.sm}px ${SPACING.md}px`,
+        borderLeft: `3px solid ${color}`,
+        background: COLORS.background,
+        borderRadius: 4,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: COLORS.textMuted }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 20, fontWeight: 700, color, lineHeight: 1.2 }}>
+        {count}
+      </div>
     </div>
   );
 }

@@ -212,7 +212,6 @@ export default function CxoDashboard() {
       <div style={{ marginBottom: SPACING.xl }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
           <Title level={4} style={{ margin: 0 }}>Approved Plans</Title>
-          <Badge count={approvedBrands.length} style={{ backgroundColor: COLORS.success }} />
         </div>
         {approvedBrands.length > 0 ? (
           approvedBrands.map(brand => (
