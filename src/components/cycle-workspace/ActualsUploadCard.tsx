@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, Upload, Button, Typography, Alert, Table, Space, Tag } from 'antd';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Card, Upload, Button, Typography, Alert, Table, Space, Tag, Select } from 'antd';
 import {
   InboxOutlined,
   DownOutlined,
@@ -83,6 +83,26 @@ export function ActualsUploadCard({
   const [previewTotal, setPreviewTotal] = useState(0);
   const [previewTruncated, setPreviewTruncated] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [filterMonth, setFilterMonth] = useState<string | null>(null);
+  const [filterSubCategory, setFilterSubCategory] = useState<string | null>(null);
+  const [filterChannel, setFilterChannel] = useState<string | null>(null);
+
+  const filterOptions = useMemo(() => {
+    if (!preview) return { months: [], subCategories: [], channels: [] };
+    const months = Array.from(new Set(preview.map(r => r.month))).sort();
+    const subCategories = Array.from(new Set(preview.map(r => r.sub_category))).sort();
+    const channels = Array.from(new Set(preview.map(r => r.channel))).sort();
+    return { months, subCategories, channels };
+  }, [preview]);
+
+  const filteredPreview = useMemo(() => {
+    if (!preview) return null;
+    return preview.filter(r =>
+      (!filterMonth || r.month === filterMonth) &&
+      (!filterSubCategory || r.sub_category === filterSubCategory) &&
+      (!filterChannel || r.channel === filterChannel)
+    );
+  }, [preview, filterMonth, filterSubCategory, filterChannel]);
 
   const loadPreview = useCallback(async () => {
     setPreviewLoading(true);
@@ -280,14 +300,61 @@ export function ActualsUploadCard({
           {preview && preview.length === 0 ? (
             <Text type="secondary">No actuals uploaded yet.</Text>
           ) : (
-            <Table
-              dataSource={preview?.map((r, i) => ({ ...r, key: i }))}
-              columns={previewColumns}
-              size="small"
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-              scroll={{ x: 'max-content' }}
-              loading={previewLoading}
-            />
+            <>
+              <Space wrap style={{ marginBottom: 12 }}>
+                <Select
+                  allowClear
+                  placeholder="Month"
+                  value={filterMonth ?? undefined}
+                  onChange={(v) => setFilterMonth(v ?? null)}
+                  style={{ minWidth: 140 }}
+                  options={filterOptions.months.map(m => ({ value: m, label: m }))}
+                />
+                <Select
+                  allowClear
+                  placeholder="Sub Category"
+                  value={filterSubCategory ?? undefined}
+                  onChange={(v) => setFilterSubCategory(v ?? null)}
+                  style={{ minWidth: 180 }}
+                  showSearch
+                  options={filterOptions.subCategories.map(c => ({ value: c, label: c }))}
+                />
+                <Select
+                  allowClear
+                  placeholder="Channel"
+                  value={filterChannel ?? undefined}
+                  onChange={(v) => setFilterChannel(v ?? null)}
+                  style={{ minWidth: 140 }}
+                  options={filterOptions.channels.map(c => ({ value: c, label: c }))}
+                />
+                {(filterMonth || filterSubCategory || filterChannel) && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setFilterMonth(null);
+                      setFilterSubCategory(null);
+                      setFilterChannel(null);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+                {filteredPreview && filteredPreview.length !== (preview?.length ?? 0) && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Showing {filteredPreview.length} of {preview?.length ?? 0} loaded rows
+                  </Text>
+                )}
+              </Space>
+              <Table
+                dataSource={filteredPreview?.map((r, i) => ({ ...r, key: i }))}
+                columns={previewColumns}
+                size="small"
+                pagination={{ pageSize: 20, showSizeChanger: false }}
+                scroll={{ x: 'max-content' }}
+                loading={previewLoading}
+              />
+            </>
           )}
         </Card>
       )}
