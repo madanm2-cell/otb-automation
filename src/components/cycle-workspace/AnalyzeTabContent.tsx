@@ -6,12 +6,14 @@ import { DownloadOutlined } from '@ant-design/icons';
 import { VarianceReport } from '@/components/VarianceReport';
 import type { VarianceReportData } from '@/types/otb';
 
-export function AnalyzeTabContent({ cycleId }: { cycleId: string }) {
+export function AnalyzeTabContent({ cycleId, refreshKey }: { cycleId: string; refreshKey?: number }) {
   const [data, setData] = useState<VarianceReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     fetch(`/api/cycles/${cycleId}/variance`)
       .then(async (res) => {
         if (!res.ok) {
@@ -23,7 +25,7 @@ export function AnalyzeTabContent({ cycleId }: { cycleId: string }) {
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [cycleId]);
+  }, [cycleId, refreshKey]);
 
   return (
     <div style={{ padding: '16px 24px' }}>

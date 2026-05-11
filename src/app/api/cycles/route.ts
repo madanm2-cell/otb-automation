@@ -72,21 +72,6 @@ export const POST = withAuth('create_cycle', async (req, auth) => {
     return NextResponse.json({ error: 'Selected GD is not assigned to this brand' }, { status: 400 });
   }
 
-  // Check no other non-Approved cycle exists for this brand
-  const { data: existing } = await supabase
-    .from('otb_cycles')
-    .select('id, status')
-    .eq('brand_id', brand_id)
-    .neq('status', 'Approved')
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return NextResponse.json(
-      { error: 'An active cycle already exists for this brand. Complete or approve it first.' },
-      { status: 409 }
-    );
-  }
-
   const { data, error } = await supabase
     .from('otb_cycles')
     .insert({

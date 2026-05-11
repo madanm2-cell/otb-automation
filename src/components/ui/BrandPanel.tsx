@@ -233,16 +233,6 @@ const topVarColumns = [
   { title: 'Sub-Category', dataIndex: 'sub_category', key: 'sub_category' },
   { title: 'Channel', dataIndex: 'channel', key: 'channel' },
   {
-    title: 'GMV Var%',
-    key: 'gmv',
-    render: (_: unknown, row: VarianceRow) =>
-      row.gmv.variance_pct != null ? (
-        <span style={{ color: VARIANCE_COLORS[row.gmv.level], fontWeight: 600 }}>
-          {row.gmv.variance_pct >= 0 ? '+' : ''}{row.gmv.variance_pct.toFixed(1)}%
-        </span>
-      ) : '—',
-  },
-  {
     title: 'NSQ Var%',
     key: 'nsq',
     render: (_: unknown, row: VarianceRow) =>
@@ -252,19 +242,37 @@ const topVarColumns = [
         </span>
       ) : '—',
   },
+  {
+    title: 'Inwards Var%',
+    key: 'inwards',
+    render: (_: unknown, row: VarianceRow) =>
+      row.inwards.variance_pct != null ? (
+        <span style={{ color: VARIANCE_COLORS[row.inwards.level], fontWeight: 600 }}>
+          {row.inwards.variance_pct >= 0 ? '+' : ''}{row.inwards.variance_pct.toFixed(1)}%
+        </span>
+      ) : '—',
+  },
 ];
 
 // --- Variance Body ---
 
 function VarianceBody({ variance }: { variance: VarianceReportData }) {
-  // Derive counts from rows (summary field removed from VarianceReportData)
-  const redCount = variance.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].some(m => m.level === 'red')).length;
-  const greenCount = variance.rows.filter(r => [r.nsq, r.gmv, r.nsv, r.inwards, r.closing_stock, r.doh].every(m => m.level !== 'red' && m.level !== 'yellow')).length;
-  const yellowCount = variance.rows.length - redCount - greenCount;
+  // Count each row-month entry individually (not collapsed by dimension).
+  // RAG status = worse of NSQ and Inwards only — operational metrics the team controls.
+  const levels: VarianceLevel[] = variance.rows.map(row => {
+    const nsqLevel = row.nsq.level;
+    const inwardsLevel = row.inwards.level;
+    if (nsqLevel === 'red' || inwardsLevel === 'red') return 'red';
+    if (nsqLevel === 'yellow' || inwardsLevel === 'yellow') return 'yellow';
+    return 'green';
+  });
+  const redCount = levels.filter(l => l === 'red').length;
+  const yellowCount = levels.filter(l => l === 'yellow').length;
+  const greenCount = levels.filter(l => l === 'green').length;
   const top10 = [...variance.rows]
     .sort((a, b) => {
-      const aMax = Math.max(...[a.nsq, a.gmv, a.nsv, a.inwards, a.closing_stock, a.doh].map(m => Math.abs(m.variance_pct ?? 0)));
-      const bMax = Math.max(...[b.nsq, b.gmv, b.nsv, b.inwards, b.closing_stock, b.doh].map(m => Math.abs(m.variance_pct ?? 0)));
+      const aMax = Math.max(Math.abs(a.nsq.variance_pct ?? 0), Math.abs(a.inwards.variance_pct ?? 0));
+      const bMax = Math.max(Math.abs(b.nsq.variance_pct ?? 0), Math.abs(b.inwards.variance_pct ?? 0));
       return bMax - aMax;
     })
     .slice(0, 10);
@@ -512,10 +520,13 @@ export function BrandPanel(props: BrandPanelProps) {
     }
   };
 
-  const statusColor =
-    zone === 'approved' ? 'success' : (STATUS_TAG_COLORS[brand.status] || 'default');
-
-  const statusLabel = zone === 'approved' ? 'Approved' : brand.status;
+  // In the Approved Plans and Actuals vs Plan zones, every card is by definition
+  // an approved cycle — so the zone heading already conveys the status and a tag
+  // here would just repeat it. Only show the tag in Pending Review (where status
+  // semantics still matter alongside per-role approval progress).
+  const showStatusTag = zone === 'review';
+  const statusColor = STATUS_TAG_COLORS[brand.status] || 'default';
+  const statusLabel = brand.status;
 
   return (
     <>
@@ -542,12 +553,11 @@ export function BrandPanel(props: BrandPanelProps) {
             {expanded ? <DownOutlined /> : <RightOutlined />}
           </span>
 
-          {/* Brand + Cycle Info */}
+          {/* Cycle Name */}
           <div style={{ minWidth: 160, flexShrink: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>
-              {brand.brand_name}
+              {brand.cycle_name}
             </div>
-            <div style={{ fontSize: 13, color: COLORS.textSecondary }}>{brand.cycle_name}</div>
           </div>
 
           {/* Planning Quarter */}
@@ -555,8 +565,22 @@ export function BrandPanel(props: BrandPanelProps) {
             {brand.planning_quarter}
           </Text>
 
-          {/* Status Tag */}
-          <Tag color={statusColor}>{statusLabel}</Tag>
+          {/* Actuals months count — variance zone only */}
+          {zone === 'variance' && brand.variance_summary && (
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
+              {brand.variance_summary.actuals_months_count}/{brand.variance_summary.total_months_count} months
+            </Text>
+          )}
+
+          {/* Status Tag — only in Pending Review zone (redundant elsewhere) */}
+          {showStatusTag && <Tag color={statusColor}>{statusLabel}</Tag>}
+
+          {/* Approval progress — visible in header without expanding */}
+          {zone === 'review' && approvalProgress && (
+            <Text style={{ fontSize: 13, color: COLORS.textSecondary, flexShrink: 0 }}>
+              {approvalProgress.approved}/{approvalProgress.total} approved
+            </Text>
+          )}
 
           {/* Inline Metrics — plan view for review/approved; variance view for variance zone */}
           <div style={{ display: 'flex', gap: SPACING.lg, marginLeft: 'auto', flexWrap: 'wrap' }}>

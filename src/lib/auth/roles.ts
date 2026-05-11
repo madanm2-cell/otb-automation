@@ -31,6 +31,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   GD: [
     'edit_otb', 'submit_otb',
+    'view_all_otbs', 'view_approved_otbs',
     'approve_otb', 'view_variance',
     'request_reopen', 'export_otb', 'view_cycle',
   ],

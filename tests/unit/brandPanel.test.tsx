@@ -89,6 +89,7 @@ const makeBrand = (overrides?: Partial<EnhancedBrandSummary>): EnhancedBrandSumm
     { sub_category: 'Joggers', gmv: 37500000, nsq: 12500, inwards_qty: 7500, pct_of_total: 25 },
   ],
   has_actuals: false,
+  is_current_quarter: true,
   ...overrides,
 });
 

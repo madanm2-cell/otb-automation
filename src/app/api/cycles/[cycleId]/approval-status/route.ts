@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { APPROVER_ROLES } from '@/lib/approvalEngine';
 
@@ -38,13 +38,14 @@ export const GET = withAuth('view_cycle', async (req, auth, { params }: Params) 
 
   let profileMap: Record<string, string> = {};
   if (userIds.length > 0) {
-    const { data: profiles } = await supabase
+    const admin = createAdminClient();
+    const { data: profiles } = await admin
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, email')
       .in('id', userIds);
 
     profileMap = (profiles || []).reduce((acc, p) => {
-      acc[p.id] = p.full_name;
+      acc[p.id] = p.full_name || p.email;
       return acc;
     }, {} as Record<string, string>);
   }

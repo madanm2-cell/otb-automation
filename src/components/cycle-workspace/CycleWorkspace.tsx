@@ -12,7 +12,7 @@ import { PlanTabContent } from './PlanTabContent';
 import { ReviewTabContent } from './ReviewTabContent';
 import { AnalyzeTabContent } from './AnalyzeTabContent';
 import { resolveDefaultTab, type WorkspaceTab } from '@/lib/cycleWorkspace/defaultTab';
-import { isAnalyzeTabVisible } from '@/lib/cycleWorkspace/tabVisibility';
+import { isPlanVisible, isReviewVisible, isAnalyzeVisible } from '@/lib/cycleWorkspace/tabVisibility';
 import { useAuth } from '@/hooks/useAuth';
 
 const { Text } = Typography;
@@ -48,6 +48,7 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
   const [needsMyApproval, setNeedsMyApproval] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mountedTabs, setMountedTabs] = useState<Set<WorkspaceTab>>(new Set());
+  const [actualsVersion, setActualsVersion] = useState(0);
 
   const refetch = useCallback(async () => {
     try {
@@ -93,31 +94,31 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
     };
   }, [cycleId, refetch]);
 
-  const analyzeVisible = useMemo(() => isAnalyzeTabVisible(uploads), [uploads]);
+  const planVisible    = cycle ? isPlanVisible(cycle.status)                      : false;
+  const reviewVisible  = cycle ? isReviewVisible(cycle.status)                    : false;
+  const analyzeVisible = cycle ? isAnalyzeVisible(cycle.status, uploads)          : false;
 
   // Resolve active tab from URL or compute default.
   const urlTab = searchParams.get('tab');
   const activeTab: WorkspaceTab = useMemo(() => {
     if (!cycle) return 'setup';
 
-    if (isValidTab(urlTab)) {
-      // Analyze tab is hidden when actuals don't exist — fall through to default in that case.
-      if (urlTab === 'analyze' && !analyzeVisible) {
-        return resolveDefaultTab({
-          status: cycle.status,
-          needsMyApproval,
-          hasActuals: analyzeVisible,
-        });
-      }
-      return urlTab;
-    }
-
-    return resolveDefaultTab({
+    const defaultTab = resolveDefaultTab({
       status: cycle.status,
       needsMyApproval,
       hasActuals: analyzeVisible,
     });
-  }, [cycle, urlTab, analyzeVisible, needsMyApproval]);
+
+    if (isValidTab(urlTab)) {
+      // Redirect to default if the requested tab is hidden for this cycle's status.
+      if (urlTab === 'plan'    && !planVisible)    return defaultTab;
+      if (urlTab === 'review'  && !reviewVisible)  return defaultTab;
+      if (urlTab === 'analyze' && !analyzeVisible) return defaultTab;
+      return urlTab;
+    }
+
+    return defaultTab;
+  }, [cycle, urlTab, planVisible, reviewVisible, analyzeVisible, needsMyApproval]);
 
   // Sync URL when resolved tab differs from URL param (or URL has no tab).
   useEffect(() => {
@@ -164,6 +165,7 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
   }, [refetch]);
 
   const handleActualsUploaded = useCallback(() => {
+    setActualsVersion(v => v + 1);
     refetch();
   }, [refetch]);
 
@@ -196,15 +198,10 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
     return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   }
 
-  // Build the tab bar items. Analyze only included when actuals are validated.
-  const tabItems: { key: WorkspaceTab; label: string }[] = [
-    { key: 'setup', label: 'Setup' },
-    { key: 'plan', label: 'Plan' },
-    { key: 'review', label: 'Review' },
-  ];
-  if (analyzeVisible) {
-    tabItems.push({ key: 'analyze', label: 'Analyze' });
-  }
+  const tabItems: { key: WorkspaceTab; label: string }[] = [{ key: 'setup', label: 'Setup' }];
+  if (planVisible)    tabItems.push({ key: 'plan',    label: 'Plan' });
+  if (reviewVisible)  tabItems.push({ key: 'review',  label: 'Review' });
+  if (analyzeVisible) tabItems.push({ key: 'analyze', label: 'Analyze' });
 
   return (
     <div style={{ padding: SPACING.lg, background: COLORS.background, minHeight: '100vh' }}>
@@ -257,13 +254,13 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
             </div>
           )}
 
-          {mountedTabs.has('plan') && (
+          {planVisible && mountedTabs.has('plan') && (
             <div style={{ display: activeTab === 'plan' ? 'block' : 'none' }}>
               <PlanTabContent cycleId={cycleId} />
             </div>
           )}
 
-          {mountedTabs.has('review') && (
+          {reviewVisible && mountedTabs.has('review') && (
             <div style={{ display: activeTab === 'review' ? 'block' : 'none' }}>
               <ReviewTabContent
                 cycleId={cycleId}
@@ -275,7 +272,7 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
 
           {analyzeVisible && mountedTabs.has('analyze') && (
             <div style={{ display: activeTab === 'analyze' ? 'block' : 'none' }}>
-              <AnalyzeTabContent cycleId={cycleId} />
+              <AnalyzeTabContent cycleId={cycleId} refreshKey={actualsVersion} />
             </div>
           )}
         </div>

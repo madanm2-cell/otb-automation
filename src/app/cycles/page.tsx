@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Table, Button, Tag, Space, Typography, Statistic } from 'antd';
+import { Table, Button, Tag, Typography, Card, Row, Col } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
 import { hasPermission } from '@/lib/auth/roles';
-import { COLORS, SPACING, STATUS_TAG_COLORS } from '@/lib/designTokens';
+import { COLORS, SPACING, STATUS_TAG_COLORS, STATUS_COLORS, CARD_STYLES } from '@/lib/designTokens';
 import type { OtbCycle, CycleStatus } from '@/types/otb';
 
 const { Title } = Typography;
@@ -68,16 +68,6 @@ export default function CyclesPage() {
       key: 'planning_quarter',
     },
     {
-      title: 'Wear Types',
-      dataIndex: 'wear_types',
-      key: 'wear_types',
-      render: (types: string[]) => (
-        <Space size={4} wrap>
-          {(types || []).map(t => <Tag key={t}>{t}</Tag>)}
-        </Space>
-      ),
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -102,26 +92,28 @@ export default function CyclesPage() {
         )}
       </div>
 
-      {/* Status summary row */}
-      {cycles.length > 0 && (
-        <div style={{ display: 'flex', gap: SPACING.xl, marginBottom: SPACING.xl, flexWrap: 'wrap' }}>
-          {(['Draft', 'Filling', 'InReview', 'Approved'] as const).map(status => (
-            <Statistic
-              key={status}
-              title={<span style={{ fontSize: 12, color: COLORS.textMuted }}>{status === 'InReview' ? 'In Review' : status}</span>}
-              value={statusCounts[status] || 0}
-              valueStyle={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: status === 'Approved' ? COLORS.success
-                  : status === 'InReview' ? COLORS.accent
-                  : status === 'Filling' ? COLORS.warning
-                  : COLORS.textSecondary,
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* Status summary cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
+        {(['Draft', 'Filling', 'InReview', 'Approved'] as const).map(status => {
+          const label = status === 'InReview' ? 'In Review' : status;
+          const color = STATUS_COLORS[status] || COLORS.textSecondary;
+          return (
+            <Col key={status} xs={12} sm={6}>
+              <Card
+                style={{ ...CARD_STYLES, borderTop: `3px solid ${color}` }}
+                styles={{ body: { padding: '16px 20px' } }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, marginBottom: 8 }}>
+                  {label}
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>
+                  {statusCounts[status] || 0}
+                </div>
+              </Card>
+            </Col>
+          );
+        })}
+      </Row>
 
       <Table
         dataSource={cycles}

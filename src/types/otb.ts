@@ -456,6 +456,7 @@ export interface EnhancedBrandSummary {
   monthly: BrandMonthBreakdown[];
   top_categories: CategoryBreakdown[];
   has_actuals: boolean;
+  is_current_quarter: boolean;
   // Pre-computed variance aggregates (only present for has_actuals brands)
   variance_summary?: BrandVarianceSummary;
 }

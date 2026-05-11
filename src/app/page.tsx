@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import {
-  Typography, Row, Col, Badge, Button, Empty, Alert, Card,
+  Typography, Row, Col, Badge, Button, Empty, Alert, Card, Tag,
 } from 'antd';
 import {
   DollarOutlined, ShoppingCartOutlined, BarChartOutlined,
   InboxOutlined, ClockCircleOutlined, DatabaseOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -47,9 +47,8 @@ function NoActualsRow({ brand }: { brand: EnhancedBrandSummary }) {
       >
         <div style={{ minWidth: 160, flexShrink: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>
-            {brand.brand_name}
+            {brand.cycle_name}
           </div>
-          <div style={{ fontSize: 13, color: COLORS.textSecondary }}>{brand.cycle_name}</div>
         </div>
         <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
           {brand.planning_quarter}
@@ -65,17 +64,7 @@ function NoActualsRow({ brand }: { brand: EnhancedBrandSummary }) {
 export default function CxoDashboard() {
   const { profile } = useAuth();
   const { selectedBrandId, loading: brandLoading } = useBrand();
-  const router = useRouter();
   const dashboard = useDashboardData(selectedBrandId, !brandLoading);
-
-  // GDs redirect to cycles
-  useEffect(() => {
-    if (profile?.role === 'GD') {
-      router.replace('/cycles');
-    }
-  }, [profile, router]);
-
-  if (profile?.role === 'GD') return null;
 
   if (dashboard.loading) return <DashboardSkeleton />;
 
@@ -90,7 +79,12 @@ export default function CxoDashboard() {
     );
   }
 
-  const { approvals, kpiTotals, reviewBrands, approvedBrands } = dashboard;
+  const { approvals, kpiTotals, reviewBrands, approvedBrands, cycles } = dashboard;
+
+  const isGD = profile?.role === 'GD';
+  const fillingCycles = isGD
+    ? (cycles || []).filter(c => c.status === 'Filling')
+    : [];
 
   const hasApprovedData = kpiTotals && (
     kpiTotals.gmv > 0 || kpiTotals.nsv > 0 || kpiTotals.nsq > 0 ||
@@ -107,81 +101,114 @@ export default function CxoDashboard() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.xl }}>
         <div>
-          <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>Executive Dashboard</Title>
-          <Text type="secondary">{getCurrentQuarter()} Overview</Text>
+          <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>{getCurrentQuarter()} Overview</Title>
+          <Text type="secondary">Open-to-Buy planning summary</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={dashboard.refresh}>Refresh</Button>
       </div>
 
-      {/* KPI Row — Approved cycle totals (planned values) */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: SPACING.sm, marginBottom: SPACING.md }}>
-        <Title level={5} style={{ margin: 0 }}>Planned Totals</Title>
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          From approved cycle plans · not actuals
+      {hasApprovedData && (
+        <>
+        <Text
+          style={{
+            display: 'block',
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            color: COLORS.textMuted,
+            marginBottom: SPACING.sm,
+          }}
+        >
+          Approved Plan
         </Text>
-      </div>
-      <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
-        <Col xs={24} sm={12} lg={4}>
-          <MetricCard
-            title="GMV"
-            value={hasApprovedData ? formatCrore(kpiTotals!.gmv) : '-'}
-            icon={<DollarOutlined />}
-            color={COLORS.info}
-            size="compact"
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <MetricCard
-            title="NSV"
-            value={hasApprovedData ? formatCrore(kpiTotals!.nsv) : '-'}
-            icon={<ShoppingCartOutlined />}
-            color={COLORS.accent}
-            size="compact"
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <MetricCard
-            title="Total NSQ"
-            value={hasApprovedData ? formatQty(kpiTotals!.nsq) : '-'}
-            icon={<BarChartOutlined />}
-            color={COLORS.success}
-            size="compact"
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <MetricCard
-            title="Total Inwards"
-            value={hasApprovedData ? formatQty(kpiTotals!.inwards_qty) : '-'}
-            icon={<InboxOutlined />}
-            color={COLORS.warning}
-            size="compact"
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <MetricCard
-            title="Avg DoH"
-            value={hasApprovedData && kpiTotals!.avg_doh ? Math.round(kpiTotals!.avg_doh) : '-'}
-            icon={<ClockCircleOutlined />}
-            color={dohColor}
-            size="compact"
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <MetricCard
-            title="Closing Stock"
-            value={hasApprovedData ? formatQty(kpiTotals!.closing_stock_qty) : '-'}
-            icon={<DatabaseOutlined />}
-            color={COLORS.neutral600}
-            size="compact"
-          />
-        </Col>
-      </Row>
+        <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
+          <Col xs={24} sm={12} lg={4}>
+            <MetricCard
+              title="GMV"
+              value={formatCrore(kpiTotals!.gmv)}
+              icon={<DollarOutlined />}
+              color={COLORS.info}
+              size="compact"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <MetricCard
+              title="NSV"
+              value={formatCrore(kpiTotals!.nsv)}
+              icon={<ShoppingCartOutlined />}
+              color={COLORS.accent}
+              size="compact"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <MetricCard
+              title="Total NSQ"
+              value={formatQty(kpiTotals!.nsq)}
+              icon={<BarChartOutlined />}
+              color={COLORS.success}
+              size="compact"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <MetricCard
+              title="Total Inwards"
+              value={formatQty(kpiTotals!.inwards_qty)}
+              icon={<InboxOutlined />}
+              color={COLORS.warning}
+              size="compact"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <MetricCard
+              title="Avg DoH"
+              value={kpiTotals!.avg_doh ? Math.round(kpiTotals!.avg_doh) : '-'}
+              icon={<ClockCircleOutlined />}
+              color={dohColor}
+              size="compact"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <MetricCard
+              title="Closing Stock"
+              value={formatQty(kpiTotals!.closing_stock_qty)}
+              icon={<DatabaseOutlined />}
+              color={COLORS.neutral600}
+              size="compact"
+            />
+          </Col>
+        </Row>
+        </>
+      )}
 
-      {!hasApprovedData && (
-        <div style={{ textAlign: 'center', marginBottom: SPACING.xl }}>
-          <Text type="secondary">
-            No approved plans yet. KPI totals will appear once plans are approved.
-          </Text>
+      {/* Zone 0 — Pending Inputs (GD only) */}
+      {isGD && (
+        <div style={{ marginBottom: SPACING.xl }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
+            <Title level={4} style={{ margin: 0 }}>Pending Inputs</Title>
+            <Badge count={fillingCycles.length} style={{ backgroundColor: COLORS.warning }} />
+          </div>
+          {fillingCycles.length > 0 ? (
+            fillingCycles.map(cycle => (
+              <Link key={cycle.id} href={`/cycles/${cycle.id}?tab=plan`} style={{ textDecoration: 'none' }}>
+                <Card
+                  style={{ ...CARD_STYLES, marginBottom: SPACING.md, cursor: 'pointer' }}
+                  styles={{ body: { padding: `${SPACING.md}px ${SPACING.lg}px` } }}
+                  hoverable
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>{cycle.cycle_name}</div>
+                      <div style={{ fontSize: 13, color: COLORS.textSecondary, marginTop: 2 }}>{cycle.planning_quarter}</div>
+                    </div>
+                    <Tag color="warning">Filling</Tag>
+                  </div>
+                </Card>
+              </Link>
+            ))
+          ) : (
+            <Empty description="No cycles pending input" />
+          )}
         </div>
       )}
 
@@ -214,13 +241,13 @@ export default function CxoDashboard() {
         )}
       </div>
 
-      {/* Zone 2 — Approved Plans */}
+      {/* Zone 2 — Approved Plans (current quarter only) */}
       <div style={{ marginBottom: SPACING.xl }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
           <Title level={4} style={{ margin: 0 }}>Approved Plans</Title>
         </div>
-        {approvedBrands.length > 0 ? (
-          approvedBrands.map(brand => (
+        {approvedBrands.filter(b => b.is_current_quarter).length > 0 ? (
+          approvedBrands.filter(b => b.is_current_quarter).map(brand => (
             <BrandPanel
               key={brand.cycle_id}
               brand={brand}

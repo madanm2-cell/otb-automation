@@ -79,10 +79,26 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
 
   // Default to current quarter when not specified — the dashboard surfaces this
   // as "Q1 FY27 Overview", so multi-quarter sums in KPIs would be misleading.
+  // Exception: InReview cycles are shown regardless of quarter so that plans
+  // submitted for future quarters appear in "Pending Review".
   const effectiveQuarter = quarterParam ?? getCurrentQuarterId();
+  let currentQuarterStart: string | null = null;
   try {
     const quarterStart = getQuarterDates(effectiveQuarter).start;
-    cycleQuery = cycleQuery.eq('planning_period_start', quarterStart);
+    if (!quarterParam && statuses.includes('InReview') && statuses.includes('Approved')) {
+      // Previous quarter start — included so that approved cycles with actuals appear
+      // in the Actuals vs Plan section even after the quarter has closed.
+      const prevDate = new Date(quarterStart);
+      prevDate.setMonth(prevDate.getMonth() - 3);
+      const prevQuarterStart = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
+      // Default dashboard: all InReview (any quarter) + current-quarter + previous-quarter Approved.
+      cycleQuery = cycleQuery.or(
+        `planning_period_start.eq.${quarterStart},status.eq.InReview,and(status.eq.Approved,planning_period_start.eq.${prevQuarterStart})`
+      );
+      currentQuarterStart = quarterStart;
+    } else {
+      cycleQuery = cycleQuery.eq('planning_period_start', quarterStart);
+    }
   } catch {
     // Caller passed a non-canonical string — fall back to direct match.
     cycleQuery = cycleQuery.eq('planning_quarter', effectiveQuarter);
@@ -110,6 +126,8 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
   }
 
   const cycleIds = cycles.map(c => c.id);
+  // Maps cycle_id → planning_period_start for current-quarter checks used in brand building and KPI totals.
+  const cycleStartById = new Map(cycles.map(c => [c.id, c.planning_period_start]));
 
   // Determine which cycles have actuals uploaded
   const cyclesWithActuals = new Set<string>();
@@ -264,10 +282,9 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
 
   // 6. Build enhanced cycle summaries (one entry per cycle)
   const brands: EnhancedBrandSummary[] = Object.values(cycleAgg).map(agg => {
-    // Monthly breakdown
-    const monthly: BrandMonthBreakdown[] = Array.from(allMonths).sort().map(month => {
+    // Monthly breakdown — use this cycle's own months only, not the global set
+    const monthly: BrandMonthBreakdown[] = Object.keys(agg.monthData).sort().map(month => {
       const m = agg.monthData[month];
-      if (!m) return { month, gmv: 0, nsv: 0, nsq: 0, inwards_qty: 0, closing_stock_qty: 0, avg_doh: 0 };
       return {
         month,
         gmv: m.gmv,
@@ -308,6 +325,7 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
       monthly,
       top_categories,
       has_actuals: cyclesWithActuals.has(agg.cycle_id),
+      is_current_quarter: currentQuarterStart === null || cycleStartById.get(agg.cycle_id) === currentQuarterStart,
     };
   });
 
@@ -422,8 +440,13 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     }
   }
 
-  // 7. KPI totals (from Approved-only brands)
-  const approvedBrands = brands.filter(b => b.status === 'Approved');
+  // 7. KPI totals — current-quarter Approved only.
+  // Previous-quarter cycles are included in the brands list for the Actuals vs Plan
+  // zone but must not inflate the KPI numbers shown in the header.
+  const approvedBrands = brands.filter(b =>
+    b.status === 'Approved' &&
+    (currentQuarterStart === null || cycleStartById.get(b.cycle_id) === currentQuarterStart)
+  );
   const kpiTotals: DashboardKpiTotals = {
     gmv: approvedBrands.reduce((s, b) => s + b.gmv, 0),
     nsv: approvedBrands.reduce((s, b) => s + b.nsv, 0),

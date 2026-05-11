@@ -1,145 +1,145 @@
 sub_brand,sub_category,gender,channel,month,actual_nsq,actual_inwards_qty
-bewakoof,T-Shirts,Male,myntra_sor,2026-04-01,6511,7943
-bewakoof,T-Shirts,Male,myntra_sor,2026-05-01,5505,6166
-bewakoof,T-Shirts,Male,myntra_sor,2026-06-01,3462,3047
-bewakoof,T-Shirts,Male,amazon_cocoblu,2026-04-01,4165,5081
-bewakoof,T-Shirts,Male,amazon_cocoblu,2026-05-01,3521,3944
-bewakoof,T-Shirts,Male,amazon_cocoblu,2026-06-01,2214,1948
-bewakoof,T-Shirts,Male,flipkart_sor,2026-04-01,5364,6544
-bewakoof,T-Shirts,Male,flipkart_sor,2026-05-01,4535,5079
-bewakoof,T-Shirts,Male,flipkart_sor,2026-06-01,2853,2511
-bewakoof,T-Shirts,Male,offline,2026-04-01,2660,3245
-bewakoof,T-Shirts,Male,offline,2026-05-01,2249,2519
-bewakoof,T-Shirts,Male,offline,2026-06-01,1414,1244
-bewakoof,T-Shirts,Male,others,2026-04-01,2128,2596
-bewakoof,T-Shirts,Male,others,2026-05-01,1798,2014
-bewakoof,T-Shirts,Male,others,2026-06-01,1131,995
-bewakoof,T-Shirts,Female,myntra_sor,2026-04-01,3941,4808
-bewakoof,T-Shirts,Female,myntra_sor,2026-05-01,3331,3731
-bewakoof,T-Shirts,Female,myntra_sor,2026-06-01,2096,1844
-bewakoof,T-Shirts,Female,amazon_cocoblu,2026-04-01,2662,3248
-bewakoof,T-Shirts,Female,amazon_cocoblu,2026-05-01,2251,2521
-bewakoof,T-Shirts,Female,amazon_cocoblu,2026-06-01,1415,1245
-bewakoof,T-Shirts,Female,flipkart_sor,2026-04-01,3406,4155
-bewakoof,T-Shirts,Female,flipkart_sor,2026-05-01,2879,3224
-bewakoof,T-Shirts,Female,flipkart_sor,2026-06-01,1812,1595
-bewakoof,Jeans,Male,myntra_sor,2026-04-01,1350,1647
-bewakoof,Jeans,Male,myntra_sor,2026-05-01,1142,1279
-bewakoof,Jeans,Male,myntra_sor,2026-06-01,718,632
-bewakoof,Jeans,Male,amazon_cocoblu,2026-04-01,828,1010
-bewakoof,Jeans,Male,amazon_cocoblu,2026-05-01,700,784
-bewakoof,Jeans,Male,amazon_cocoblu,2026-06-01,440,387
-bewakoof,Jeans,Male,flipkart_sor,2026-04-01,1050,1281
-bewakoof,Jeans,Male,flipkart_sor,2026-05-01,888,995
-bewakoof,Jeans,Male,flipkart_sor,2026-06-01,558,491
-bewakoof,Jeans,Male,offline,2026-04-01,508,620
-bewakoof,Jeans,Male,offline,2026-05-01,430,482
-bewakoof,Jeans,Male,offline,2026-06-01,270,238
-bewakoof,Jeans,Female,myntra_sor,2026-04-01,993,1211
-bewakoof,Jeans,Female,myntra_sor,2026-05-01,839,940
-bewakoof,Jeans,Female,myntra_sor,2026-06-01,528,465
-bewakoof,Jeans,Female,flipkart_sor,2026-04-01,723,882
-bewakoof,Jeans,Female,flipkart_sor,2026-05-01,611,684
-bewakoof,Jeans,Female,flipkart_sor,2026-06-01,384,338
-bewakoof,Joggers,Male,myntra_sor,2026-04-01,1618,1974
-bewakoof,Joggers,Male,myntra_sor,2026-05-01,1368,1532
-bewakoof,Joggers,Male,myntra_sor,2026-06-01,861,758
-bewakoof,Joggers,Male,amazon_cocoblu,2026-04-01,986,1203
-bewakoof,Joggers,Male,amazon_cocoblu,2026-05-01,834,934
-bewakoof,Joggers,Male,amazon_cocoblu,2026-06-01,524,461
-bewakoof,Joggers,Male,flipkart_sor,2026-04-01,1318,1608
-bewakoof,Joggers,Male,flipkart_sor,2026-05-01,1114,1248
-bewakoof,Joggers,Male,flipkart_sor,2026-06-01,701,617
-bewakoof,Joggers,Female,myntra_sor,2026-04-01,790,964
-bewakoof,Joggers,Female,myntra_sor,2026-05-01,668,748
-bewakoof,Joggers,Female,myntra_sor,2026-06-01,420,370
-bewakoof,Shorts,Male,myntra_sor,2026-04-01,4636,5656
-bewakoof,Shorts,Male,myntra_sor,2026-05-01,3919,4389
-bewakoof,Shorts,Male,myntra_sor,2026-06-01,2465,2169
-bewakoof,Shorts,Male,amazon_cocoblu,2026-04-01,2996,3655
-bewakoof,Shorts,Male,amazon_cocoblu,2026-05-01,2533,2837
-bewakoof,Shorts,Male,amazon_cocoblu,2026-06-01,1593,1402
-bewakoof,Shorts,Male,offline,2026-04-01,1756,2142
-bewakoof,Shorts,Male,offline,2026-05-01,1484,1662
-bewakoof,Shorts,Male,offline,2026-06-01,934,822
-bewakoof,Shirts,Male,myntra_sor,2026-04-01,1567,1912
-bewakoof,Shirts,Male,myntra_sor,2026-05-01,1325,1484
-bewakoof,Shirts,Male,myntra_sor,2026-06-01,833,733
-bewakoof,Shirts,Male,amazon_cocoblu,2026-04-01,931,1136
-bewakoof,Shirts,Male,amazon_cocoblu,2026-05-01,787,881
-bewakoof,Shirts,Male,amazon_cocoblu,2026-06-01,495,436
-bewakoof,Shirts,Male,flipkart_sor,2026-04-01,1198,1462
-bewakoof,Shirts,Male,flipkart_sor,2026-05-01,1012,1133
-bewakoof,Shirts,Male,flipkart_sor,2026-06-01,637,561
-bewakoof,Pyjamas,Unisex,myntra_sor,2026-04-01,765,933
-bewakoof,Pyjamas,Unisex,myntra_sor,2026-05-01,647,725
-bewakoof,Pyjamas,Unisex,myntra_sor,2026-06-01,407,358
-bewakoof,Pyjamas,Unisex,amazon_cocoblu,2026-04-01,410,500
-bewakoof,Pyjamas,Unisex,amazon_cocoblu,2026-05-01,346,388
-bewakoof,Pyjamas,Unisex,amazon_cocoblu,2026-06-01,217,191
-bewakoof,Pyjamas,Unisex,flipkart_sor,2026-04-01,557,680
-bewakoof,Pyjamas,Unisex,flipkart_sor,2026-05-01,471,528
-bewakoof,Pyjamas,Unisex,flipkart_sor,2026-06-01,296,260
-bewakoof,Pyjamas,Unisex,offline,2026-04-01,285,348
-bewakoof,Pyjamas,Unisex,offline,2026-05-01,240,269
-bewakoof,Pyjamas,Unisex,offline,2026-06-01,151,133
-bewakoof air,T-Shirts,Male,myntra_sor,2026-04-01,2536,3094
-bewakoof air,T-Shirts,Male,myntra_sor,2026-05-01,2145,2402
-bewakoof air,T-Shirts,Male,myntra_sor,2026-06-01,1348,1186
-bewakoof air,T-Shirts,Male,amazon_cocoblu,2026-04-01,1519,1853
-bewakoof air,T-Shirts,Male,amazon_cocoblu,2026-05-01,1284,1438
-bewakoof air,T-Shirts,Male,amazon_cocoblu,2026-06-01,807,710
-bewakoof air,T-Shirts,Female,myntra_sor,2026-04-01,1679,2048
-bewakoof air,T-Shirts,Female,myntra_sor,2026-05-01,1420,1590
-bewakoof air,T-Shirts,Female,myntra_sor,2026-06-01,893,786
-bewakoof air,T-Shirts,Female,flipkart_sor,2026-04-01,1190,1452
-bewakoof air,T-Shirts,Female,flipkart_sor,2026-05-01,1005,1126
-bewakoof air,T-Shirts,Female,flipkart_sor,2026-06-01,633,557
-bewakoof air,Jeans,Male,myntra_sor,2026-04-01,555,677
-bewakoof air,Jeans,Male,myntra_sor,2026-05-01,469,525
-bewakoof air,Jeans,Male,myntra_sor,2026-06-01,295,260
-bewakoof air,Jeans,Male,amazon_cocoblu,2026-04-01,339,414
-bewakoof air,Jeans,Male,amazon_cocoblu,2026-05-01,287,321
-bewakoof air,Jeans,Male,amazon_cocoblu,2026-06-01,180,158
-bewakoof air,Jeans,Female,flipkart_sor,2026-04-01,315,384
-bewakoof air,Jeans,Female,flipkart_sor,2026-05-01,266,298
-bewakoof air,Jeans,Female,flipkart_sor,2026-06-01,167,147
-bewakoof air,Joggers,Male,myntra_sor,2026-04-01,638,778
-bewakoof air,Joggers,Male,myntra_sor,2026-05-01,539,604
-bewakoof air,Joggers,Male,myntra_sor,2026-06-01,339,298
-bewakoof air,Joggers,Male,amazon_cocoblu,2026-04-01,348,425
-bewakoof air,Joggers,Male,amazon_cocoblu,2026-05-01,295,330
-bewakoof air,Joggers,Male,amazon_cocoblu,2026-06-01,185,163
-bewakoof air,Joggers,Female,offline,2026-04-01,214,261
-bewakoof air,Joggers,Female,offline,2026-05-01,182,204
-bewakoof air,Joggers,Female,offline,2026-06-01,114,100
-bewakoof air,Shorts,Male,myntra_sor,2026-04-01,1767,2156
-bewakoof air,Shorts,Male,myntra_sor,2026-05-01,1494,1673
-bewakoof air,Shorts,Male,myntra_sor,2026-06-01,940,827
-bewakoof air,Shorts,Male,amazon_cocoblu,2026-04-01,1086,1325
-bewakoof air,Shorts,Male,amazon_cocoblu,2026-05-01,918,1028
-bewakoof air,Shorts,Male,amazon_cocoblu,2026-06-01,577,508
-bewakoof air,Shorts,Female,flipkart_sor,2026-04-01,843,1028
-bewakoof air,Shorts,Female,flipkart_sor,2026-05-01,712,797
-bewakoof air,Shorts,Female,flipkart_sor,2026-06-01,448,394
-bewakoof heavy duty,T-Shirts,Male,myntra_sor,2026-04-01,1147,1399
-bewakoof heavy duty,T-Shirts,Male,myntra_sor,2026-05-01,971,1088
-bewakoof heavy duty,T-Shirts,Male,myntra_sor,2026-06-01,610,537
-bewakoof heavy duty,T-Shirts,Male,amazon_cocoblu,2026-04-01,687,838
-bewakoof heavy duty,T-Shirts,Male,amazon_cocoblu,2026-05-01,581,651
-bewakoof heavy duty,T-Shirts,Male,amazon_cocoblu,2026-06-01,365,321
-bewakoof heavy duty,T-Shirts,Male,flipkart_sor,2026-04-01,903,1102
-bewakoof heavy duty,T-Shirts,Male,flipkart_sor,2026-05-01,764,856
-bewakoof heavy duty,T-Shirts,Male,flipkart_sor,2026-06-01,480,422
-bewakoof heavy duty,Jeans,Male,myntra_sor,2026-04-01,291,355
-bewakoof heavy duty,Jeans,Male,myntra_sor,2026-05-01,245,274
-bewakoof heavy duty,Jeans,Male,myntra_sor,2026-06-01,154,136
-bewakoof heavy duty,Jeans,Male,flipkart_sor,2026-04-01,204,249
-bewakoof heavy duty,Jeans,Male,flipkart_sor,2026-05-01,172,193
-bewakoof heavy duty,Jeans,Male,flipkart_sor,2026-06-01,108,95
-bewakoof heavy duty,Joggers,Male,myntra_sor,2026-04-01,325,397
-bewakoof heavy duty,Joggers,Male,myntra_sor,2026-05-01,275,308
-bewakoof heavy duty,Joggers,Male,myntra_sor,2026-06-01,173,152
-bewakoof heavy duty,Joggers,Male,amazon_cocoblu,2026-04-01,192,234
-bewakoof heavy duty,Joggers,Male,amazon_cocoblu,2026-05-01,162,181
-bewakoof heavy duty,Joggers,Male,amazon_cocoblu,2026-06-01,102,90
+bewakoof,T-Shirts,Male,myntra_sor,01/04/26,9832,15568
+bewakoof,T-Shirts,Male,myntra_sor,01/05/26,8863,9434
+bewakoof,T-Shirts,Male,myntra_sor,01/06/26,4085,4753
+bewakoof,T-Shirts,Male,amazon_cocoblu,01/04/26,7580,6758
+bewakoof,T-Shirts,Male,amazon_cocoblu,01/05/26,6162,4062
+bewakoof,T-Shirts,Male,amazon_cocoblu,01/06/26,3764,2318
+bewakoof,T-Shirts,Male,flipkart_sor,01/04/26,6276,12564
+bewakoof,T-Shirts,Male,flipkart_sor,01/05/26,6077,7720
+bewakoof,T-Shirts,Male,flipkart_sor,01/06/26,3195,4244
+bewakoof,T-Shirts,Male,offline,01/04/26,4868,6425
+bewakoof,T-Shirts,Male,offline,01/05/26,4363,3073
+bewakoof,T-Shirts,Male,offline,01/06/26,2630,1692
+bewakoof,T-Shirts,Male,others,01/04/26,3320,4413
+bewakoof,T-Shirts,Male,others,01/05/26,3488,3162
+bewakoof,T-Shirts,Male,others,01/06/26,1425,1811
+bewakoof,T-Shirts,Female,myntra_sor,01/04/26,4966,8558
+bewakoof,T-Shirts,Female,myntra_sor,01/05/26,6262,7164
+bewakoof,T-Shirts,Female,myntra_sor,01/06/26,2473,1973
+bewakoof,T-Shirts,Female,amazon_cocoblu,01/04/26,2981,5262
+bewakoof,T-Shirts,Female,amazon_cocoblu,01/05/26,4142,2824
+bewakoof,T-Shirts,Female,amazon_cocoblu,01/06/26,2575,2303
+bewakoof,T-Shirts,Female,flipkart_sor,01/04/26,4019,5609
+bewakoof,T-Shirts,Female,flipkart_sor,01/05/26,5643,4997
+bewakoof,T-Shirts,Female,flipkart_sor,01/06/26,2446,2456
+bewakoof,Jeans,Male,myntra_sor,01/04/26,1431,2981
+bewakoof,Jeans,Male,myntra_sor,01/05/26,1450,1484
+bewakoof,Jeans,Male,myntra_sor,01/06/26,969,657
+bewakoof,Jeans,Male,amazon_cocoblu,01/04/26,1623,1586
+bewakoof,Jeans,Male,amazon_cocoblu,01/05/26,1113,1482
+bewakoof,Jeans,Male,amazon_cocoblu,01/06/26,585,461
+bewakoof,Jeans,Male,flipkart_sor,01/04/26,1964,1691
+bewakoof,Jeans,Male,flipkart_sor,01/05/26,1163,1443
+bewakoof,Jeans,Male,flipkart_sor,01/06/26,658,663
+bewakoof,Jeans,Male,offline,01/04/26,549,1091
+bewakoof,Jeans,Male,offline,01/05/26,598,733
+bewakoof,Jeans,Male,offline,01/06/26,410,402
+bewakoof,Jeans,Female,myntra_sor,01/04/26,1559,1586
+bewakoof,Jeans,Female,myntra_sor,01/05/26,1670,1654
+bewakoof,Jeans,Female,myntra_sor,01/06/26,966,749
+bewakoof,Jeans,Female,flipkart_sor,01/04/26,1041,1217
+bewakoof,Jeans,Female,flipkart_sor,01/05/26,1051,1190
+bewakoof,Jeans,Female,flipkart_sor,01/06/26,538,662
+bewakoof,Joggers,Male,myntra_sor,01/04/26,1845,3474
+bewakoof,Joggers,Male,myntra_sor,01/05/26,2271,2007
+bewakoof,Joggers,Male,myntra_sor,01/06/26,1464,1046
+bewakoof,Joggers,Male,amazon_cocoblu,01/04/26,1193,2129
+bewakoof,Joggers,Male,amazon_cocoblu,01/05/26,901,1625
+bewakoof,Joggers,Male,amazon_cocoblu,01/06/26,681,470
+bewakoof,Joggers,Male,flipkart_sor,01/04/26,1727,1753
+bewakoof,Joggers,Male,flipkart_sor,01/05/26,1326,2271
+bewakoof,Joggers,Male,flipkart_sor,01/06/26,806,851
+bewakoof,Joggers,Female,myntra_sor,01/04/26,901,1099
+bewakoof,Joggers,Female,myntra_sor,01/05/26,1109,1092
+bewakoof,Joggers,Female,myntra_sor,01/06/26,491,581
+bewakoof,Shorts,Male,myntra_sor,01/04/26,6769,7975
+bewakoof,Shorts,Male,myntra_sor,01/05/26,6584,7110
+bewakoof,Shorts,Male,myntra_sor,01/06/26,2761,2451
+bewakoof,Shorts,Male,amazon_cocoblu,01/04/26,5453,4276
+bewakoof,Shorts,Male,amazon_cocoblu,01/05/26,4610,3206
+bewakoof,Shorts,Male,amazon_cocoblu,01/06/26,1928,2552
+bewakoof,Shorts,Male,offline,01/04/26,2283,4006
+bewakoof,Shorts,Male,offline,01/05/26,2923,3025
+bewakoof,Shorts,Male,offline,01/06/26,1663,1200
+bewakoof,Shirts,Male,myntra_sor,01/04/26,2930,3556
+bewakoof,Shirts,Male,myntra_sor,01/05/26,1776,2968
+bewakoof,Shirts,Male,myntra_sor,01/06/26,975,1078
+bewakoof,Shirts,Male,amazon_cocoblu,01/04/26,978,1193
+bewakoof,Shirts,Male,amazon_cocoblu,01/05/26,1306,1330
+bewakoof,Shirts,Male,amazon_cocoblu,01/06/26,901,685
+bewakoof,Shirts,Male,flipkart_sor,01/04/26,1713,1506
+bewakoof,Shirts,Male,flipkart_sor,01/05/26,1882,2266
+bewakoof,Shirts,Male,flipkart_sor,01/06/26,1204,813
+bewakoof,Pyjamas,Unisex,myntra_sor,01/04/26,1362,1045
+bewakoof,Pyjamas,Unisex,myntra_sor,01/05/26,906,1001
+bewakoof,Pyjamas,Unisex,myntra_sor,01/06/26,448,408
+bewakoof,Pyjamas,Unisex,amazon_cocoblu,01/04/26,595,580
+bewakoof,Pyjamas,Unisex,amazon_cocoblu,01/05/26,474,469
+bewakoof,Pyjamas,Unisex,amazon_cocoblu,01/06/26,260,346
+bewakoof,Pyjamas,Unisex,flipkart_sor,01/04/26,618,1136
+bewakoof,Pyjamas,Unisex,flipkart_sor,01/05/26,942,871
+bewakoof,Pyjamas,Unisex,flipkart_sor,01/06/26,485,354
+bewakoof,Pyjamas,Unisex,offline,01/04/26,433,522
+bewakoof,Pyjamas,Unisex,offline,01/05/26,444,492
+bewakoof,Pyjamas,Unisex,offline,01/06/26,151,169
+bewakoof air,T-Shirts,Male,myntra_sor,01/04/26,3145,3187
+bewakoof air,T-Shirts,Male,myntra_sor,01/05/26,4118,2474
+bewakoof air,T-Shirts,Male,myntra_sor,01/06/26,2157,2253
+bewakoof air,T-Shirts,Male,amazon_cocoblu,01/04/26,2537,2835
+bewakoof air,T-Shirts,Male,amazon_cocoblu,01/05/26,1733,2588
+bewakoof air,T-Shirts,Male,amazon_cocoblu,01/06/26,1598,959
+bewakoof air,T-Shirts,Female,myntra_sor,01/04/26,3207,2540
+bewakoof air,T-Shirts,Female,myntra_sor,01/05/26,1676,1892
+bewakoof air,T-Shirts,Female,myntra_sor,01/06/26,1411,1108
+bewakoof air,T-Shirts,Female,flipkart_sor,01/04/26,2344,1481
+bewakoof air,T-Shirts,Female,flipkart_sor,01/05/26,1960,1768
+bewakoof air,T-Shirts,Female,flipkart_sor,01/06/26,918,980
+bewakoof air,Jeans,Male,myntra_sor,01/04/26,988,826
+bewakoof air,Jeans,Male,myntra_sor,01/05/26,614,845
+bewakoof air,Jeans,Male,myntra_sor,01/06/26,378,398
+bewakoof air,Jeans,Male,amazon_cocoblu,01/04/26,380,447
+bewakoof air,Jeans,Male,amazon_cocoblu,01/05/26,445,337
+bewakoof air,Jeans,Male,amazon_cocoblu,01/06/26,245,194
+bewakoof air,Jeans,Female,flipkart_sor,01/04/26,624,714
+bewakoof air,Jeans,Female,flipkart_sor,01/05/26,412,548
+bewakoof air,Jeans,Female,flipkart_sor,01/06/26,251,148
+bewakoof air,Joggers,Male,myntra_sor,01/04/26,1219,1089
+bewakoof air,Joggers,Male,myntra_sor,01/05/26,738,676
+bewakoof air,Joggers,Male,myntra_sor,01/06/26,644,387
+bewakoof air,Joggers,Male,amazon_cocoblu,01/04/26,445,514
+bewakoof air,Joggers,Male,amazon_cocoblu,01/05/26,422,432
+bewakoof air,Joggers,Male,amazon_cocoblu,01/06/26,363,196
+bewakoof air,Joggers,Female,offline,01/04/26,321,329
+bewakoof air,Joggers,Female,offline,01/05/26,342,294
+bewakoof air,Joggers,Female,offline,01/06/26,140,187
+bewakoof air,Shorts,Male,myntra_sor,01/04/26,2562,2695
+bewakoof air,Shorts,Male,myntra_sor,01/05/26,2062,2208
+bewakoof air,Shorts,Male,myntra_sor,01/06/26,1852,1257
+bewakoof air,Shorts,Male,amazon_cocoblu,01/04/26,1379,1431
+bewakoof air,Shorts,Male,amazon_cocoblu,01/05/26,1524,1542
+bewakoof air,Shorts,Male,amazon_cocoblu,01/06/26,1119,828
+bewakoof air,Shorts,Female,flipkart_sor,01/04/26,1501,1162
+bewakoof air,Shorts,Female,flipkart_sor,01/05/26,1146,940
+bewakoof air,Shorts,Female,flipkart_sor,01/06/26,699,638
+bewakoof heavy duty,T-Shirts,Male,myntra_sor,01/04/26,1801,1413
+bewakoof heavy duty,T-Shirts,Male,myntra_sor,01/05/26,1107,1839
+bewakoof heavy duty,T-Shirts,Male,myntra_sor,01/06/26,921,773
+bewakoof heavy duty,T-Shirts,Male,amazon_cocoblu,01/04/26,1216,1575
+bewakoof heavy duty,T-Shirts,Male,amazon_cocoblu,01/05/26,796,775
+bewakoof heavy duty,T-Shirts,Male,amazon_cocoblu,01/06/26,642,340
+bewakoof heavy duty,T-Shirts,Male,flipkart_sor,01/04/26,984,1135
+bewakoof heavy duty,T-Shirts,Male,flipkart_sor,01/05/26,1505,1019
+bewakoof heavy duty,T-Shirts,Male,flipkart_sor,01/06/26,874,629
+bewakoof heavy duty,Jeans,Male,myntra_sor,01/04/26,378,451
+bewakoof heavy duty,Jeans,Male,myntra_sor,01/05/26,296,537
+bewakoof heavy duty,Jeans,Male,myntra_sor,01/06/26,266,258
+bewakoof heavy duty,Jeans,Male,flipkart_sor,01/04/26,224,351
+bewakoof heavy duty,Jeans,Male,flipkart_sor,01/05/26,291,199
+bewakoof heavy duty,Jeans,Male,flipkart_sor,01/06/26,111,127
+bewakoof heavy duty,Joggers,Male,myntra_sor,01/04/26,579,659
+bewakoof heavy duty,Joggers,Male,myntra_sor,01/05/26,451,582
+bewakoof heavy duty,Joggers,Male,myntra_sor,01/06/26,192,164
+bewakoof heavy duty,Joggers,Male,amazon_cocoblu,01/04/26,332,386
+bewakoof heavy duty,Joggers,Male,amazon_cocoblu,01/05/26,219,264
+bewakoof heavy duty,Joggers,Male,amazon_cocoblu,01/06/26,166,145

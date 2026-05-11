@@ -154,7 +154,8 @@ interface SummaryTabProps {
 }
 
 function SummaryTab({ data, channelFilter }: SummaryTabProps) {
-  const { all_months, actuals_months } = data;
+  const { all_months, actuals_months: rawActualsMonths } = data;
+  const actuals_months = rawActualsMonths.filter(m => all_months.includes(m));
   const [expanded, setExpanded] = useState<string[]>([]);
 
   const filteredRows = useMemo(
@@ -339,7 +340,8 @@ interface MetricTabProps {
 }
 
 function MetricTab({ metricKey, data, channelFilter }: MetricTabProps) {
-  const { all_months, actuals_months } = data;
+  const { all_months, actuals_months: rawActualsMonths } = data;
+  const actuals_months = rawActualsMonths.filter(m => all_months.includes(m));
 
   const filteredRows = useMemo(
     () => channelFilter ? data.rows.filter(r => r.channel === channelFilter) : data.rows,

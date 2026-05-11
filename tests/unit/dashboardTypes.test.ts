@@ -28,6 +28,7 @@ describe('Dashboard types', () => {
         { sub_category: 'T-Shirts', gmv: 50000, nsq: 2500, inwards_qty: 25000, pct_of_total: 50 },
       ],
       has_actuals: false,
+      is_current_quarter: true,
     };
     expect(brand.brand_id).toBe('b1');
     expect(brand.monthly).toHaveLength(1);

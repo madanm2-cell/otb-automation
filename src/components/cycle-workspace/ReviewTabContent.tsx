@@ -38,13 +38,13 @@ export function ReviewTabContent({
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <ReviewSummary cycleId={cycleId} />
-
       <ApprovalPanel
         cycleId={cycleId}
         cycleStatus={cycleStatus}
         onStatusChange={handleStatusChange}
       />
+
+      <ReviewSummary cycleId={cycleId} />
 
       <div>
         <Button icon={<CommentOutlined />} onClick={() => setCommentsOpen(true)}>

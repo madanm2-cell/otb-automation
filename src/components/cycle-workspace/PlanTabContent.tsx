@@ -231,14 +231,42 @@ export function PlanTabContent({ cycleId }: PlanTabContentProps) {
   const handleBulkApply = useCallback((changes: { rowId: string; month: string; field: string; value: number }[]) => {
     let updated = rows;
     const dirty = new Set(dirtyRows);
+    const suggestionUpdates: { key: string; suggestedValue: number | null; currentInwards: number | null }[] = [];
+    const inwardsClears: string[] = [];
+
     for (const change of changes) {
-      const { rows: next } = applyChange(updated, months, change);
+      const { rows: next, suggestion } = applyChange(updated, months, change);
       updated = next;
       dirty.add(change.rowId);
+
+      if (change.field === 'nsq') {
+        const currentInwards = updated.find(r => r.id === change.rowId)?.months[change.month]?.inwards_qty ?? null;
+        suggestionUpdates.push({ key: `${change.rowId}|${change.month}`, suggestedValue: suggestion?.value ?? null, currentInwards });
+      } else if (change.field === 'inwards_qty') {
+        inwardsClears.push(`${change.rowId}|${change.month}`);
+      }
     }
+
     setRows(updated);
     setDirtyRows(dirty);
     setSaveStatus('idle');
+
+    if (suggestionUpdates.length > 0 || inwardsClears.length > 0) {
+      setPendingSuggestions(prev => {
+        const next = new Map(prev);
+        for (const { key, suggestedValue, currentInwards } of suggestionUpdates) {
+          if (suggestedValue !== null && suggestedValue > 0 && suggestedValue !== currentInwards) {
+            next.set(key, suggestedValue);
+          } else {
+            next.delete(key);
+          }
+        }
+        for (const key of inwardsClears) {
+          next.delete(key);
+        }
+        return next;
+      });
+    }
   }, [rows, dirtyRows, applyChange, months]);
 
   const handleAcceptAll = useCallback(() => {

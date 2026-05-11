@@ -7,7 +7,7 @@ const mockBrand = (overrides: Partial<EnhancedBrandSummary>): EnhancedBrandSumma
   brand_id: 'b1', brand_name: 'Test', cycle_id: 'c1', cycle_name: 'Q1',
   status: 'Approved', planning_quarter: 'Q1 FY27',
   gmv: 100, nsv: 80, nsq: 50, inwards_qty: 30, avg_doh: 40, closing_stock_qty: 20,
-  monthly: [], top_categories: [], has_actuals: false,
+  monthly: [], top_categories: [], has_actuals: false, is_current_quarter: true,
   ...overrides,
 });
 
