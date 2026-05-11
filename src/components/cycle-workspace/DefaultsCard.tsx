@@ -52,6 +52,7 @@ export function DefaultsCard({ cycle, onConfirmed }: Props) {
     >
       <CycleDefaultsReview
         cycleId={cycle.id}
+        cycleStatus={cycle.status}
         onConfirmed={() => onConfirmed?.()}
       />
     </Card>

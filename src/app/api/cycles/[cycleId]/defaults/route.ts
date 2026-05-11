@@ -234,7 +234,7 @@ export const PUT = withAuth('create_cycle', async (req: NextRequest, auth, { par
     return NextResponse.json({ error: 'Can only edit defaults for Draft cycles' }, { status: 400 });
   }
   if (cycle.defaults_confirmed) {
-    return NextResponse.json({ error: 'Defaults already confirmed. Un-confirm first to make changes.' }, { status: 400 });
+    return NextResponse.json({ error: 'Defaults already confirmed. Unlock to edit first to make changes.' }, { status: 400 });
   }
 
   const { updates } = await req.json();

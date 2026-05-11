@@ -273,9 +273,9 @@ function VarianceBody({ variance }: { variance: VarianceReportData }) {
     <div style={{ marginTop: SPACING.lg }}>
       {/* RAG Summary — tile-style */}
       <div style={{ display: 'flex', gap: SPACING.md, marginBottom: SPACING.xl }}>
-        <RagTile label="RED" count={redCount} color={COLORS.danger} />
-        <RagTile label="AMBER" count={yellowCount} color={COLORS.warning} />
-        <RagTile label="GREEN" count={greenCount} color={COLORS.success} />
+        <RagTile label="BEHIND PLAN" count={redCount} color={COLORS.danger} />
+        <RagTile label="AT RISK" count={yellowCount} color={COLORS.warning} />
+        <RagTile label="ON TRACK" count={greenCount} color={COLORS.success} />
       </div>
       {/* Top Variances */}
       {top10.length > 0 && (
@@ -301,7 +301,7 @@ function RagTile({ label, count, color }: { label: string; count: number; color:
     <div
       style={{
         flex: '0 0 auto',
-        minWidth: 96,
+        minWidth: 128,
         padding: `${SPACING.sm}px ${SPACING.md}px`,
         borderLeft: `3px solid ${color}`,
         background: COLORS.background,
