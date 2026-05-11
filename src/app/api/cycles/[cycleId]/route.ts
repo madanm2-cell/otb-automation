@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/withAuth';
 
 type Params = { params: Promise<{ cycleId: string }> };
@@ -19,9 +19,13 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
     return NextResponse.json({ error: 'Cycle not found' }, { status: 404 });
   }
 
-  // Resolve assigned GD name
+  // Resolve assigned GD name. Use the admin client so the lookup bypasses
+  // RLS — other roles (Planning, CXO, etc.) may not be able to read the GD's
+  // profile row directly, which previously caused the cycle UI to fall back
+  // to showing the raw GD UUID.
   if (data.assigned_gd_id) {
-    const { data: gdProfile } = await supabase
+    const admin = createAdminClient();
+    const { data: gdProfile } = await admin
       .from('profiles')
       .select('full_name, email')
       .eq('id', data.assigned_gd_id)

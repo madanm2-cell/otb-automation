@@ -82,10 +82,11 @@ export function CycleHeader({
 
   const brandName = cycle.brands?.name;
   const showActivate = cycle.status === 'Draft' && canManageCycle;
+  // assigned_gd_name comes from the API joining profiles.full_name (falling back to email).
+  // If still missing, show "Unassigned" rather than the raw UUID — the UUID is never useful to a user.
   const assignedGdName =
     (cycle as OtbCycle & { assigned_gd_name?: string }).assigned_gd_name ||
-    cycle.assigned_gd_id ||
-    '-';
+    (cycle.assigned_gd_id ? 'Unassigned name' : 'Unassigned');
 
   return (
     <div>
