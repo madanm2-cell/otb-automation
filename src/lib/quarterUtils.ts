@@ -1,4 +1,15 @@
 /**
+ * Canonical quarter ID for the quarter containing `now` (default: today).
+ * Returns the hyphenated form (e.g. "Q1-FY27") expected by getQuarterDates.
+ */
+export function getCurrentQuarterId(now: Date = new Date()): string {
+  const month = now.getMonth();
+  const fyYear = month >= 3 ? now.getFullYear() + 1 : now.getFullYear();
+  const q = month >= 3 ? Math.ceil((month - 2) / 3) : 4;
+  return `Q${q}-FY${String(fyYear).slice(-2)}`;
+}
+
+/**
  * Parse a planning quarter string like "Q4-FY26" into start/end dates.
  * FY quarters: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
  * FY26 means Apr 2025 - Mar 2026.

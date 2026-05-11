@@ -13,6 +13,7 @@ import type {
 } from '@/types/otb';
 import { DEFAULT_VARIANCE_THRESHOLDS, METRIC_DIRECTIONS } from '@/types/otb';
 import { classifyVariance } from '@/lib/varianceEngine';
+import { getCurrentQuarterId, getQuarterDates } from '@/lib/quarterUtils';
 
 // Dimension key used to match an actuals row against the corresponding plan_data row.
 // Lowercased to match the variance API's behaviour — uploaded actuals and plan
@@ -53,12 +54,16 @@ function finalizeMetric(
 
 // GET /api/summary — enhanced cross-brand OTB summary
 // Query params:
-//   ?quarter=Q1+FY27   — filter by planning quarter
-//   ?status=Approved    — filter by cycle status (default: InReview,Approved)
+//   ?quarter=Q1-FY27   — filter by quarter (canonical, hyphenated); defaults to current quarter
+//   ?status=Approved   — filter by cycle status (default: InReview,Approved)
+//   ?brandId=<uuid>    — restrict to a single brand
+//
+// Quarter filtering is applied via planning_period_start so it tolerates the
+// "Q1-FY27" / "Q1 FY27" string variants present in legacy data.
 export const GET = withAuth('view_all_otbs', async (req, auth) => {
   const supabase = await createServerClient();
   const url = new URL(req.url);
-  const quarter = url.searchParams.get('quarter');
+  const quarterParam = url.searchParams.get('quarter');
   const statusParam = url.searchParams.get('status');
 
   // Determine which statuses to fetch
@@ -69,11 +74,18 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
   // 1. Get cycles
   let cycleQuery = supabase
     .from('otb_cycles')
-    .select('id, cycle_name, brand_id, planning_quarter, status, brands(name)')
+    .select('id, cycle_name, brand_id, planning_quarter, planning_period_start, status, brands(name)')
     .in('status', statuses);
 
-  if (quarter) {
-    cycleQuery = cycleQuery.eq('planning_quarter', quarter);
+  // Default to current quarter when not specified — the dashboard surfaces this
+  // as "Q1 FY27 Overview", so multi-quarter sums in KPIs would be misleading.
+  const effectiveQuarter = quarterParam ?? getCurrentQuarterId();
+  try {
+    const quarterStart = getQuarterDates(effectiveQuarter).start;
+    cycleQuery = cycleQuery.eq('planning_period_start', quarterStart);
+  } catch {
+    // Caller passed a non-canonical string — fall back to direct match.
+    cycleQuery = cycleQuery.eq('planning_quarter', effectiveQuarter);
   }
 
   if (auth.profile.role !== 'Admin' && auth.profile.assigned_brands?.length > 0) {
@@ -157,8 +169,10 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     };
   }
 
-  // 5. Aggregate per brand
-  interface BrandAgg {
+  // 5. Aggregate per cycle. Keyed by cycle_id (not brand_id) so a brand with
+  // multiple cycles in scope — e.g. a revision sitting in InReview alongside a
+  // prior Approved plan — produces distinct rows rather than silently summing.
+  interface CycleAgg {
     brand_id: string;
     brand_name: string;
     cycle_id: string;
@@ -176,7 +190,7 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     categoryData: Record<string, { gmv: number; nsq: number; inwards_qty: number }>;
   }
 
-  const brandAgg: Record<string, BrandAgg> = {};
+  const cycleAgg: Record<string, CycleAgg> = {};
   const allMonths = new Set<string>();
   // Per-cycle dim-key → planned values lookup, used below for variance aggregation.
   const cyclePlanLookup: Record<string, Map<string, typeof planData[number]>> = {};
@@ -205,8 +219,8 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
       }
     }
 
-    if (!brandAgg[brandInfo.brand_id]) {
-      brandAgg[brandInfo.brand_id] = {
+    if (!cycleAgg[cycleId]) {
+      cycleAgg[cycleId] = {
         ...brandInfo,
         totalGmv: 0, totalNsv: 0, totalNsq: 0,
         totalInwardsQty: 0, totalClosingStockQty: 0,
@@ -216,7 +230,7 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
       };
     }
 
-    const agg = brandAgg[brandInfo.brand_id];
+    const agg = cycleAgg[cycleId];
     agg.totalGmv += pd.sales_plan_gmv || 0;
     agg.totalNsv += pd.nsv || 0;
     agg.totalNsq += pd.nsq || 0;
@@ -248,8 +262,8 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     agg.categoryData[subCategory].inwards_qty += pd.inwards_qty || 0;
   }
 
-  // 6. Build enhanced brand summaries
-  const brands: EnhancedBrandSummary[] = Object.values(brandAgg).map(agg => {
+  // 6. Build enhanced cycle summaries (one entry per cycle)
+  const brands: EnhancedBrandSummary[] = Object.values(cycleAgg).map(agg => {
     // Monthly breakdown
     const monthly: BrandMonthBreakdown[] = Array.from(allMonths).sort().map(month => {
       const m = agg.monthData[month];

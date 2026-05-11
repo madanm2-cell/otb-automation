@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   OtbCycle, CycleStatus, EnhancedBrandSummary,
   DashboardKpiTotals, DashboardSummaryResponse,
@@ -51,7 +51,7 @@ export interface DashboardData {
   statusDistribution: Record<CycleStatus, number>;
 }
 
-export function useDashboardData(brandId: string | null = null) {
+export function useDashboardData(brandId: string | null = null, ready: boolean = true) {
   const [data, setData] = useState<DashboardData>({
     loading: true,
     error: null,
@@ -64,16 +64,25 @@ export function useDashboardData(brandId: string | null = null) {
     cycles: null,
     statusDistribution: { Draft: 0, Active: 0, Filling: 0, InReview: 0, Approved: 0 },
   });
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!ready) return;
+
+    abortRef.current?.abort();
+    const abort = new AbortController();
+    abortRef.current = abort;
+
     setData(prev => ({ ...prev, loading: true, error: null }));
 
     const qs = brandId ? `?brandId=${brandId}` : '';
     const results = await Promise.allSettled([
-      fetch(`/api/summary${qs}`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/approvals/dashboard${qs}`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/cycles${qs}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/summary${qs}`, { signal: abort.signal }).then(r => r.ok ? r.json() : null),
+      fetch(`/api/approvals/dashboard${qs}`, { signal: abort.signal }).then(r => r.ok ? r.json() : null),
+      fetch(`/api/cycles${qs}`, { signal: abort.signal }).then(r => r.ok ? r.json() : null),
     ]);
+
+    if (abort.signal.aborted) return;
 
     const summary = results[0].status === 'fulfilled' ? results[0].value as DashboardSummaryResponse : null;
     const approvals = results[1].status === 'fulfilled' ? results[1].value as ApprovalDashboardData : null;
@@ -106,7 +115,7 @@ export function useDashboardData(brandId: string | null = null) {
       cycles,
       statusDistribution,
     }));
-  }, [brandId]);
+  }, [brandId, ready]);
 
   // Lazy-load variance for a specific cycle
   const loadVariance = useCallback(async (cycleId: string) => {

@@ -64,9 +64,9 @@ function NoActualsRow({ brand }: { brand: EnhancedBrandSummary }) {
 
 export default function CxoDashboard() {
   const { profile } = useAuth();
-  const { selectedBrandId } = useBrand();
+  const { selectedBrandId, loading: brandLoading } = useBrand();
   const router = useRouter();
-  const dashboard = useDashboardData(selectedBrandId);
+  const dashboard = useDashboardData(selectedBrandId, !brandLoading);
 
   // GDs redirect to cycles
   useEffect(() => {
@@ -113,7 +113,13 @@ export default function CxoDashboard() {
         <Button icon={<ReloadOutlined />} onClick={dashboard.refresh}>Refresh</Button>
       </div>
 
-      {/* KPI Row — Approved cycle totals */}
+      {/* KPI Row — Approved cycle totals (planned values) */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: SPACING.sm, marginBottom: SPACING.md }}>
+        <Title level={5} style={{ margin: 0 }}>Planned Totals</Title>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          From approved cycle plans · not actuals
+        </Text>
+      </div>
       <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
         <Col xs={24} sm={12} lg={4}>
           <MetricCard
