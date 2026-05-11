@@ -47,7 +47,7 @@ function formatMonth(dateStr: string): string {
   return `${monthNames[d.getMonth()]} '${shortYear}`;
 }
 
-type VarianceMetricKey = 'gmv' | 'nsq' | 'inwards' | 'closing_stock';
+type VarianceMetricKey = 'gmv' | 'nsv' | 'nsq' | 'inwards' | 'closing_stock' | 'doh';
 
 function aggregateVariancePct(rows: VarianceRow[], metric: VarianceMetricKey): number | null {
   let planned = 0;
@@ -427,9 +427,11 @@ export function BrandPanel(props: BrandPanelProps) {
     if (!variance) return null;
     return {
       gmv: { pct: aggregateVariancePct(variance.rows, 'gmv'), level: aggregateWorstLevel(variance.rows, 'gmv') },
+      nsv: { pct: aggregateVariancePct(variance.rows, 'nsv'), level: aggregateWorstLevel(variance.rows, 'nsv') },
       nsq: { pct: aggregateVariancePct(variance.rows, 'nsq'), level: aggregateWorstLevel(variance.rows, 'nsq') },
       inwards: { pct: aggregateVariancePct(variance.rows, 'inwards'), level: aggregateWorstLevel(variance.rows, 'inwards') },
       closing_stock: { pct: aggregateVariancePct(variance.rows, 'closing_stock'), level: aggregateWorstLevel(variance.rows, 'closing_stock') },
+      doh: { pct: aggregateVariancePct(variance.rows, 'doh'), level: aggregateWorstLevel(variance.rows, 'doh') },
     };
   }, [variance]);
 
@@ -540,6 +542,11 @@ export function BrandPanel(props: BrandPanelProps) {
                     level={headerVariances.gmv.level}
                   />
                   <VarianceBadge
+                    label="NSV"
+                    pct={headerVariances.nsv.pct}
+                    level={headerVariances.nsv.level}
+                  />
+                  <VarianceBadge
                     label="NSQ"
                     pct={headerVariances.nsq.pct}
                     level={headerVariances.nsq.level}
@@ -554,10 +561,15 @@ export function BrandPanel(props: BrandPanelProps) {
                     pct={headerVariances.closing_stock.pct}
                     level={headerVariances.closing_stock.level}
                   />
+                  <VarianceBadge
+                    label="DoH"
+                    pct={headerVariances.doh.pct}
+                    level={headerVariances.doh.level}
+                  />
                 </>
               ) : (
                 <Space size={SPACING.lg}>
-                  {['GMV', 'NSQ', 'Inwards', 'Closing Stock'].map(label => (
+                  {['GMV', 'NSV', 'NSQ', 'Inwards', 'Closing Stock', 'DoH'].map(label => (
                     <div key={label} style={{ textAlign: 'center', minWidth: 80 }}>
                       <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{label}</div>
                       <Skeleton.Input active style={{ width: 60, height: 18 }} size="small" />
