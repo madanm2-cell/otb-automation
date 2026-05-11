@@ -35,7 +35,10 @@ const TABS: TabConfig[] = [
 export function MasterDataManager() {
   const { profile } = useAuth();
   const { selectedBrandId: globalBrandId } = useBrand();
-  const [activeTab, setActiveTab] = useState('brands');
+  const isAdmin = profile?.role === 'Admin';
+  // Non-Admin roles don't manage brands themselves — the brand context is set at login.
+  const visibleTabs = isAdmin ? TABS : TABS.filter(t => t.key !== 'brands');
+  const [activeTab, setActiveTab] = useState(visibleTabs[0].key);
   const [data, setData] = useState<MasterRecord[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(globalBrandId);
@@ -180,7 +183,7 @@ export function MasterDataManager() {
         activeKey={activeTab}
         onChange={setActiveTab}
         items={[
-          ...TABS.map(t => ({ key: t.key, label: t.label, disabled: t.brandScoped && !selectedBrandId })),
+          ...visibleTabs.map(t => ({ key: t.key, label: t.label, disabled: t.brandScoped && !selectedBrandId })),
           { key: 'variance_thresholds', label: 'Variance Thresholds', disabled: false },
         ]}
       />
