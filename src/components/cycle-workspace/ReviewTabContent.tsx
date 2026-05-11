@@ -5,6 +5,7 @@ import { Button, Space } from 'antd';
 import { CommentOutlined } from '@ant-design/icons';
 import { ApprovalPanel } from '@/components/ApprovalPanel';
 import { CommentsPanel } from '@/components/CommentsPanel';
+import { ReviewSummary } from './ReviewSummary';
 import type { CycleStatus, OtbCycle } from '@/types/otb';
 
 interface ReviewTabContentProps {
@@ -37,6 +38,8 @@ export function ReviewTabContent({
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <ReviewSummary cycleId={cycleId} />
+
       <ApprovalPanel
         cycleId={cycleId}
         cycleStatus={cycleStatus}
