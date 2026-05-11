@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message, Skeleton } from 'antd';
 import {
   RightOutlined,
@@ -433,20 +433,24 @@ export function BrandPanel(props: BrandPanelProps) {
   const [revisionComment, setRevisionComment] = useState('');
   const varianceLoadedRef = useRef(false);
 
-  // Auto-load variance on mount for variance zone so header badges populate
-  // without requiring the user to expand the row.
-  useEffect(() => {
-    if (zone === 'variance' && !varianceLoadedRef.current && variance == null) {
+  const handleToggle = () => {
+    const willExpand = !expanded;
+    setExpanded(willExpand);
+
+    // Header badges render instantly from brand.variance_summary (pre-aggregated server-side).
+    // The full variance dataset is only needed when the user expands the row
+    // (for the Top Variances table and RAG counts), so load lazily here.
+    if (willExpand && zone === 'variance' && !varianceLoadedRef.current && variance == null) {
       varianceLoadedRef.current = true;
       onLoadVariance?.(brand.cycle_id);
     }
-  }, [zone, variance, onLoadVariance, brand.cycle_id]);
-
-  const handleToggle = () => {
-    setExpanded(prev => !prev);
   };
 
+  // Prefer the server-pre-aggregated variance_summary (rendered instantly on dashboard load);
+  // fall back to client-side aggregation only if the summary isn't present (older API responses,
+  // or when the expanded view loads the full variance and we want to reflect it immediately).
   const headerVariances = useMemo(() => {
+    if (brand.variance_summary) return brand.variance_summary;
     if (!variance) return null;
     return {
       gmv: { pct: aggregateVariancePct(variance.rows, 'gmv'), level: aggregateWorstLevel(variance.rows, 'gmv') },
@@ -456,7 +460,7 @@ export function BrandPanel(props: BrandPanelProps) {
       closing_stock: { pct: aggregateVariancePct(variance.rows, 'closing_stock'), level: aggregateWorstLevel(variance.rows, 'closing_stock') },
       doh: { pct: aggregateVariancePct(variance.rows, 'doh'), level: aggregateWorstLevel(variance.rows, 'doh') },
     };
-  }, [variance]);
+  }, [brand.variance_summary, variance]);
 
   const handleApprove = async () => {
     setActionLoading(true);

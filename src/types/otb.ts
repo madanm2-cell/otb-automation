@@ -420,6 +420,24 @@ export interface CategoryBreakdown {
   pct_of_total: number; // percentage of brand total GMV
 }
 
+export interface BrandVarianceMetricSummary {
+  pct: number | null;
+  level: VarianceLevel;
+}
+
+export interface BrandVarianceSummary {
+  gmv: BrandVarianceMetricSummary;
+  nsv: BrandVarianceMetricSummary;
+  nsq: BrandVarianceMetricSummary;
+  inwards: BrandVarianceMetricSummary;
+  closing_stock: BrandVarianceMetricSummary;
+  doh: BrandVarianceMetricSummary;
+  // Transparency for the dashboard reader: how many months of actuals were
+  // included in the aggregation vs how many months the cycle planned for.
+  actuals_months_count: number;
+  total_months_count: number;
+}
+
 export interface EnhancedBrandSummary {
   brand_id: string;
   brand_name: string;
@@ -438,6 +456,8 @@ export interface EnhancedBrandSummary {
   monthly: BrandMonthBreakdown[];
   top_categories: CategoryBreakdown[];
   has_actuals: boolean;
+  // Pre-computed variance aggregates (only present for has_actuals brands)
+  variance_summary?: BrandVarianceSummary;
 }
 
 export interface DashboardKpiTotals {
