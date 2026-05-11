@@ -206,9 +206,21 @@ export function FileUploadsCard({ cycleId, cycleStatus }: Props) {
                       </Space>
                     </div>
                     {upload && (
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {upload.file_name} · {upload.row_count} rows
-                      </Text>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          {upload.file_name} · {upload.row_count} rows
+                        </Text>
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<DownloadOutlined />}
+                          href={`/api/cycles/${cycleId}/upload/${ft}/download`}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                        >
+                          Download
+                        </Button>
+                      </div>
                     )}
                   </Card>
                 );
