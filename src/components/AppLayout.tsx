@@ -5,7 +5,7 @@ import { Layout, Menu, Dropdown, Button, Spin, Typography, Avatar } from 'antd';
 import {
   DashboardOutlined, TableOutlined,
   UserOutlined, SettingOutlined, AuditOutlined, LogoutOutlined,
-  DatabaseOutlined, SwapOutlined,
+  DatabaseOutlined, SwapOutlined, BookOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
@@ -70,6 +70,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems: MenuProps['items'] = [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/cycles', icon: <TableOutlined />, label: 'OTB Cycles' },
+    { key: '/wiki', icon: <BookOutlined />, label: 'Wiki' },
   ];
 
   // Admin section
