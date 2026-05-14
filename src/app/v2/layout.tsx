@@ -77,13 +77,13 @@ export default function V2Layout({ children }: { children: React.ReactNode }) {
 
   const adminItems: { href: string; label: string; icon: string }[] = [];
   if (hasPermission(role, 'manage_users'))
-    adminItems.push({ href: '/admin/users', label: 'User Management', icon: '👤' });
+    adminItems.push({ href: '/v2/admin/users', label: 'User Management', icon: '👤' });
   if (hasPermission(role, 'manage_master_data')) {
-    adminItems.push({ href: '/admin/master-data', label: 'Master Data', icon: '🗃️' });
-    adminItems.push({ href: '/admin/master-defaults', label: 'Defaults', icon: '⚙️' });
+    adminItems.push({ href: '/v2/admin/master-data', label: 'Master Data', icon: '🗃️' });
+    adminItems.push({ href: '/v2/admin/master-defaults', label: 'Defaults', icon: '⚙️' });
   }
   if (hasPermission(role, 'view_audit_logs'))
-    adminItems.push({ href: '/admin/audit-logs', label: 'Audit Logs', icon: '📝' });
+    adminItems.push({ href: '/v2/admin/audit-logs', label: 'Audit Logs', icon: '📝' });
 
   return (
     <div style={{
