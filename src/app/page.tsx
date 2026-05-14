@@ -1,31 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
-import {
-  Typography, Row, Col, Badge, Button, Empty, Alert, Card, Tag,
-} from 'antd';
-import {
-  DollarOutlined, ShoppingCartOutlined, BarChartOutlined,
-  InboxOutlined, ClockCircleOutlined, DatabaseOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { BrandPanel } from '@/components/ui/BrandPanel';
-import { DashboardSkeleton } from '@/components/ui/PageSkeleton';
-import { COLORS, SPACING, CARD_STYLES } from '@/lib/designTokens';
 import type { EnhancedBrandSummary } from '@/types/otb';
 import { formatCrore, formatQty } from '@/lib/formatting';
-
-const { Title, Text } = Typography;
+import {
+  DollarOutlined, ShoppingCartOutlined, BarChartOutlined,
+  InboxOutlined, ClockCircleOutlined, DatabaseOutlined,
+} from '@ant-design/icons';
+import { COLORS } from '@/lib/designTokens';
 
 function getCurrentQuarter(): string {
   const now = new Date();
-  const month = now.getMonth(); // 0-indexed
-  // Indian FY: Apr=Q1, Jul=Q2, Oct=Q3, Jan=Q4
+  const month = now.getMonth();
   const fyYear = month >= 3 ? now.getFullYear() + 1 : now.getFullYear();
   const q = month >= 3 ? Math.ceil((month - 2) / 3) : 4;
   return `Q${q} FY${String(fyYear).slice(-2)}`;
@@ -33,31 +24,24 @@ function getCurrentQuarter(): string {
 
 function NoActualsRow({ brand }: { brand: EnhancedBrandSummary }) {
   return (
-    <Card
-      style={{ ...CARD_STYLES, marginBottom: SPACING.md }}
-      styles={{ body: { padding: 0 } }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: `${SPACING.md}px ${SPACING.lg}px`,
-          gap: SPACING.md,
-        }}
-      >
-        <div style={{ minWidth: 160, flexShrink: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>
-            {brand.cycle_name}
-          </div>
-        </div>
-        <Text style={{ fontSize: 12, color: COLORS.textMuted, flexShrink: 0 }}>
-          {brand.planning_quarter}
-        </Text>
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          Actuals not yet uploaded
-        </Text>
+    <div className="card" style={{ marginBottom: 12, padding: '12px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ minWidth: 160, fontWeight: 600, fontSize: 15 }}>{brand.cycle_name}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{brand.planning_quarter}</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Actuals not yet uploaded</div>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+function SectionHeader({ title, count }: { title: string; count?: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{title}</h2>
+      {count != null && count > 0 && (
+        <span className="badge badge-orange">{count}</span>
+      )}
+    </div>
   );
 }
 
@@ -66,25 +50,26 @@ export default function CxoDashboard() {
   const { selectedBrandId, loading: brandLoading } = useBrand();
   const dashboard = useDashboardData(selectedBrandId, !brandLoading);
 
-  if (dashboard.loading) return <DashboardSkeleton />;
+  if (dashboard.loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+        <div className="spinner-dark" style={{ width: 28, height: 28, borderWidth: 3, display: 'inline-block', borderRadius: '50%' }} />
+      </div>
+    );
+  }
 
   if (dashboard.error) {
     return (
-      <Alert
-        type="error"
-        message="Failed to load dashboard"
-        description={dashboard.error}
-        action={<Button onClick={dashboard.refresh}>Retry</Button>}
-      />
+      <div className="alert alert-error" style={{ maxWidth: 600 }}>
+        <span>Failed to load dashboard: {dashboard.error}</span>
+        <button className="btn-secondary btn-sm" onClick={dashboard.refresh} style={{ marginLeft: 'auto' }}>Retry</button>
+      </div>
     );
   }
 
   const { approvals, kpiTotals, reviewBrands, approvedBrands, cycles } = dashboard;
-
   const isGD = profile?.role === 'GD';
-  const fillingCycles = isGD
-    ? (cycles || []).filter(c => c.status === 'Filling')
-    : [];
+  const fillingCycles = isGD ? (cycles || []).filter(c => c.status === 'Filling') : [];
 
   const hasApprovedData = kpiTotals && (
     kpiTotals.gmv > 0 || kpiTotals.nsv > 0 || kpiTotals.nsq > 0 ||
@@ -98,126 +83,62 @@ export default function CxoDashboard() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.xl }}>
+      <div className="page-header">
         <div>
-          <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>{getCurrentQuarter()} Overview</Title>
-          <Text type="secondary">Open-to-Buy planning summary</Text>
+          <h1>{getCurrentQuarter()} Overview</h1>
+          <p>Open-to-Buy planning summary</p>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={dashboard.refresh}>Refresh</Button>
+        <button className="btn-secondary" onClick={dashboard.refresh}>↻ Refresh</button>
       </div>
 
       {hasApprovedData && (
-        <>
-        <Text
-          style={{
-            display: 'block',
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            color: COLORS.textMuted,
-            marginBottom: SPACING.sm,
-          }}
-        >
-          Approved Plan
-        </Text>
-        <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
-          <Col xs={24} sm={12} lg={4}>
-            <MetricCard
-              title="GMV"
-              value={formatCrore(kpiTotals!.gmv)}
-              icon={<DollarOutlined />}
-              color={COLORS.info}
-              size="compact"
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={4}>
-            <MetricCard
-              title="NSV"
-              value={formatCrore(kpiTotals!.nsv)}
-              icon={<ShoppingCartOutlined />}
-              color={COLORS.accent}
-              size="compact"
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={4}>
-            <MetricCard
-              title="Total NSQ"
-              value={formatQty(kpiTotals!.nsq)}
-              icon={<BarChartOutlined />}
-              color={COLORS.success}
-              size="compact"
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={4}>
-            <MetricCard
-              title="Total Inwards"
-              value={formatQty(kpiTotals!.inwards_qty)}
-              icon={<InboxOutlined />}
-              color={COLORS.warning}
-              size="compact"
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={4}>
-            <MetricCard
-              title="Avg DoH"
-              value={kpiTotals!.avg_doh ? Math.round(kpiTotals!.avg_doh) : '-'}
-              icon={<ClockCircleOutlined />}
-              color={dohColor}
-              size="compact"
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={4}>
-            <MetricCard
-              title="Closing Stock"
-              value={formatQty(kpiTotals!.closing_stock_qty)}
-              icon={<DatabaseOutlined />}
-              color={COLORS.neutral600}
-              size="compact"
-            />
-          </Col>
-        </Row>
-        </>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: 12 }}>
+            Approved Plan
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
+            {[
+              { title: 'GMV',           value: formatCrore(kpiTotals!.gmv),                      icon: <DollarOutlined />,       color: COLORS.info },
+              { title: 'NSV',           value: formatCrore(kpiTotals!.nsv),                      icon: <ShoppingCartOutlined />, color: COLORS.accent },
+              { title: 'Total NSQ',     value: formatQty(kpiTotals!.nsq),                        icon: <BarChartOutlined />,     color: COLORS.success },
+              { title: 'Total Inwards', value: formatQty(kpiTotals!.inwards_qty),                icon: <InboxOutlined />,        color: COLORS.warning },
+              { title: 'Avg DoH',       value: kpiTotals!.avg_doh ? Math.round(kpiTotals!.avg_doh) : '-', icon: <ClockCircleOutlined />, color: dohColor },
+              { title: 'Closing Stock', value: formatQty(kpiTotals!.closing_stock_qty),          icon: <DatabaseOutlined />,    color: COLORS.neutral600 },
+            ].map(m => (
+              <MetricCard key={m.title} title={m.title} value={m.value} icon={m.icon} color={m.color} size="compact" />
+            ))}
+          </div>
+        </div>
       )}
 
-      {/* Zone 0 — Pending Inputs (GD only) */}
+      {/* Pending Inputs (GD only) */}
       {isGD && (
-        <div style={{ marginBottom: SPACING.xl }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
-            <Title level={4} style={{ margin: 0 }}>Pending Inputs</Title>
-            <Badge count={fillingCycles.length} style={{ backgroundColor: COLORS.warning }} />
-          </div>
+        <div style={{ marginBottom: 32 }}>
+          <SectionHeader title="Pending Inputs" count={fillingCycles.length} />
           {fillingCycles.length > 0 ? (
             fillingCycles.map(cycle => (
-              <Link key={cycle.id} href={`/cycles/${cycle.id}?tab=plan`} style={{ textDecoration: 'none' }}>
-                <Card
-                  style={{ ...CARD_STYLES, marginBottom: SPACING.md, cursor: 'pointer' }}
-                  styles={{ body: { padding: `${SPACING.md}px ${SPACING.lg}px` } }}
-                  hoverable
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 15, color: COLORS.textPrimary }}>{cycle.cycle_name}</div>
-                      <div style={{ fontSize: 13, color: COLORS.textSecondary, marginTop: 2 }}>{cycle.planning_quarter}</div>
-                    </div>
-                    <Tag color="warning">Filling</Tag>
+              <Link key={cycle.id} href={`/cycles/${cycle.id}?tab=plan`} style={{ textDecoration: 'none', display: 'block', marginBottom: 10 }}>
+                <div className="card" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>{cycle.cycle_name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{cycle.planning_quarter}</div>
                   </div>
-                </Card>
+                  <span className="badge badge-yellow">Filling</span>
+                </div>
               </Link>
             ))
           ) : (
-            <Empty description="No cycles pending input" />
+            <div className="empty-state" style={{ padding: '32px 24px' }}>
+              <div className="empty-icon">📋</div>
+              <p>No cycles pending input</p>
+            </div>
           )}
         </div>
       )}
 
-      {/* Zone 1 — Pending Review */}
-      <div style={{ marginBottom: SPACING.xl }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
-          <Title level={4} style={{ margin: 0 }}>Pending Review</Title>
-          <Badge count={reviewBrands.length} style={{ backgroundColor: COLORS.accent }} />
-        </div>
+      {/* Pending Review */}
+      <div style={{ marginBottom: 32 }}>
+        <SectionHeader title="Pending Review" count={reviewBrands.length} />
         {reviewBrands.length > 0 ? (
           reviewBrands.map(brand => (
             <BrandPanel
@@ -237,34 +158,32 @@ export default function CxoDashboard() {
             />
           ))
         ) : (
-          <Empty description="No cycles pending review" />
+          <div className="empty-state" style={{ padding: '32px 24px' }}>
+            <div className="empty-icon">✓</div>
+            <p>No cycles pending review</p>
+          </div>
         )}
       </div>
 
-      {/* Zone 2 — Approved Plans (current quarter only) */}
-      <div style={{ marginBottom: SPACING.xl }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
-          <Title level={4} style={{ margin: 0 }}>Approved Plans</Title>
-        </div>
+      {/* Approved Plans */}
+      <div style={{ marginBottom: 32 }}>
+        <SectionHeader title="Approved Plans" />
         {approvedBrands.filter(b => b.is_current_quarter).length > 0 ? (
           approvedBrands.filter(b => b.is_current_quarter).map(brand => (
-            <BrandPanel
-              key={brand.cycle_id}
-              brand={brand}
-              zone="approved"
-            />
+            <BrandPanel key={brand.cycle_id} brand={brand} zone="approved" />
           ))
         ) : (
-          <Empty description="No approved plans" />
+          <div className="empty-state" style={{ padding: '32px 24px' }}>
+            <div className="empty-icon">📊</div>
+            <p>No approved plans</p>
+          </div>
         )}
       </div>
 
-      {/* Zone 3 — Actuals vs Plan (only shown when at least one cycle has actuals) */}
+      {/* Actuals vs Plan */}
       {approvedBrands.some(b => b.has_actuals) && (
-        <div style={{ marginBottom: SPACING.xl }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.lg }}>
-            <Title level={4} style={{ margin: 0 }}>Actuals vs Plan</Title>
-          </div>
+        <div style={{ marginBottom: 32 }}>
+          <SectionHeader title="Actuals vs Plan" />
           {approvedBrands.map(brand =>
             brand.has_actuals ? (
               <BrandPanel
