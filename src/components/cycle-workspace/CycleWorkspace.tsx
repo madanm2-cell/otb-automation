@@ -38,7 +38,7 @@ function isValidTab(value: string | null): value is WorkspaceTab {
   return value !== null && (VALID_TABS as string[]).includes(value);
 }
 
-export function CycleWorkspace({ cycleId }: { cycleId: string }) {
+export function CycleWorkspace({ cycleId, basePath = '/cycles' }: { cycleId: string; basePath?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { profile } = useAuth();
@@ -126,7 +126,7 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
     if (urlTab !== activeTab) {
       const params = new URLSearchParams(searchParams.toString());
       params.set('tab', activeTab);
-      router.replace(`/cycles/${cycleId}?${params.toString()}`);
+      router.replace(`${basePath}/${cycleId}?${params.toString()}`);
     }
   }, [activeTab, urlTab, loading, cycle, cycleId, router, searchParams]);
 
@@ -153,7 +153,7 @@ export function CycleWorkspace({ cycleId }: { cycleId: string }) {
       });
       const params = new URLSearchParams(searchParams.toString());
       params.set('tab', key);
-      router.replace(`/cycles/${cycleId}?${params.toString()}`);
+      router.replace(`${basePath}/${cycleId}?${params.toString()}`);
     },
     [cycleId, router, searchParams]
   );
