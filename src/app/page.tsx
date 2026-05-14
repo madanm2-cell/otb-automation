@@ -94,7 +94,7 @@ export default function CxoDashboard() {
       {hasApprovedData && (
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: 12 }}>
-            Approved Plan
+            Current Quarter Approved Plan
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
             {[
