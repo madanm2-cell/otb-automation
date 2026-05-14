@@ -187,52 +187,45 @@ function Arrow({ direction = 'right' }: { direction?: 'right' | 'down' | 'left' 
 
 export function ProcessSteps() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACING.xl, width: 'fit-content' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACING.xl }}>
 
       {/* Helper text */}
       <Text style={{ fontSize: 12, color: COLORS.textMuted }}>
         Click any step to read the full description.
       </Text>
 
-      {/* Row A — steps 1–4 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
-        {ROW_A.map((step, i) => (
-          <React.Fragment key={step.step}>
-            <StepBox step={step} index={i} />
-            {i < ROW_A.length - 1 && <Arrow direction="right" />}
-          </React.Fragment>
-        ))}
-      </div>
+      {/* Snake diagram — fit-content so row-reverse aligns with row A */}
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: SPACING.xl, width: 'fit-content' }}>
 
-      {/* Turn connector: arrow going down, aligned to the right end of row A */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 0 }}>
-        <div
-          style={{
-            width: 148,
-            display: 'flex',
-            justifyContent: 'center',
-          }}
-        >
-          <Arrow direction="down" />
+          {/* Row A — steps 1–4 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm }}>
+            {ROW_A.map((step, i) => (
+              <React.Fragment key={step.step}>
+                <StepBox step={step} index={i} />
+                {i < ROW_A.length - 1 && <Arrow direction="right" />}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Turn connector: down arrow aligned to step 4 (right end of row A) */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ width: 148, display: 'flex', justifyContent: 'center' }}>
+              <Arrow direction="down" />
+            </div>
+          </div>
+
+          {/* Row B — steps 5–8, row-reverse so step 5 sits under step 4 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.sm, flexDirection: 'row-reverse' }}>
+            {ROW_B.map((step, i) => (
+              <React.Fragment key={step.step}>
+                <StepBox step={step} index={i + 4} />
+                {i < ROW_B.length - 1 && <Arrow direction="left" />}
+              </React.Fragment>
+            ))}
+          </div>
+
         </div>
-      </div>
-
-      {/* Row B — steps 5–8, rendered right-to-left so the flow wraps correctly */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: SPACING.sm,
-          flexWrap: 'wrap',
-          flexDirection: 'row-reverse',
-        }}
-      >
-        {ROW_B.map((step, i) => (
-          <React.Fragment key={step.step}>
-            <StepBox step={step} index={i + 4} />
-            {i < ROW_B.length - 1 && <Arrow direction="left" />}
-          </React.Fragment>
-        ))}
       </div>
     </div>
   );
