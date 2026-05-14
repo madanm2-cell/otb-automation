@@ -216,6 +216,58 @@ export default function V2Dashboard() {
           </div>
         )}
       </div>
+
+      {approvedBrands.some(b => b.has_actuals) && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: 'var(--text)' }}>Actuals vs Plan</h2>
+          </div>
+          {approvedBrands.map(brand => (
+            brand.has_actuals ? (
+              <div key={brand.cycle_id} className="card" style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text)' }}>{brand.cycle_name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>
+                      {brand.planning_quarter} · {brand.brand_name}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="badge badge-green">Actuals Available</span>
+                    <Link href={`/v2/cycles/${brand.cycle_id}?tab=analyze`}>
+                      <button className="btn-secondary btn-sm">View Analysis →</button>
+                    </Link>
+                  </div>
+                </div>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '8px 24px', marginTop: 14, paddingTop: 14,
+                  borderTop: '1px solid var(--border)',
+                }}>
+                  {[
+                    { label: 'Plan GMV',  value: formatCrore(brand.gmv) },
+                    { label: 'Plan NSV',  value: formatCrore(brand.nsv) },
+                    { label: 'Plan NSQ',  value: formatQty(brand.nsq)   },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div key={brand.cycle_id} className="card-flat" style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{brand.cycle_name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{brand.planning_quarter}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Actuals not yet uploaded</span>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
     </div>
   );
 }
