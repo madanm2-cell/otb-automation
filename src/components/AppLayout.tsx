@@ -149,10 +149,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* User footer */}
         <div style={{ padding: '12px 10px', borderTop: '1px solid var(--sidebar-border)' }}>
+          {/* User row */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 12px', borderRadius: 'var(--radius)',
-            background: 'var(--bg-subtle)',
+            background: 'var(--bg-subtle)', marginBottom: 6,
           }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
@@ -175,51 +176,31 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               ⇥
             </button>
           </div>
-        </div>
-      </aside>
 
-      {/* Main area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-        {/* Header */}
-        <header style={{
-          height: 56, flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 36px',
-          background: 'var(--surface)',
-          borderBottom: '1px solid var(--border)',
-          position: 'sticky', top: 0, zIndex: 10,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
+          {/* Brand row */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+            padding: '6px 12px',
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selectedBrandName}
             </span>
             {brands.length > 1 && (
               <button
                 onClick={() => router.push(`/brand-select?returnTo=${encodeURIComponent(pathname ?? '/')}&switch=true`)}
-                style={{ background: 'none', border: 'none', fontSize: 12, color: 'var(--primary)', cursor: 'pointer', padding: '2px 6px', fontFamily: 'inherit' }}
+                style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--primary)', cursor: 'pointer', padding: '2px 0', fontFamily: 'inherit', flexShrink: 0 }}
               >
                 Switch
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'var(--primary-light)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 700, color: 'var(--primary)',
-            }}>
-              {initials}
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{profile.full_name}</span>
-          </div>
-        </header>
+        </div>
+      </aside>
 
-        {/* Page content */}
-        <main style={{ flex: 1, padding: '28px 36px', background: 'var(--bg)', overflowY: 'auto' }}>
-          {children}
-        </main>
-      </div>
+      {/* Main area */}
+      <main style={{ flex: 1, minWidth: 0, padding: '28px 36px', background: 'var(--bg)', overflowY: 'auto' }}>
+        {children}
+      </main>
     </div>
   );
 }
