@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Tabs, Spin, Typography, Card } from 'antd';
-import { COLORS, SPACING } from '@/lib/designTokens';
 import type { OtbCycle, FileUpload } from '@/types/otb';
 import { REQUIRED_FILE_TYPES } from '@/types/otb';
 import { CycleHeader } from './CycleHeader';
@@ -14,8 +12,6 @@ import { AnalyzeTabContent } from './AnalyzeTabContent';
 import { resolveDefaultTab, type WorkspaceTab } from '@/lib/cycleWorkspace/defaultTab';
 import { isPlanVisible, isReviewVisible, isAnalyzeVisible } from '@/lib/cycleWorkspace/tabVisibility';
 import { useAuth } from '@/hooks/useAuth';
-
-const { Text } = Typography;
 
 const VALID_TABS: WorkspaceTab[] = ['setup', 'plan', 'review', 'analyze'];
 
@@ -195,7 +191,11 @@ export function CycleWorkspace({ cycleId, basePath = '/cycles' }: { cycleId: str
   }, [cycle, canActivate, allRequiredValidated]);
 
   if (loading || !cycle) {
-    return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+        <div className="spinner-dark" style={{ width: 28, height: 28, borderWidth: 3, display: 'inline-block', borderRadius: '50%' }} />
+      </div>
+    );
   }
 
   const tabItems: { key: WorkspaceTab; label: string }[] = [{ key: 'setup', label: 'Setup' }];
@@ -204,79 +204,58 @@ export function CycleWorkspace({ cycleId, basePath = '/cycles' }: { cycleId: str
   if (analyzeVisible) tabItems.push({ key: 'analyze', label: 'Analyze' });
 
   return (
-    <div style={{ padding: SPACING.lg, background: COLORS.background, minHeight: '100vh' }}>
-      {/* Header card — cycle metadata + status pipeline */}
-      <Card
-        style={{ marginBottom: SPACING.lg, borderRadius: 8 }}
-        styles={{ body: { padding: SPACING.lg } }}
-      >
-        <CycleHeader
-          cycle={cycle}
-          onCycleUpdated={handleCycleUpdated}
-          canActivate={canActivate}
-        />
+    <div>
+      {/* Header card */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <CycleHeader cycle={cycle} onCycleUpdated={handleCycleUpdated} canActivate={canActivate} />
         {preActivationHints.length > 0 && (
-          <div style={{ marginTop: SPACING.sm }}>
-            <Text type="secondary">
-              To activate: {preActivationHints.join(' · ')}
-            </Text>
+          <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+            To activate: {preActivationHints.join(' · ')}
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* Tabs visually attached to their content card */}
-      <Card
-        style={{ borderRadius: 8 }}
-        styles={{ body: { padding: 0 } }}
-      >
-        <Tabs
-          activeKey={activeTab}
-          onChange={handleTabChange}
-          type="card"
-          size="large"
-          items={tabItems.map(t => ({ key: t.key, label: t.label }))}
-          style={{ padding: `${SPACING.sm}px ${SPACING.lg}px 0` }}
-          tabBarStyle={{ marginBottom: 0 }}
-        />
-        <div
-          style={{
-            padding: SPACING.lg,
-            borderTop: `1px solid ${COLORS.borderLight}`,
-          }}
-        >
+      {/* Tab content card */}
+      <div className="card-flat" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Tab bar */}
+        <div style={{ padding: '16px 20px 0', borderBottom: '1px solid var(--border)' }}>
+          <div className="tabs">
+            {tabItems.map(t => (
+              <button
+                key={t.key}
+                className={`tab-btn${activeTab === t.key ? ' active' : ''}`}
+                onClick={() => handleTabChange(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab content */}
+        <div style={{ padding: 24 }}>
           {mountedTabs.has('setup') && (
             <div style={{ display: activeTab === 'setup' ? 'block' : 'none' }}>
-              <SetupTab
-                cycle={cycle}
-                onCycleUpdated={handleCycleUpdated}
-                onActualsUploaded={handleActualsUploaded}
-              />
+              <SetupTab cycle={cycle} onCycleUpdated={handleCycleUpdated} onActualsUploaded={handleActualsUploaded} />
             </div>
           )}
-
           {planVisible && mountedTabs.has('plan') && (
             <div style={{ display: activeTab === 'plan' ? 'block' : 'none' }}>
               <PlanTabContent cycleId={cycleId} />
             </div>
           )}
-
           {reviewVisible && mountedTabs.has('review') && (
             <div style={{ display: activeTab === 'review' ? 'block' : 'none' }}>
-              <ReviewTabContent
-                cycleId={cycleId}
-                cycleStatus={cycle.status}
-                onCycleUpdated={handleCycleUpdated}
-              />
+              <ReviewTabContent cycleId={cycleId} cycleStatus={cycle.status} onCycleUpdated={handleCycleUpdated} />
             </div>
           )}
-
           {analyzeVisible && mountedTabs.has('analyze') && (
             <div style={{ display: activeTab === 'analyze' ? 'block' : 'none' }}>
               <AnalyzeTabContent cycleId={cycleId} refreshKey={actualsVersion} />
             </div>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
