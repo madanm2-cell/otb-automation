@@ -1,14 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Card, Spin, Typography, Space } from 'antd';
-import { AppstoreOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { COLORS, SHADOWS, SPACING } from '@/lib/designTokens';
-
-const { Title, Text } = Typography;
 
 export default function BrandSelectPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -20,8 +15,6 @@ export default function BrandSelectPage() {
 
   const loading = authLoading || brandLoading;
 
-  // Single-brand non-admin users are auto-redirected — treat as still loading
-  // so they never see the picker UI before the redirect fires.
   const isAutoRedirecting =
     !loading && !!profile && profile.role !== 'Admin' && brands.length === 1;
 
@@ -32,42 +25,26 @@ export default function BrandSelectPage() {
     router.push(returnTo);
   }
 
-  // Redirect unauthenticated users
   useEffect(() => {
-    if (!authLoading && !profile) {
-      router.replace('/login');
-    }
+    if (!authLoading && !profile) router.replace('/login');
   }, [authLoading, profile, router]);
 
-  // If sessionStorage flag already set, skip the picker — unless this is an
-  // explicit mid-session switch (?switch=true), in which case always show it.
   useEffect(() => {
     if (authLoading || !profile || isSwitching) return;
     const key = `otb_brand_selected_${profile.id}`;
-    if (sessionStorage.getItem(key)) {
-      router.replace(returnTo);
-    }
+    if (sessionStorage.getItem(key)) router.replace(returnTo);
   }, [authLoading, profile, returnTo, router, isSwitching]);
 
-  // Auto-confirm for single-brand non-admin users
   useEffect(() => {
     if (loading || !profile) return;
-    if (profile.role !== 'Admin' && brands.length === 1) {
-      confirmBrand(brands[0].id);
-    }
+    if (profile.role !== 'Admin' && brands.length === 1) confirmBrand(brands[0].id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, profile, brands]);
 
   if (loading || isAutoRedirecting || !profile) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryLight} 100%)`,
-      }}>
-        <Spin size="large" />
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #CC785C 0%, #FDF0EB 100%)' }}>
+        <div style={{ width: 40, height: 40, border: '4px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       </div>
     );
   }
@@ -75,111 +52,68 @@ export default function BrandSelectPage() {
   const isAdmin = profile.role === 'Admin';
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryLight} 100%)`,
-      padding: SPACING.xl,
-    }}>
-      <div style={{ width: '100%', maxWidth: 640 }}>
-        <div style={{ textAlign: 'center', marginBottom: SPACING.xxl }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #CC785C 0%, #FDF0EB 100%)', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 600 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <img src="/tmrw-logo.png" alt="TMRW" style={{ height: 36, marginBottom: 12 }} />
-          <Title level={3} style={{ margin: 0, color: '#fff' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: '0 0 6px' }}>
             {isSwitching ? 'Switch Brand' : 'Select a Brand'}
-          </Title>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: 0 }}>
             {isSwitching
               ? 'Pick a brand to continue — the page will reload fresh'
               : 'Choose the brand you want to work with this session'}
-          </Text>
+          </p>
         </div>
 
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          {/* All Brands option for Admin */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {isAdmin && (
             <BrandCard
-              id={null}
               name="All Brands"
               description="View and manage data across all brands"
-              icon={<AppstoreOutlined style={{ fontSize: 22 }} />}
               selected={selectedBrandId === null}
               onSelect={() => confirmBrand(null)}
             />
           )}
-
-          {brands.map((brand) => (
+          {brands.map(brand => (
             <BrandCard
               key={brand.id}
-              id={brand.id}
               name={brand.name}
               selected={selectedBrandId === brand.id}
               onSelect={() => confirmBrand(brand.id)}
             />
           ))}
-        </Space>
+        </div>
       </div>
     </div>
   );
 }
 
-interface BrandCardProps {
-  id: string | null;
+function BrandCard({ name, description, selected, onSelect }: {
   name: string;
   description?: string;
-  icon?: React.ReactNode;
   selected: boolean;
   onSelect: () => void;
-}
-
-function BrandCard({ name, description, icon, selected, onSelect }: BrandCardProps) {
+}) {
   return (
-    <Card
-      hoverable
+    <div
       onClick={onSelect}
       style={{
+        background: selected ? 'var(--primary-light)' : 'rgba(255,255,255,0.97)',
+        border: `${selected ? 2 : 1}px solid ${selected ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
         borderRadius: 12,
-        border: selected ? `2px solid ${COLORS.accent}` : `1px solid rgba(255,255,255,0.15)`,
-        background: selected ? COLORS.accentLight : 'rgba(255,255,255,0.95)',
-        boxShadow: selected ? `0 0 0 2px ${COLORS.accent}22, ${SHADOWS.md}` : SHADOWS.sm,
+        padding: '16px 20px',
         cursor: 'pointer',
-        transition: 'all 0.15s ease',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        transition: 'all var(--t-fast)',
+        boxShadow: selected ? '0 0 0 3px var(--primary-ring)' : '0 1px 4px rgba(0,0,0,0.06)',
       }}
-      styles={{ body: { padding: `${SPACING.lg}px ${SPACING.xl}px` } }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.md }}>
-          {icon && (
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 8,
-              background: selected ? COLORS.accent : COLORS.neutral100,
-              color: selected ? '#fff' : COLORS.neutral600,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              {icon}
-            </div>
-          )}
-          <div>
-            <Text strong style={{ fontSize: 15, color: COLORS.textPrimary, display: 'block' }}>
-              {name}
-            </Text>
-            {description && (
-              <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>
-                {description}
-              </Text>
-            )}
-          </div>
-        </div>
-        {selected && (
-          <CheckCircleFilled style={{ fontSize: 20, color: COLORS.accent, flexShrink: 0 }} />
-        )}
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{name}</div>
+        {description && <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{description}</div>}
       </div>
-    </Card>
+      {selected && <span style={{ fontSize: 20, color: 'var(--primary)', flexShrink: 0 }}>✓</span>}
+    </div>
   );
 }
