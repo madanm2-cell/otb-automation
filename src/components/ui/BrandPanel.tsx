@@ -1,16 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useMemo } from 'react';
-import { Card, Tag, Table, Button, Space, Typography, Tooltip, Modal, Input, message, Skeleton } from 'antd';
+import { Card, Tag, Table, Space, Typography, Tooltip, Modal, Input, message, Skeleton } from 'antd';
 import {
   RightOutlined,
   DownOutlined,
-  CheckCircleOutlined,
   ExclamationCircleOutlined,
-  UndoOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { COLORS, CARD_STYLES, SPACING, STATUS_TAG_COLORS, VARIANCE_COLORS } from '@/lib/designTokens';
 import { formatCrore, formatQty } from '@/lib/formatting';
 import type {
@@ -326,103 +323,6 @@ function RagTile({ label, count, color }: { label: string; count: number; color:
   );
 }
 
-// --- Zone Actions ---
-
-function ZoneActions({
-  zone,
-  brand,
-  approvalProgress,
-  needsMyApproval,
-  actionLoading,
-  onApprove,
-  onRequestRevision,
-}: {
-  zone: BrandPanelZone;
-  brand: EnhancedBrandSummary;
-  approvalProgress?: BrandPanelProps['approvalProgress'];
-  needsMyApproval?: boolean;
-  actionLoading?: boolean;
-  onApprove?: () => void;
-  onRequestRevision?: () => void;
-}) {
-  const planLink = (
-    <Link href={`/cycles/${brand.cycle_id}?tab=plan`}>
-      <Button type="link" icon={<LinkOutlined />}>
-        Open OTB Grid
-      </Button>
-    </Link>
-  );
-
-  if (zone === 'review') {
-    return (
-      <div
-        style={{
-          marginTop: SPACING.lg,
-          display: 'flex',
-          alignItems: 'center',
-          gap: SPACING.md,
-        }}
-      >
-        {needsMyApproval && (
-          <>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              loading={actionLoading}
-              onClick={onApprove}
-            >
-              Approve
-            </Button>
-            <Button
-              danger
-              icon={<UndoOutlined />}
-              loading={actionLoading}
-              onClick={onRequestRevision}
-            >
-              Request Revision
-            </Button>
-          </>
-        )}
-        {approvalProgress && (
-          <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginLeft: SPACING.sm }}>
-            {approvalProgress.approved}/{approvalProgress.total} roles approved
-          </Text>
-        )}
-        <div style={{ marginLeft: 'auto' }}>
-          <Link href={`/cycles/${brand.cycle_id}?tab=review`}>
-            <Button type="link" icon={<LinkOutlined />}>
-              Open Review
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (zone === 'approved') {
-    return (
-      <div style={{ marginTop: SPACING.lg }}>
-        {planLink}
-      </div>
-    );
-  }
-
-  if (zone === 'variance') {
-    return (
-      <div style={{ marginTop: SPACING.lg, display: 'flex', gap: SPACING.sm }}>
-        {planLink}
-        <Link href={`/cycles/${brand.cycle_id}?tab=analyze`}>
-          <Button type="link" icon={<LinkOutlined />}>
-            Full Variance Report
-          </Button>
-        </Link>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 // --- Main Component ---
 
 export function BrandPanel(props: BrandPanelProps) {
@@ -435,6 +335,7 @@ export function BrandPanel(props: BrandPanelProps) {
     approvalProgress,
     needsMyApproval,
   } = props;
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
@@ -639,6 +540,65 @@ export function BrandPanel(props: BrandPanelProps) {
               </>
             )}
           </div>
+
+          {/* CTA buttons — always visible, stop propagation so clicks don't toggle expand */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 12 }}
+            onClick={e => e.stopPropagation()}
+          >
+            {zone === 'review' && (
+              <>
+                {needsMyApproval && (
+                  <>
+                    <button
+                      className="btn-primary btn-sm"
+                      disabled={actionLoading}
+                      onClick={handleApprove}
+                    >
+                      {actionLoading ? '…' : 'Approve'}
+                    </button>
+                    <button
+                      className="btn-danger btn-sm"
+                      disabled={actionLoading}
+                      onClick={() => setRevisionModalOpen(true)}
+                    >
+                      Request Revision
+                    </button>
+                  </>
+                )}
+                <button
+                  className="btn-secondary btn-sm"
+                  onClick={() => router.push(`/cycles/${brand.cycle_id}?tab=review`)}
+                >
+                  Open Review
+                </button>
+              </>
+            )}
+            {zone === 'approved' && (
+              <button
+                className="btn-secondary btn-sm"
+                onClick={() => router.push(`/cycles/${brand.cycle_id}?tab=plan`)}
+              >
+                Open OTB Grid
+              </button>
+            )}
+            {zone === 'variance' && (
+              <>
+                <button
+                  className="btn-secondary btn-sm"
+                  onClick={() => router.push(`/cycles/${brand.cycle_id}?tab=plan`)}
+                >
+                  Open OTB Grid
+                </button>
+                <button
+                  className="btn-secondary btn-sm"
+                  onClick={() => router.push(`/cycles/${brand.cycle_id}?tab=analyze`)}
+                >
+                  Variance Report
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Expanded Body */}
@@ -661,15 +621,6 @@ export function BrandPanel(props: BrandPanelProps) {
                 <TopCategories categories={brand.top_categories} />
               </>
             )}
-            <ZoneActions
-              zone={zone}
-              brand={brand}
-              approvalProgress={approvalProgress}
-              needsMyApproval={needsMyApproval}
-              actionLoading={actionLoading}
-              onApprove={handleApprove}
-              onRequestRevision={() => setRevisionModalOpen(true)}
-            />
           </div>
         )}
       </Card>
