@@ -10,7 +10,9 @@ export default function V2LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') ?? '/v2';
+  const rawRedirect = searchParams.get('redirectTo') ?? '/v2';
+  // Prevent loop: if redirectTo points back to the login page, send to dashboard
+  const redirectTo = rawRedirect === '/v2/login' ? '/v2' : rawRedirect;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

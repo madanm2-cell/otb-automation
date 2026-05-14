@@ -31,6 +31,7 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect unauthenticated users to login (except login page and auth callback)
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
+    || request.nextUrl.pathname.startsWith('/v2/login')
     || request.nextUrl.pathname.startsWith('/api/auth');
 
   if (!user && !isAuthRoute) {

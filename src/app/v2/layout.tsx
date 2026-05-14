@@ -61,6 +61,12 @@ export default function V2Layout({ children }: { children: React.ReactNode }) {
 
   if (pathname?.startsWith('/brand-select')) return <>{children}</>;
 
+  // Redirect authenticated users away from the login page
+  if (profile && pathname === '/v2/login') {
+    router.replace('/v2');
+    return null;
+  }
+
   if (!profile) return <>{children}</>;
 
   const role = profile.role;
