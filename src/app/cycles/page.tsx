@@ -1,16 +1,26 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Table, Button, Tag, Typography, Card, Row, Col } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrand } from '@/contexts/BrandContext';
 import { hasPermission } from '@/lib/auth/roles';
-import { COLORS, SPACING, STATUS_TAG_COLORS, STATUS_COLORS, CARD_STYLES } from '@/lib/designTokens';
 import type { OtbCycle, CycleStatus } from '@/types/otb';
 
-const { Title } = Typography;
+const STATUS_BADGE: Record<CycleStatus, string> = {
+  Draft:    'badge badge-gray',
+  Active:   'badge badge-blue',
+  Filling:  'badge badge-blue',
+  InReview: 'badge badge-yellow',
+  Approved: 'badge badge-green',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  Draft:    'var(--text-tertiary)',
+  Filling:  'var(--info)',
+  InReview: 'var(--warning)',
+  Approved: 'var(--success)',
+};
 
 export default function CyclesPage() {
   const { profile } = useAuth();
@@ -21,19 +31,12 @@ export default function CyclesPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const url = selectedBrandId
-      ? `/api/cycles?brandId=${selectedBrandId}`
-      : '/api/cycles';
+    const url = selectedBrandId ? `/api/cycles?brandId=${selectedBrandId}` : '/api/cycles';
     setLoading(true);
     fetch(url, { signal: controller.signal })
       .then(r => r.json())
-      .then(data => {
-        setCycles(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        if (err.name !== 'AbortError') setLoading(false);
-      });
+      .then(data => { setCycles(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(err => { if (err.name !== 'AbortError') setLoading(false); });
     return () => controller.abort();
   }, [selectedBrandId]);
 
@@ -45,84 +48,74 @@ export default function CyclesPage() {
 
   const isGd = profile?.role === 'GD';
 
-  const columns = [
-    {
-      title: 'Cycle Name',
-      dataIndex: 'cycle_name',
-      key: 'cycle_name',
-      render: (text: string, record: OtbCycle) => {
-        const href = isGd && ['Filling', 'InReview', 'Approved'].includes(record.status)
-          ? `/cycles/${record.id}?tab=plan`
-          : `/cycles/${record.id}`;
-        return <Link href={href} style={{ fontWeight: 500 }}>{text}</Link>;
-      },
-    },
-    {
-      title: 'Brand',
-      key: 'brand',
-      render: (_: unknown, record: OtbCycle) => record.brands?.name || '-',
-    },
-    {
-      title: 'Quarter',
-      dataIndex: 'planning_quarter',
-      key: 'planning_quarter',
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => <Tag color={STATUS_TAG_COLORS[status] || 'default'}>{status}</Tag>,
-    },
-    {
-      title: 'Created',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (d: string) => new Date(d).toLocaleDateString('en-IN'),
-    },
-  ];
-
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl }}>
-        <Title level={3} style={{ margin: 0, color: COLORS.textPrimary }}>OTB Cycles</Title>
+    <div style={{ maxWidth: 1100 }}>
+      <div className="page-header">
+        <div>
+          <h1>OTB Cycles</h1>
+          <p>Manage planning cycles across brands</p>
+        </div>
         {canCreate && (
           <Link href="/cycles/new">
-            <Button type="primary" icon={<PlusOutlined />}>New Cycle</Button>
+            <button className="btn-primary">+ New Cycle</button>
           </Link>
         )}
       </div>
 
-      {/* Status summary cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: SPACING.xl }}>
-        {(['Draft', 'Filling', 'InReview', 'Approved'] as const).map(status => {
-          const label = status === 'InReview' ? 'In Review' : status;
-          const color = STATUS_COLORS[status] || COLORS.textSecondary;
-          return (
-            <Col key={status} xs={12} sm={6}>
-              <Card
-                style={{ ...CARD_STYLES, borderTop: `3px solid ${color}` }}
-                styles={{ body: { padding: '16px 20px' } }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, marginBottom: 8 }}>
-                  {label}
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>
-                  {statusCounts[status] || 0}
-                </div>
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
+      {/* Status summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        {(['Draft', 'Filling', 'InReview', 'Approved'] as const).map(status => (
+          <div key={status} className="stat-card" style={{ borderTop: `3px solid ${STATUS_COLORS[status] || 'var(--border)'}` }}>
+            <div className="stat-label">{status === 'InReview' ? 'In Review' : status}</div>
+            <div className="stat-value" style={{ fontSize: 28, color: STATUS_COLORS[status] || 'var(--text)' }}>
+              {statusCounts[status] || 0}
+            </div>
+          </div>
+        ))}
+      </div>
 
-      <Table
-        dataSource={cycles}
-        columns={columns}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 20 }}
-        scroll={{ x: 800 }}
-      />
+      {/* Cycles table */}
+      <div className="card-flat" style={{ padding: 0, overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 48, textAlign: 'center' }}>
+            <div className="spinner-dark" style={{ width: 24, height: 24, borderWidth: 3, display: 'inline-block', borderRadius: '50%' }} />
+          </div>
+        ) : cycles.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">📋</div>
+            <h3>No cycles yet</h3>
+            <p>Create a new cycle to get started</p>
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Cycle Name</th>
+                <th>Brand</th>
+                <th>Quarter</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cycles.map(cycle => {
+                const href = isGd && ['Filling', 'InReview', 'Approved'].includes(cycle.status)
+                  ? `/cycles/${cycle.id}?tab=plan`
+                  : `/cycles/${cycle.id}`;
+                return (
+                  <tr key={cycle.id}>
+                    <td><Link href={href} style={{ fontWeight: 500, color: 'var(--text)' }}>{cycle.cycle_name}</Link></td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{cycle.brands?.name || '—'}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{cycle.planning_quarter}</td>
+                    <td><span className={STATUS_BADGE[cycle.status]}>{cycle.status === 'InReview' ? 'In Review' : cycle.status}</span></td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{new Date(cycle.created_at).toLocaleDateString('en-IN')}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
