@@ -58,18 +58,21 @@ function BrandCard({
 
       {(brand.gmv > 0 || brand.nsv > 0) && (
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '8px 24px', marginTop: 14, paddingTop: 14,
+          display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)',
+          gap: '8px 16px', marginTop: 14, paddingTop: 14,
           borderTop: '1px solid var(--border)',
         }}>
           {[
-            { label: 'GMV', value: formatCrore(brand.gmv) },
-            { label: 'NSV', value: formatCrore(brand.nsv) },
-            { label: 'NSQ', value: formatQty(brand.nsq)  },
+            { label: 'GMV',           value: formatCrore(brand.gmv) },
+            { label: 'NSV',           value: formatCrore(brand.nsv) },
+            { label: 'NSQ',           value: formatQty(brand.nsq) },
+            { label: 'Inwards',       value: formatQty(brand.inwards_qty) },
+            { label: 'Closing Stock', value: formatQty(brand.closing_stock_qty) },
+            { label: 'Avg DoH',       value: brand.avg_doh ? String(Math.round(brand.avg_doh)) : '-' },
           ].map(({ label, value }) => (
             <div key={label}>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{value}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{value}</div>
             </div>
           ))}
         </div>
@@ -240,18 +243,21 @@ export default function V2Dashboard() {
                   </div>
                 </div>
                 <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '8px 24px', marginTop: 14, paddingTop: 14,
+                  display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)',
+                  gap: '8px 16px', marginTop: 14, paddingTop: 14,
                   borderTop: '1px solid var(--border)',
                 }}>
                   {[
-                    { label: 'Plan GMV',  value: formatCrore(brand.gmv) },
-                    { label: 'Plan NSV',  value: formatCrore(brand.nsv) },
-                    { label: 'Plan NSQ',  value: formatQty(brand.nsq)   },
+                    { label: 'Plan GMV',      value: formatCrore(brand.gmv) },
+                    { label: 'Plan NSV',      value: formatCrore(brand.nsv) },
+                    { label: 'Plan NSQ',      value: formatQty(brand.nsq) },
+                    { label: 'Inwards',       value: formatQty(brand.inwards_qty) },
+                    { label: 'Closing Stock', value: formatQty(brand.closing_stock_qty) },
+                    { label: 'Avg DoH',       value: brand.avg_doh ? String(Math.round(brand.avg_doh)) : '-' },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>{label}</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{value}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{value}</div>
                     </div>
                   ))}
                 </div>
