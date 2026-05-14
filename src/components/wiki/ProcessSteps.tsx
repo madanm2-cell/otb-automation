@@ -187,7 +187,7 @@ function Arrow({ direction = 'right' }: { direction?: 'right' | 'down' | 'left' 
 
 export function ProcessSteps() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACING.xl }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACING.xl, width: 'fit-content' }}>
 
       {/* Helper text */}
       <Text style={{ fontSize: 12, color: COLORS.textMuted }}>
