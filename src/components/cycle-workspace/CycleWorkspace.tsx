@@ -38,7 +38,7 @@ function isValidTab(value: string | null): value is WorkspaceTab {
   return value !== null && (VALID_TABS as string[]).includes(value);
 }
 
-export function CycleWorkspace({ cycleId, basePath = '/cycles' }: { cycleId: string; basePath?: string }) {
+export function CycleWorkspace({ cycleId, basePath = '/cycles', v2 = false }: { cycleId: string; basePath?: string; v2?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { profile } = useAuth();
@@ -214,6 +214,7 @@ export function CycleWorkspace({ cycleId, basePath = '/cycles' }: { cycleId: str
           cycle={cycle}
           onCycleUpdated={handleCycleUpdated}
           canActivate={canActivate}
+          v2={v2}
         />
         {preActivationHints.length > 0 && (
           <div style={{ marginTop: SPACING.sm }}>
