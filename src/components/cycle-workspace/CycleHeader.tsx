@@ -11,6 +11,7 @@ import type { OtbCycle, CycleStatus } from '@/types/otb';
 
 const V2_STATUS_BADGE: Record<CycleStatus, string> = {
   Draft: 'badge badge-gray',
+  Active: 'badge badge-blue',
   Filling: 'badge badge-blue',
   InReview: 'badge badge-yellow',
   Approved: 'badge badge-green',
