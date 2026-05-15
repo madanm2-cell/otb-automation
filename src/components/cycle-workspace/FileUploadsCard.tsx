@@ -95,9 +95,10 @@ const { Dragger } = Upload;
 interface Props {
   cycleId: string;
   cycleStatus: CycleStatus;
+  onUploadsChanged?: () => void;
 }
 
-export function FileUploadsCard({ cycleId, cycleStatus }: Props) {
+export function FileUploadsCard({ cycleId, cycleStatus, onUploadsChanged }: Props) {
   const { profile } = useAuth();
   const canUpload = profile ? hasPermission(profile.role, 'upload_data') : false;
 
@@ -172,6 +173,7 @@ export function FileUploadsCard({ cycleId, cycleStatus }: Props) {
       }
 
       loadUploads();
+      onUploadsChanged?.();
     } catch {
       message.error('Network error');
     } finally {

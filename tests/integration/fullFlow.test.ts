@@ -107,10 +107,12 @@ describeIf('Sprint 1-2 Full Flow Integration', () => {
       nextMonthNsq: 1200,
     });
 
-    expect(result.salesPlanGmv).toBe(849500);
+    // NSV = NSQ × ASP = 1000 × 849.50 = 849500
+    expect(result.nsv).toBe(849500);
+    // GMV = NSV ÷ ((1-0.255) × (1-0.12)) ≈ 1295760
+    expect(result.salesPlanGmv).toBeCloseTo(1295760, 0);
     // GOLY% = ((1000/824) - 1) × 100 ≈ 21.36%
     expect(result.golyPct).toBeCloseTo(21.36, 1);
-    expect(result.nsv).toBeCloseTo(556932, 0);
     expect(result.closingStockQty).toBe(14920);
     expect(result.gmPct).toBeCloseTo(58.80, 1);
   });
@@ -255,8 +257,10 @@ describeIf('Sprint 3-4 GD Workflow Integration', () => {
       nextMonthNsq: 600,
     });
 
-    // GMV = NSQ * ASP = 500 * 850 = 425000
-    expect(result.salesPlanGmv).toBe(425000);
+    // NSV = NSQ × ASP = 500 × 850 = 425000
+    expect(result.nsv).toBe(425000);
+    // GMV = 425000 ÷ ((1-0.255) × (1-0.12)) ≈ 648261
+    expect(result.salesPlanGmv).toBeCloseTo(648261, 0);
     // Closing stock = opening + inwards - NSQ = 15000 + 300 - 500 = 14800
     expect(result.closingStockQty).toBe(14800);
     // GM% = (ASP - COGS) / ASP * 100 = (850 - 350) / 850 * 100 ≈ 58.82

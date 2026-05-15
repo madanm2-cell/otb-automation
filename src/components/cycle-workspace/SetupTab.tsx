@@ -12,16 +12,17 @@ interface Props {
   cycle: OtbCycle;
   onCycleUpdated: (cycle: OtbCycle) => void;
   onActualsUploaded: () => void;
+  onUploadsChanged?: () => void;
 }
 
-export function SetupTab({ cycle, onCycleUpdated, onActualsUploaded }: Props) {
+export function SetupTab({ cycle, onCycleUpdated, onActualsUploaded, onUploadsChanged }: Props) {
   const { profile } = useAuth();
   const canUploadActuals = profile ? hasPermission(profile.role, 'upload_actuals') : false;
   const showActuals = cycle.status === 'Approved' && canUploadActuals;
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <FileUploadsCard cycleId={cycle.id} cycleStatus={cycle.status} />
+      <FileUploadsCard cycleId={cycle.id} cycleStatus={cycle.status} onUploadsChanged={onUploadsChanged} />
 
       <DefaultsCard
         cycle={cycle}
@@ -29,7 +30,7 @@ export function SetupTab({ cycle, onCycleUpdated, onActualsUploaded }: Props) {
       />
 
       {showActuals && (
-        <ActualsUploadCard cycleId={cycle.id} onActualsUploaded={onActualsUploaded} />
+        <ActualsUploadCard cycleId={cycle.id} cycleStatus={cycle.status} onActualsUploaded={onActualsUploaded} />
       )}
     </Space>
   );

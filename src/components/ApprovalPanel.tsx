@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Button, Tag, Modal, Input, message, Typography, Space } from 'antd';
+import { Card, Row, Col, Button, Modal, Input, message, Typography, Space } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined,
 } from '@ant-design/icons';
@@ -20,11 +20,11 @@ interface ApprovalPanelProps {
   onStatusChange?: (newStatus: string) => void;
 }
 
-const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; tagColor: string; label: string }> = {
-  Approved: { color: COLORS.success, icon: <CheckCircleOutlined />, tagColor: 'success', label: 'Approved' },
-  Pending: { color: COLORS.warning, icon: <ClockCircleOutlined />, tagColor: 'warning', label: 'Pending' },
-  RevisionRequested: { color: COLORS.danger, icon: <ExclamationCircleOutlined />, tagColor: 'error', label: 'Revision Requested' },
-  Waiting: { color: '#d9d9d9', icon: <MinusCircleOutlined />, tagColor: 'default', label: 'Waiting' },
+const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; badgeClass: string; label: string }> = {
+  Approved:          { color: COLORS.success, icon: <CheckCircleOutlined />,    badgeClass: 'badge badge-green',  label: 'Approved' },
+  Pending:           { color: COLORS.accent,  icon: <ClockCircleOutlined />,    badgeClass: 'badge badge-blue badge-pulse', label: 'Pending' },
+  RevisionRequested: { color: COLORS.danger,  icon: <ExclamationCircleOutlined />, badgeClass: 'badge badge-red', label: 'Revision Requested' },
+  Waiting:           { color: '#c4bfb8',      icon: <MinusCircleOutlined />,    badgeClass: 'badge badge-gray',  label: 'Waiting' },
 };
 
 
@@ -133,9 +133,25 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
 
   return (
     <div style={{ marginBottom: SPACING.xl }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <Title level={5} style={{ margin: 0 }}>Approval Status</Title>
-        <Text type="secondary">{approvedCount} of 4 approved</Text>
+        <span style={{
+          fontSize: 12, fontWeight: 600,
+          color: approvedCount === 4 ? COLORS.success : COLORS.textMuted,
+        }}>
+          {approvedCount} / 4 approved
+        </span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', marginBottom: SPACING.lg }}>
+        <div style={{
+          height: '100%',
+          width: `${(approvedCount / 4) * 100}%`,
+          background: approvedCount === 4
+            ? `linear-gradient(90deg, ${COLORS.success}, #38a169)`
+            : `linear-gradient(90deg, var(--primary), var(--primary-dark))`,
+          borderRadius: 3,
+          transition: 'width 0.4s ease',
+        }} />
       </div>
 
       {/* Pipeline visualization */}
@@ -152,26 +168,36 @@ export function ApprovalPanel({ cycleId, cycleStatus, onStatusChange }: Approval
             <Col key={record.role} xs={24} sm={12} md={6}>
               <Card
                 size="small"
-                style={{ ...CARD_STYLES, borderTop: `3px solid ${cfg.color}` }}
+                style={{ ...CARD_STYLES, borderTop: `3px solid ${cfg.color}`, background: `${cfg.color}08` }}
                 loading={loading}
               >
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <Space>
-                    {cfg.icon}
-                    <Text strong>{record.role}</Text>
-                  </Space>
-                  <Tag color={cfg.tagColor}>{cfg.label}</Tag>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: cfg.color, fontSize: 15, lineHeight: 1, display: 'flex' }}>{cfg.icon}</span>
+                      <Text strong style={{ fontSize: 13 }}>{record.role}</Text>
+                    </div>
+                    <span className={cfg.badgeClass} style={{ fontSize: 11 }}>{cfg.label}</span>
+                  </div>
                   {record.user_name && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {record.user_name} {formatRelativeTime(record.decided_at)}
-                    </Text>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      {record.user_name}
+                      {record.decided_at && (
+                        <span style={{ color: 'var(--text-tertiary)', marginLeft: 4 }}>
+                          · {formatRelativeTime(record.decided_at)}
+                        </span>
+                      )}
+                    </div>
                   )}
                   {record.comment && (
-                    <Text type="secondary" italic style={{ fontSize: 12 }}>
+                    <div style={{
+                      fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic',
+                      borderLeft: `2px solid ${cfg.color}40`, paddingLeft: 8,
+                    }}>
                       &ldquo;{record.comment}&rdquo;
-                    </Text>
+                    </div>
                   )}
-                </Space>
+                </div>
               </Card>
             </Col>
           );

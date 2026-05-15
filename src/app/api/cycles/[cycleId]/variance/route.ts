@@ -117,6 +117,12 @@ export const GET = withAuth('view_variance', async (req, _auth, { params }: Para
       actual.channel as string, month,
     ));
 
+    const nextPlanned = planDataMap.get(dimKey(
+      actual.sub_brand as string, actual.wear_type as string,
+      actual.sub_category as string, actual.gender as string,
+      actual.channel as string, nextMonthIso(month),
+    ));
+
     varianceRows.push({
       sub_brand: actual.sub_brand as string,
       wear_type: actual.wear_type as string,
@@ -130,6 +136,7 @@ export const GET = withAuth('view_variance', async (req, _auth, { params }: Para
       inwards: buildVarianceMetric('inwards_pct', actual.actual_inwards_qty as number | null, (planned?.inwards_qty as number | null) ?? null, thresholds.inwards_pct),
       closing_stock: buildVarianceMetric('closing_stock_pct', actual.actual_closing_stock_qty as number | null, (planned?.closing_stock_qty as number | null) ?? null, thresholds.closing_stock_pct),
       doh: buildVarianceMetric('doh_pct', actual.actual_doh as number | null, (planned?.fwd_30day_doh as number | null) ?? null, thresholds.doh_pct),
+      nextMonthPlannedNsq: (nextPlanned?.nsq as number | null) ?? null,
     });
   }
 
@@ -154,4 +161,10 @@ function dimKey(
   gender: string, channel: string, month: string,
 ): string {
   return `${subBrand}|${wearType}|${subCategory}|${gender}|${channel}|${month}`.toLowerCase();
+}
+
+function nextMonthIso(month: string): string {
+  const d = new Date(month);
+  d.setMonth(d.getMonth() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }

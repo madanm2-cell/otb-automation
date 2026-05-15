@@ -71,11 +71,14 @@ const errorColumns = [
 
 export function ActualsUploadCard({
   cycleId,
+  cycleStatus,
   onActualsUploaded,
 }: {
   cycleId: string;
+  cycleStatus?: string;
   onActualsUploaded?: () => void;
 }) {
+  const isApproved = cycleStatus === 'Approved';
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [open, setOpen] = useState<boolean>(true);
@@ -199,16 +202,18 @@ export function ActualsUploadCard({
         <Paragraph type="secondary">
           Month format: <Text code>YYYY-MM-DD</Text> (first day of month, e.g. 2026-04-01)
         </Paragraph>
-        <Paragraph type="warning">
-          Only approved cycles accept actuals uploads.
-        </Paragraph>
+        {!isApproved && (
+          <Paragraph type="warning">
+            Only approved cycles accept actuals uploads.
+          </Paragraph>
+        )}
       </Card>
 
       <Card title="Upload Actuals CSV" size="small">
         <Dragger
           accept=".csv"
           showUploadList={false}
-          disabled={uploading}
+          disabled={uploading || !isApproved}
           customRequest={({ file }) => {
             handleUpload(file as File);
           }}

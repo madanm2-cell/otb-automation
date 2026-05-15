@@ -1,7 +1,7 @@
 import type { FormulaInputs, FormulaOutputs } from '@/types/otb';
 
-// Step 1: Sales Plan GMV = NSQ × ASP
-export function calcSalesPlanGmv(nsq: number | null, asp: number | null): number | null {
+// Step 1: NSV = NSQ × ASP
+export function calcNsv(nsq: number | null, asp: number | null): number | null {
   if (nsq == null || asp == null) return null;
   return nsq * asp;
 }
@@ -12,10 +12,10 @@ export function calcGolyPct(nsq: number | null, lyNsq: number | null): number | 
   return ((nsq / lyNsq) - 1) * 100;
 }
 
-// Step 3: NSV = GMV × (1 - Return%) × (1 - Tax%)
-export function calcNsv(gmv: number | null, returnPct: number | null, taxPct: number | null): number | null {
-  if (gmv == null || returnPct == null || taxPct == null) return null;
-  return gmv * (1 - returnPct / 100) * (1 - taxPct / 100);
+// Step 3: GMV = NSV ÷ ((1 − Return%) × (1 − Tax%))
+export function calcSalesPlanGmv(nsv: number | null, returnPct: number | null, taxPct: number | null): number | null {
+  if (nsv == null || returnPct == null || taxPct == null) return null;
+  return nsv / ((1 - returnPct / 100) * (1 - taxPct / 100));
 }
 
 // Step 4: Inwards Value = Inwards Qty × COGS (inwards defaults to 0 if not yet entered)
@@ -69,9 +69,9 @@ export function calcSuggestedInwards(
 
 // Full 9-step chain (GM only — CM1/CM2 removed per 2026-04-27 pivot)
 export function calculateAll(inputs: FormulaInputs): FormulaOutputs {
-  const salesPlanGmv = calcSalesPlanGmv(inputs.nsq, inputs.asp);
+  const nsv = calcNsv(inputs.nsq, inputs.asp);
   const golyPct = calcGolyPct(inputs.nsq, inputs.lySalesNsq);
-  const nsv = calcNsv(salesPlanGmv, inputs.returnPct, inputs.taxPct);
+  const salesPlanGmv = calcSalesPlanGmv(nsv, inputs.returnPct, inputs.taxPct);
   const inwardsValCogs = calcInwardsValCogs(inputs.inwardsQty, inputs.cogs);
   const openingStockVal = calcOpeningStockVal(inputs.openingStockQty, inputs.cogs);
   const closingStockQty = calcClosingStockQty(inputs.openingStockQty, inputs.inwardsQty, inputs.nsq);

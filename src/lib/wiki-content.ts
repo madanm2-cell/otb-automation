@@ -247,19 +247,19 @@ export const SYSTEM_POPULATED_FIELDS: SystemField[] = [
 
 export const CALCULATED_FIELDS: CalculatedField[] = [
   {
-    field: 'Sales Plan Gross Merchandise Value',
+    field: 'Net Sales Value',
     formula: 'Net Sales Quantity × Average Selling Price',
-    description: 'Total planned revenue before any deductions.',
+    description: 'Planned revenue from net sales units at the selling price.',
+  },
+  {
+    field: 'Sales Plan Gross Merchandise Value',
+    formula: 'Net Sales Value ÷ ((1 − Return Percentage) × (1 − Tax Percentage))',
+    description: 'Gross revenue before returns and taxes, derived by grossing up Net Sales Value.',
   },
   {
     field: 'Growth Over Last Year Percentage',
-    formula: '(Sales Plan Gross Merchandise Value ÷ Last Year Gross Merchandise Value) − 1',
-    description: "Year-over-year growth of planned sales versus last year's actuals.",
-  },
-  {
-    field: 'Net Sales Value',
-    formula: 'Gross Merchandise Value × (1 − Return Percentage) × (1 − Tax Percentage)',
-    description: 'Revenue after returns and tax deductions.',
+    formula: '(Net Sales Quantity ÷ Last Year Net Sales Quantity) − 1',
+    description: "Year-over-year growth of planned net sales quantity versus last year's actuals.",
   },
   {
     field: 'Inwards Value at Cost',
@@ -356,6 +356,123 @@ export const PERMISSION_ROWS: PermissionRow[] = [
   { label: 'View Cross-Brand Summary', admin: true,  planning: false, gd: false, finance: false, cxo: false, readOnly: false },
 ];
 
+// ─── Variance Report ──────────────────────────────────────────────────────────
+
+export interface VarianceMetricDef {
+  metric: string;
+  unit: string;
+  planValue: string;
+  actualValue: string;
+  aggregation: string;
+  notes: string;
+}
+
+export const VARIANCE_METRIC_DEFS: VarianceMetricDef[] = [
+  {
+    metric: 'GMV',
+    unit: '₹ Cr',
+    planValue: 'sales_plan_gmv from plan grid',
+    actualValue: 'Derived: actual NSV ÷ ((1 − Return%) × (1 − Tax%))',
+    aggregation: 'Sum across all dimension rows for the month',
+    notes: 'Flow metric — summed across all actuals months for Q Total.',
+  },
+  {
+    metric: 'NSV',
+    unit: '₹ Cr',
+    planValue: 'nsv from plan grid',
+    actualValue: 'Derived: actual NSQ × ASP',
+    aggregation: 'Sum across all dimension rows for the month',
+    notes: 'Flow metric — summed across all actuals months for Q Total.',
+  },
+  {
+    metric: 'NSQ',
+    unit: 'Units',
+    planValue: 'nsq (GD input)',
+    actualValue: 'actual_nsq from Actuals upload',
+    aggregation: 'Sum across all dimension rows for the month',
+    notes: 'Flow metric — summed across all actuals months for Q Total.',
+  },
+  {
+    metric: 'Inwards',
+    unit: 'Units',
+    planValue: 'inwards_qty (GD input)',
+    actualValue: 'actual_inwards_qty from Actuals upload',
+    aggregation: 'Sum across all dimension rows for the month',
+    notes: 'Flow metric — summed across all actuals months for Q Total.',
+  },
+  {
+    metric: 'Closing Stock',
+    unit: 'Units',
+    planValue: 'closing_stock_qty from plan grid',
+    actualValue: 'Derived: Opening Stock + actual Inwards − actual NSQ',
+    aggregation: 'Sum across all dimension rows for the last actuals month only',
+    notes: 'Snapshot metric — represents the stock position at a point in time, not a flow. Summing across multiple months would be meaningless. Q Total uses the last actuals month.',
+  },
+  {
+    metric: 'DOH',
+    unit: 'Days',
+    planValue: 'fwd_30day_doh from plan grid',
+    actualValue: 'Derived from actual closing stock and next-month actual NSQ',
+    aggregation: 'sum(Closing Stock Qty for month M) ÷ (sum(NSQ for month M+1) ÷ 30)',
+    notes: 'Uses next month NSQ as the forward sales rate, matching the per-row formula. For the last month of the quarter, current month NSQ is used as the denominator. Q Total uses closing stock of the last actuals month divided by NSQ of the following month.',
+  },
+];
+
+export interface VarianceThresholdDef {
+  metric: string;
+  defaultThreshold: string;
+  direction: string;
+  description: string;
+}
+
+export const VARIANCE_THRESHOLD_DEFS: VarianceThresholdDef[] = [
+  {
+    metric: 'GMV',
+    defaultThreshold: '±15%',
+    direction: 'Higher is better',
+    description: 'Green if within 15% of plan. Yellow or red if below plan by more than threshold.',
+  },
+  {
+    metric: 'NSV',
+    defaultThreshold: '±15%',
+    direction: 'Higher is better',
+    description: 'Green if within 15% of plan.',
+  },
+  {
+    metric: 'NSQ',
+    defaultThreshold: '±15%',
+    direction: 'Higher is better',
+    description: 'Green if within 15% of plan.',
+  },
+  {
+    metric: 'Inwards',
+    defaultThreshold: '±20%',
+    direction: 'Lower is better',
+    description: 'Actuals exceeding plan by more than threshold signal over-buying.',
+  },
+  {
+    metric: 'Closing Stock',
+    defaultThreshold: '±25%',
+    direction: 'Lower is better',
+    description: 'Actuals exceeding plan signal excess inventory build-up.',
+  },
+  {
+    metric: 'DOH',
+    defaultThreshold: '±20%',
+    direction: 'Lower is better',
+    description: 'Actuals exceeding plan signal stock cover is longer than planned.',
+  },
+];
+
+export const VARIANCE_AGGREGATION_NOTES: string[] = [
+  'Flow metrics (GMV, NSV, NSQ, Inwards) are summed across every dimension row × month combination shown in the table.',
+  'Snapshot metrics (Closing Stock, DOH) are calculated only from the last actuals month to reflect the current stock position rather than a cumulative total.',
+  'For Q Total, DOH = sum(Closing Stock of last actuals month) ÷ (sum(NSQ of the next planning month) ÷ 30). If the last actuals month is also the last planning month, current month NSQ is used.',
+  'Sub-category breakdowns apply the same aggregation logic but scoped to rows matching that sub-category.',
+  'RAG levels in the table are the worst level across all dimension rows included in the aggregation — if any row is red, the aggregated cell shows red.',
+  'Thresholds are configurable per brand by Admin in the Variance Thresholds admin screen.',
+];
+
 export const GLOSSARY_TERMS: GlossaryTerm[] = [
   {
     term: 'Open-To-Buy',
@@ -382,18 +499,19 @@ export const GLOSSARY_TERMS: GlossaryTerm[] = [
       'Units planned to be sold, after accounting for returns. The primary input entered by the Growth Director.',
   },
   {
-    term: 'Gross Merchandise Value',
+    term: 'Net Sales Value',
     definition:
-      'Total planned revenue = Net Sales Quantity × Average Selling Price, before any deductions.',
+      'Net Sales Quantity × Average Selling Price. The net revenue figure used as the basis for deriving Gross Merchandise Value.',
   },
   {
-    term: 'Net Sales Value',
-    definition: 'Revenue after returns and tax are deducted from Gross Merchandise Value.',
+    term: 'Gross Merchandise Value',
+    definition:
+      'Gross revenue before returns and taxes. Derived by grossing up Net Sales Value: NSV ÷ ((1 − Return%) × (1 − Tax%)).',
   },
   {
     term: 'Growth Over Last Year',
     definition:
-      'Year-over-year percentage growth of planned Gross Merchandise Value versus the same period last year.',
+      'Year-over-year percentage growth of planned Net Sales Quantity versus the same period last year.',
   },
   {
     term: 'Days on Hand',

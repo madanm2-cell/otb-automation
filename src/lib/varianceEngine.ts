@@ -71,8 +71,8 @@ export interface ActualDerivedOutputs {
 }
 
 export function calcActualDerived(inputs: ActualDerivedInputs): ActualDerivedOutputs {
-  const actualGmv = calcSalesPlanGmv(inputs.actualNsq, inputs.asp);
-  const actualNsv = calcNsv(actualGmv, inputs.returnPct, inputs.taxPct);
+  const actualNsv = calcNsv(inputs.actualNsq, inputs.asp);
+  const actualGmv = calcSalesPlanGmv(actualNsv, inputs.returnPct, inputs.taxPct);
   const actualClosingStockQty = calcClosingStockQty(
     inputs.openingStockQty,
     inputs.actualInwardsQty,

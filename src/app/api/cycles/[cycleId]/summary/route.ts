@@ -54,7 +54,7 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
   let dohSum = 0, dohCount = 0;
   type MonthAgg = { gmv: number; nsv: number; nsq: number; inwards_qty: number; closing_stock_qty: number; dohSum: number; dohCount: number };
   const monthData: Record<string, MonthAgg> = {};
-  const categoryData: Record<string, { gmv: number; nsq: number; inwards_qty: number }> = {};
+  const categoryData: Record<string, { gmv: number; nsv: number; nsq: number; inwards_qty: number; closing_stock_qty: number; dohSum: number; dohCount: number }> = {};
 
   for (const pd of allPlanData) {
     totalGmv += pd.sales_plan_gmv || 0;
@@ -78,10 +78,13 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
     }
 
     const cat = rowToSubCategory[pd.row_id] || 'Unknown';
-    if (!categoryData[cat]) categoryData[cat] = { gmv: 0, nsq: 0, inwards_qty: 0 };
+    if (!categoryData[cat]) categoryData[cat] = { gmv: 0, nsv: 0, nsq: 0, inwards_qty: 0, closing_stock_qty: 0, dohSum: 0, dohCount: 0 };
     categoryData[cat].gmv += pd.sales_plan_gmv || 0;
+    categoryData[cat].nsv += pd.nsv || 0;
     categoryData[cat].nsq += pd.nsq || 0;
     categoryData[cat].inwards_qty += pd.inwards_qty || 0;
+    categoryData[cat].closing_stock_qty += pd.closing_stock_qty || 0;
+    if (pd.fwd_30day_doh != null) { categoryData[cat].dohSum += pd.fwd_30day_doh; categoryData[cat].dohCount++; }
   }
 
   const monthly: BrandMonthBreakdown[] = Object.keys(monthData).sort().map(month => {
@@ -101,8 +104,11 @@ export const GET = withAuth(null, async (req, auth, { params }: Params) => {
     .map(([sub_category, data]) => ({
       sub_category,
       gmv: data.gmv,
+      nsv: data.nsv,
       nsq: data.nsq,
       inwards_qty: data.inwards_qty,
+      closing_stock_qty: data.closing_stock_qty,
+      avg_doh: data.dohCount > 0 ? data.dohSum / data.dohCount : 0,
       pct_of_total: totalGmv > 0 ? (data.gmv / totalGmv) * 100 : 0,
     }))
     .sort((a, b) => b.gmv - a.gmv)

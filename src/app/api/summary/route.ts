@@ -205,7 +205,7 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
     dohSum: number;
     dohCount: number;
     monthData: Record<string, { gmv: number; nsv: number; nsq: number; inwards_qty: number; closing_stock_qty: number; dohSum: number; dohCount: number }>;
-    categoryData: Record<string, { gmv: number; nsq: number; inwards_qty: number }>;
+    categoryData: Record<string, { gmv: number; nsv: number; nsq: number; inwards_qty: number; closing_stock_qty: number; dohSum: number; dohCount: number }>;
   }
 
   const cycleAgg: Record<string, CycleAgg> = {};
@@ -273,11 +273,14 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
 
     // Category breakdown
     if (!agg.categoryData[subCategory]) {
-      agg.categoryData[subCategory] = { gmv: 0, nsq: 0, inwards_qty: 0 };
+      agg.categoryData[subCategory] = { gmv: 0, nsv: 0, nsq: 0, inwards_qty: 0, closing_stock_qty: 0, dohSum: 0, dohCount: 0 };
     }
     agg.categoryData[subCategory].gmv += pd.sales_plan_gmv || 0;
+    agg.categoryData[subCategory].nsv += pd.nsv || 0;
     agg.categoryData[subCategory].nsq += pd.nsq || 0;
     agg.categoryData[subCategory].inwards_qty += pd.inwards_qty || 0;
+    agg.categoryData[subCategory].closing_stock_qty += pd.closing_stock_qty || 0;
+    if (pd.fwd_30day_doh != null) { agg.categoryData[subCategory].dohSum += pd.fwd_30day_doh; agg.categoryData[subCategory].dohCount++; }
   }
 
   // 6. Build enhanced cycle summaries (one entry per cycle)
@@ -302,8 +305,11 @@ export const GET = withAuth('view_all_otbs', async (req, auth) => {
       .map(([sub_category, data]) => ({
         sub_category,
         gmv: data.gmv,
+        nsv: data.nsv,
         nsq: data.nsq,
         inwards_qty: data.inwards_qty,
+        closing_stock_qty: data.closing_stock_qty,
+        avg_doh: data.dohCount > 0 ? data.dohSum / data.dohCount : 0,
         pct_of_total: (data.gmv / totalBrandGmv) * 100,
       }))
       .sort((a, b) => b.gmv - a.gmv)

@@ -359,6 +359,9 @@ export interface VarianceRow {
   inwards: VarianceMetric;
   closing_stock: VarianceMetric;
   doh: VarianceMetric;
+  // Planned NSQ for the next planning month — used as DOH denominator.
+  // Null only when this row is the last month of the quarter (no next month plan).
+  nextMonthPlannedNsq: number | null;
 }
 
 export interface VarianceThresholds {
@@ -415,8 +418,11 @@ export interface BrandMonthBreakdown {
 export interface CategoryBreakdown {
   sub_category: string;
   gmv: number;
+  nsv: number;
   nsq: number;
   inwards_qty: number;
+  closing_stock_qty: number;
+  avg_doh: number;
   pct_of_total: number; // percentage of brand total GMV
 }
 

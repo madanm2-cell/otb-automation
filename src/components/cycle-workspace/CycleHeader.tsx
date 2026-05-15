@@ -9,37 +9,51 @@ import type { OtbCycle, CycleStatus } from '@/types/otb';
 
 const V2_STATUS_BADGE: Record<CycleStatus, string> = {
   Draft:    'badge badge-gray',
-  Active:   'badge badge-blue',
-  Filling:  'badge badge-blue',
-  InReview: 'badge badge-yellow',
+  Active:   'badge badge-blue badge-pulse',
+  Filling:  'badge badge-blue badge-pulse',
+  InReview: 'badge badge-yellow badge-pulse',
   Approved: 'badge badge-green',
 };
 
 function V2Pipeline({ stages }: { stages: PipelineStage[] }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', width: '100%' }}>
       {stages.map((stage, i) => (
-        <div key={stage.key} style={{ display: 'flex', alignItems: 'center', flex: i < stages.length - 1 ? 1 : undefined }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <div key={stage.key} style={{ display: 'flex', alignItems: 'flex-start', flex: i < stages.length - 1 ? 1 : undefined }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <div style={{
-              width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-              background: stage.status === 'pending' ? 'var(--border-strong)'
-                : stage.status === 'completed' ? 'var(--success)' : 'var(--primary)',
-              boxShadow: stage.status === 'active' ? '0 0 0 3px var(--primary-light)' : 'none',
-            }} />
+              width: 28, height: 28, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, lineHeight: 1, userSelect: 'none',
+              background: stage.status === 'completed' ? 'var(--success)'
+                : stage.status === 'active' ? 'var(--primary)'
+                : 'transparent',
+              color: stage.status === 'pending' ? 'var(--text-tertiary)' : '#fff',
+              border: stage.status === 'pending' ? '2px dashed var(--border-strong)' : 'none',
+              boxShadow: stage.status === 'active'
+                ? '0 0 0 4px var(--primary-ring), 0 2px 8px rgba(204,120,92,0.35)'
+                : stage.status === 'completed'
+                ? '0 1px 4px rgba(46,125,82,0.3)'
+                : 'none',
+              transition: 'all var(--t-base)',
+            }}>
+              {stage.status === 'completed' ? '✓' : i + 1}
+            </div>
             <span style={{
-              fontSize: 12, whiteSpace: 'nowrap',
-              fontWeight: stage.status === 'active' ? 600 : 400,
+              fontSize: 11, fontWeight: stage.status === 'active' ? 600 : 500,
               color: stage.status === 'pending' ? 'var(--text-tertiary)'
-                : stage.status === 'completed' ? 'var(--text-secondary)' : 'var(--text)',
+                : stage.status === 'completed' ? 'var(--success)'
+                : 'var(--primary)',
+              whiteSpace: 'nowrap',
             }}>
               {stage.label}
             </span>
           </div>
           {i < stages.length - 1 && (
             <div style={{
-              flex: 1, height: 1, minWidth: 20, margin: '0 10px',
+              flex: 1, height: 2, minWidth: 16, marginTop: 13,
               background: stage.status === 'completed' ? 'var(--success)' : 'var(--border)',
+              transition: 'background var(--t-base)',
             }} />
           )}
         </div>
@@ -112,7 +126,7 @@ export function CycleHeader({ cycle, onCycleUpdated, canActivate = false }: Cycl
         )}
       </div>
 
-      <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+      <div style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-xs)' }}>
         <V2Pipeline stages={stages} />
       </div>
 

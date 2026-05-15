@@ -236,7 +236,7 @@ export function CycleWorkspace({ cycleId, basePath = '/cycles' }: { cycleId: str
         <div style={{ padding: 24 }}>
           {mountedTabs.has('setup') && (
             <div style={{ display: activeTab === 'setup' ? 'block' : 'none' }}>
-              <SetupTab cycle={cycle} onCycleUpdated={handleCycleUpdated} onActualsUploaded={handleActualsUploaded} />
+              <SetupTab cycle={cycle} onCycleUpdated={handleCycleUpdated} onActualsUploaded={handleActualsUploaded} onUploadsChanged={refetch} />
             </div>
           )}
           {planVisible && mountedTabs.has('plan') && (

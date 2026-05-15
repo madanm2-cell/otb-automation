@@ -9,9 +9,9 @@ import type { OtbCycle, CycleStatus } from '@/types/otb';
 
 const STATUS_BADGE: Record<CycleStatus, string> = {
   Draft:    'badge badge-gray',
-  Active:   'badge badge-blue',
-  Filling:  'badge badge-blue',
-  InReview: 'badge badge-yellow',
+  Active:   'badge badge-blue badge-pulse',
+  Filling:  'badge badge-blue badge-pulse',
+  InReview: 'badge badge-yellow badge-pulse',
   Approved: 'badge badge-green',
 };
 

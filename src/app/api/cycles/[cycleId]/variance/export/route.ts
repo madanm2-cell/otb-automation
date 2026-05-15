@@ -152,6 +152,7 @@ export const GET = withAuth('view_variance', async (req, _auth, { params }: Para
       inwards: buildVarianceMetric('inwards_pct', actual.actual_inwards_qty as number | null, (planned?.inwards_qty as number | null) ?? null, thresholds.inwards_pct),
       closing_stock: buildVarianceMetric('closing_stock_pct', actual.actual_closing_stock_qty as number | null, (planned?.closing_stock_qty as number | null) ?? null, thresholds.closing_stock_pct),
       doh: buildVarianceMetric('doh_pct', actual.actual_doh as number | null, (planned?.fwd_30day_doh as number | null) ?? null, thresholds.doh_pct),
+      nextMonthPlannedNsq: null,
     });
   }
 

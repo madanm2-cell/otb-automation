@@ -25,7 +25,7 @@ describe('Dashboard types', () => {
         { month: '2026-04-01', gmv: 33000, nsv: 26000, nsq: 1600, inwards_qty: 1000, closing_stock_qty: 700, avg_doh: 44 },
       ],
       top_categories: [
-        { sub_category: 'T-Shirts', gmv: 50000, nsq: 2500, inwards_qty: 25000, pct_of_total: 50 },
+        { sub_category: 'T-Shirts', gmv: 50000, nsv: 40000, nsq: 2500, inwards_qty: 25000, closing_stock_qty: 1000, avg_doh: 38, pct_of_total: 50 },
       ],
       has_actuals: false,
       is_current_quarter: true,

@@ -421,7 +421,6 @@ export function PlanTabContent({ cycleId }: PlanTabContentProps) {
                 items: [
                   { key: 'xlsx', label: 'Export as Excel', onClick: async () => { await handleSave(); window.open(`/api/cycles/${cycleId}/export?format=xlsx`, '_blank'); } },
                   { key: 'csv', label: 'Export as CSV', onClick: async () => { await handleSave(); window.open(`/api/cycles/${cycleId}/export?format=csv`, '_blank'); } },
-                  { key: 'pdf', label: 'Export as PDF', onClick: async () => { await handleSave(); window.open(`/api/cycles/${cycleId}/export?format=pdf`, '_blank'); } },
                 ],
               }}
             >

@@ -50,9 +50,14 @@ export function CycleDefaultsReview({ cycleId, cycleStatus, onConfirmed }: Props
     setLoading(true);
     try {
       const res = await fetch(`/api/cycles/${cycleId}/defaults`);
+      if (!res.ok) {
+        message.error('Failed to load defaults');
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
-      if ((data.defaults || []).length === 0) {
-        // Auto-initialize from master data on first visit
+      if ((data.defaults || []).length === 0 && cycleStatus === 'Draft') {
+        // Auto-initialize from master data on first visit (Draft only)
         setInitializing(true);
         const postRes = await fetch(`/api/cycles/${cycleId}/defaults`, { method: 'POST' });
         const postData = await postRes.json();

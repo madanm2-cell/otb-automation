@@ -7,15 +7,15 @@ import {
 } from '../../src/lib/formulaEngine';
 
 describe('Formula Engine — 9-step chain (GM only)', () => {
-  // Step 1: GMV = NSQ × ASP
-  it('step 1: salesPlanGmv = 1000 × 849.50 = 849500', () => {
-    expect(calcSalesPlanGmv(1000, 849.50)).toBe(849500);
+  // Step 1: NSV = NSQ × ASP
+  it('step 1: nsv = 1000 × 849.50 = 849500', () => {
+    expect(calcNsv(1000, 849.50)).toBe(849500);
   });
   it('step 1: returns null when NSQ is null', () => {
-    expect(calcSalesPlanGmv(null, 849.50)).toBeNull();
+    expect(calcNsv(null, 849.50)).toBeNull();
   });
   it('step 1: returns 0 when NSQ is 0', () => {
-    expect(calcSalesPlanGmv(0, 849.50)).toBe(0);
+    expect(calcNsv(0, 849.50)).toBe(0);
   });
 
   // Step 2: GOLY% = ((NSQ / LY_NSQ) - 1) × 100
@@ -29,10 +29,10 @@ describe('Formula Engine — 9-step chain (GM only)', () => {
     expect(calcGolyPct(1000, null)).toBeNull();
   });
 
-  // Step 3: NSV = GMV × (1 - Return%) × (1 - Tax%)
-  // 849500 × 0.745 × 0.88 = 556932.20
-  it('step 3: nsv = 849500 × (1-0.255) × (1-0.12) = 556932.20', () => {
-    expect(calcNsv(849500, 25.5, 12)).toBeCloseTo(556932.20, 0);
+  // Step 3: GMV = NSV ÷ ((1 − Return%) × (1 − Tax%))
+  // 849500 ÷ (0.745 × 0.88) = 849500 ÷ 0.6556 ≈ 1295760
+  it('step 3: salesPlanGmv = 849500 ÷ ((1-0.255) × (1-0.12)) ≈ 1295760', () => {
+    expect(calcSalesPlanGmv(849500, 25.5, 12)).toBeCloseTo(1295760, 0);
   });
 
   // Step 4: Inwards Val = Inwards Qty × COGS
@@ -91,7 +91,8 @@ describe('Formula Engine — 9-step chain (GM only)', () => {
       lySalesNsq: 800, returnPct: 25.5, taxPct: 12,
       nextMonthNsq: 1200,
     });
-    expect(result.salesPlanGmv).toBe(849500);
+    expect(result.nsv).toBe(849500);
+    expect(result.salesPlanGmv).toBeCloseTo(1295760, 0);
     expect(result.golyPct).toBeCloseTo(25, 1);
     expect(result.closingStockQty).toBe(14920);
     expect(result.gmPct).toBeCloseTo(58.80, 1);
@@ -106,8 +107,8 @@ describe('Formula Engine — 9-step chain (GM only)', () => {
       lySalesNsq: null, returnPct: null, taxPct: null,
       nextMonthNsq: null,
     });
-    expect(result.salesPlanGmv).toBeNull();
     expect(result.nsv).toBeNull();
+    expect(result.salesPlanGmv).toBeNull();
     expect(result.grossMargin).toBeNull();
   });
 });

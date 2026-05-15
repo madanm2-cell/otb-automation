@@ -177,13 +177,24 @@ function TopCategories({ categories }: { categories: EnhancedBrandSummary['top_c
   const columns = [
     {
       title: 'Sub-Category',
-      dataIndex: 'sub_category',
       key: 'sub_category',
+      render: (_: unknown, row: EnhancedBrandSummary['top_categories'][number]) => (
+        <span>
+          {row.sub_category}{' '}
+          <span style={{ color: COLORS.textMuted, fontWeight: 400 }}>({row.pct_of_total.toFixed(1)}%)</span>
+        </span>
+      ),
     },
     {
       title: 'GMV',
       dataIndex: 'gmv',
       key: 'gmv',
+      render: (v: number) => formatCrore(v),
+    },
+    {
+      title: 'NSV',
+      dataIndex: 'nsv',
+      key: 'nsv',
       render: (v: number) => formatCrore(v),
     },
     {
@@ -199,10 +210,16 @@ function TopCategories({ categories }: { categories: EnhancedBrandSummary['top_c
       render: (v: number) => formatQty(v),
     },
     {
-      title: 'GMV Share',
-      dataIndex: 'pct_of_total',
-      key: 'pct_of_total',
-      render: (v: number) => `${v.toFixed(1)}%`,
+      title: 'Closing Stock',
+      dataIndex: 'closing_stock_qty',
+      key: 'closing_stock_qty',
+      render: (v: number) => formatQty(v),
+    },
+    {
+      title: 'DoH',
+      dataIndex: 'avg_doh',
+      key: 'avg_doh',
+      render: (v: number) => String(Math.round(v)),
     },
   ];
 

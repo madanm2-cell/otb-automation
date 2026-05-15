@@ -19,7 +19,7 @@ const METRIC_LABELS: Record<MetricKey, string> = {
   nsv: 'NSV (₹ Cr)',
   nsq: 'NSQ (Units)',
   inwards: 'Inwards (Units)',
-  closing_stock: 'Closing Stock (₹ Cr)',
+  closing_stock: 'Closing Stock (Qty)',
   doh: 'DOH (Days)',
 };
 
@@ -29,7 +29,7 @@ const POSITION_METRICS = new Set<MetricKey>(['closing_stock', 'doh']);
 
 function fmtValue(key: MetricKey, value: number | null): string {
   if (value == null) return '—';
-  if (key === 'nsq' || key === 'inwards') return formatQty(value);
+  if (key === 'nsq' || key === 'inwards' || key === 'closing_stock') return formatQty(value);
   if (key === 'doh') return value.toFixed(1) + ' d';
   return formatCrore(value);
 }
@@ -108,6 +108,41 @@ function aggregateRows(rows: VarianceRow[], actualsMonths: string[]): AggRow {
   ) as AggRow;
 }
 
+// DOH = sum(closing_stock) / (sum(forward_planned_nsq) / 30)
+// Each row carries nextMonthPlannedNsq (populated server-side from plan data).
+// Both planned and actual DOH use planned NSQ as the denominator — actual NSQ for the
+// next month may not be available yet. Falls back to current month planned NSQ when
+// nextMonthPlannedNsq is null (i.e. last month of the quarter).
+function computeAggDoh(rows: VarianceRow[]): AggMetric {
+  if (rows.length === 0) return { planned: null, actual: null, variance_pct: null, level: 'green' };
+
+  let closingPlanned: number | null = null;
+  let closingActual: number | null = null;
+  let forwardNsq: number | null = null;      // planned NSQ for M+1, or M if no M+1
+  let currentNsqPlanned: number | null = null; // fallback
+
+  for (const r of rows) {
+    if (r.closing_stock.planned != null) closingPlanned = (closingPlanned ?? 0) + r.closing_stock.planned;
+    if (r.closing_stock.actual != null) closingActual = (closingActual ?? 0) + r.closing_stock.actual;
+    if (r.nextMonthPlannedNsq != null) forwardNsq = (forwardNsq ?? 0) + r.nextMonthPlannedNsq;
+    if (r.nsq.planned != null) currentNsqPlanned = (currentNsqPlanned ?? 0) + r.nsq.planned;
+  }
+
+  const denomNsq = forwardNsq ?? currentNsqPlanned;
+  const planned = closingPlanned != null && denomNsq ? closingPlanned / (denomNsq / 30) : null;
+  const actual = closingActual != null && denomNsq ? closingActual / (denomNsq / 30) : null;
+
+  const variance_pct = actual != null && planned != null && planned !== 0
+    ? ((actual - planned) / planned) * 100
+    : null;
+
+  const levels = rows.map(r => r.doh.level);
+  const level: VarianceLevel = levels.includes('red') ? 'red'
+    : levels.includes('yellow') ? 'yellow' : 'green';
+
+  return { planned, actual, variance_pct, level };
+}
+
 // ─── Shared column builder ────────────────────────────────────────────────────
 
 type PlanCell = (_: unknown, row: { key: MetricKey }) => React.ReactNode;
@@ -163,17 +198,27 @@ function SummaryTab({ data, channelFilter }: SummaryTabProps) {
     [data.rows, channelFilter],
   );
 
-  const byMonth = useMemo(
-    () => Object.fromEntries(
-      all_months.map(m => [m, aggregateRows(filteredRows.filter(r => r.month === m), [m])])
-    ),
-    [filteredRows, all_months],
-  );
+  const byMonth = useMemo(() => {
+    return Object.fromEntries(
+      all_months.map(m => {
+        const monthRows = filteredRows.filter(r => r.month === m);
+        const agg = aggregateRows(monthRows, [m]);
+        agg.doh = computeAggDoh(monthRows);
+        return [m, agg];
+      })
+    );
+  }, [filteredRows, all_months]);
 
-  const qTotal = useMemo(
-    () => aggregateRows(filteredRows.filter(r => actuals_months.includes(r.month)), actuals_months),
-    [filteredRows, actuals_months],
-  );
+  const qTotal = useMemo(() => {
+    const lastActualsMonth = actuals_months[actuals_months.length - 1];
+    const closingRows = lastActualsMonth
+      ? filteredRows.filter(r => r.month === lastActualsMonth)
+      : filteredRows.filter(r => actuals_months.includes(r.month));
+    const actualsRows = filteredRows.filter(r => actuals_months.includes(r.month));
+    const agg = aggregateRows(actualsRows, actuals_months);
+    agg.doh = computeAggDoh(closingRows);
+    return agg;
+  }, [filteredRows, actuals_months]);
 
   const qLabel = `Q Total (${actuals_months.length}/${all_months.length})`;
 
@@ -233,11 +278,20 @@ function SummaryTab({ data, channelFilter }: SummaryTabProps) {
   const buildSubCatTable = (cat: string) => {
     const catRows = filteredRows.filter(r => r.sub_category === cat);
     const catByMonth = Object.fromEntries(
-      all_months.map(m => [m, aggregateRows(catRows.filter(r => r.month === m), [m])])
+      all_months.map(m => {
+        const monthRows = catRows.filter(r => r.month === m);
+        const agg = aggregateRows(monthRows, [m]);
+        agg.doh = computeAggDoh(monthRows);
+        return [m, agg];
+      })
     );
-    const catQTotal = aggregateRows(
-      catRows.filter(r => actuals_months.includes(r.month)), actuals_months
-    );
+    const lastActualsMonth = actuals_months[actuals_months.length - 1];
+    const catClosingRows = lastActualsMonth
+      ? catRows.filter(r => r.month === lastActualsMonth)
+      : catRows.filter(r => actuals_months.includes(r.month));
+    const catActualsRows = catRows.filter(r => actuals_months.includes(r.month));
+    const catQTotal = aggregateRows(catActualsRows, actuals_months);
+    catQTotal.doh = computeAggDoh(catClosingRows);
     const catTableRows = METRIC_KEYS.map(k => ({ key: k, label: METRIC_LABELS[k] }));
 
     const catColumns = [

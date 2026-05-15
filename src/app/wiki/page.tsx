@@ -14,6 +14,9 @@ import {
   SYSTEM_POPULATED_FIELDS,
   CALCULATED_FIELDS,
   SUGGESTED_FIELDS,
+  VARIANCE_METRIC_DEFS,
+  VARIANCE_THRESHOLD_DEFS,
+  VARIANCE_AGGREGATION_NOTES,
   GLOSSARY_TERMS,
 } from '@/lib/wiki-content';
 
@@ -333,6 +336,160 @@ function FieldReference() {
   );
 }
 
+// ── Variance Report ───────────────────────────────
+
+function VarianceSection() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACING.xxl }}>
+
+      {/* Metrics */}
+      <div id="variance-metrics" style={{ scrollMarginTop: HEADER_OFFSET }}>
+        <SectionTitle>Metrics</SectionTitle>
+        <SectionIntro>
+          The variance report compares planned values from the approved OTB grid against actuals
+          uploaded after the planning period closes. Each metric is shown with its planned value,
+          actual value, and percentage variance for every month that has actuals uploaded, plus a
+          Q Total column covering all actuals months.
+        </SectionIntro>
+        <Table
+          dataSource={VARIANCE_METRIC_DEFS.map((r, i) => ({ ...r, key: i }))}
+          columns={[
+            {
+              title: 'Metric',
+              dataIndex: 'metric',
+              key: 'metric',
+              width: 120,
+              render: (v: string) => <Text strong style={{ fontSize: 13 }}>{v}</Text>,
+            },
+            {
+              title: 'Unit',
+              dataIndex: 'unit',
+              key: 'unit',
+              width: 70,
+              render: (v: string) => <Text style={{ fontSize: 12, color: COLORS.textMuted }}>{v}</Text>,
+            },
+            {
+              title: 'Plan Value (source)',
+              dataIndex: 'planValue',
+              key: 'planValue',
+              width: 220,
+              render: (v: string) => <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{v}</Text>,
+            },
+            {
+              title: 'Actual Value (source)',
+              dataIndex: 'actualValue',
+              key: 'actualValue',
+              width: 260,
+              render: (v: string) => <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{v}</Text>,
+            },
+            {
+              title: 'How It Is Aggregated',
+              dataIndex: 'aggregation',
+              key: 'aggregation',
+              render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+            },
+          ]}
+          expandable={{
+            expandedRowRender: (r: any) => (
+              <Text style={{ fontSize: 12, color: COLORS.textSecondary, paddingLeft: 8 }}>
+                {r.notes}
+              </Text>
+            ),
+            rowExpandable: (r: any) => !!r.notes,
+          }}
+          pagination={false}
+          size="small"
+          bordered
+        />
+      </div>
+
+      {/* Aggregation rules */}
+      <div id="variance-aggregation" style={{ scrollMarginTop: HEADER_OFFSET }}>
+        <SectionTitle>Aggregation Rules</SectionTitle>
+        <SectionIntro>
+          Key rules that govern how individual dimension rows are combined into the summary and
+          sub-category breakdown tables.
+        </SectionIntro>
+        <div
+          style={{
+            background: '#fafafa',
+            border: `1px solid ${COLORS.borderLight}`,
+            borderRadius: 6,
+            padding: `${SPACING.md}px ${SPACING.lg}px`,
+          }}
+        >
+          {VARIANCE_AGGREGATION_NOTES.map((note, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                gap: SPACING.sm,
+                paddingBottom: i < VARIANCE_AGGREGATION_NOTES.length - 1 ? SPACING.sm : 0,
+                marginBottom: i < VARIANCE_AGGREGATION_NOTES.length - 1 ? SPACING.sm : 0,
+                borderBottom: i < VARIANCE_AGGREGATION_NOTES.length - 1 ? `1px solid ${COLORS.borderLight}` : 'none',
+              }}
+            >
+              <Text style={{ color: COLORS.accent, fontWeight: 700, flexShrink: 0 }}>
+                {i + 1}.
+              </Text>
+              <Text style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.6 }}>
+                {note}
+              </Text>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Thresholds */}
+      <div id="variance-thresholds" style={{ scrollMarginTop: HEADER_OFFSET }}>
+        <SectionTitle>RAG Thresholds</SectionTitle>
+        <SectionIntro>
+          Each metric has a configurable percentage threshold. Cells are coloured green when
+          variance is within threshold, yellow at moderate breach, and red at severe breach.
+          Thresholds are set per brand by Admin and default to the values below.
+        </SectionIntro>
+        <Table
+          dataSource={VARIANCE_THRESHOLD_DEFS.map((r, i) => ({ ...r, key: i }))}
+          columns={[
+            {
+              title: 'Metric',
+              dataIndex: 'metric',
+              key: 'metric',
+              width: 130,
+              render: (v: string) => <Text strong style={{ fontSize: 13 }}>{v}</Text>,
+            },
+            {
+              title: 'Default Threshold',
+              dataIndex: 'defaultThreshold',
+              key: 'defaultThreshold',
+              width: 140,
+              render: (v: string) => <Tag color="blue">{v}</Tag>,
+            },
+            {
+              title: 'Direction',
+              dataIndex: 'direction',
+              key: 'direction',
+              width: 150,
+              render: (v: string) => (
+                <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{v}</Text>
+              ),
+            },
+            {
+              title: 'Interpretation',
+              dataIndex: 'description',
+              key: 'description',
+              render: (v: string) => <Text style={{ fontSize: 13 }}>{v}</Text>,
+            },
+          ]}
+          pagination={false}
+          size="small"
+          bordered
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Glossary ──────────────────────────────────────
 
 function Glossary() {
@@ -388,6 +545,16 @@ const TOC_ITEMS = [
     ],
   },
   { key: 'roles-permissions', href: '#roles-permissions', title: 'Roles & Permissions' },
+  {
+    key: 'variance-report',
+    href: '#variance-report',
+    title: 'Variance Report',
+    children: [
+      { key: 'variance-metrics', href: '#variance-metrics', title: 'Metrics' },
+      { key: 'variance-aggregation', href: '#variance-aggregation', title: 'Aggregation Rules' },
+      { key: 'variance-thresholds', href: '#variance-thresholds', title: 'RAG Thresholds' },
+    ],
+  },
   { key: 'glossary', href: '#glossary', title: 'Glossary' },
 ];
 
@@ -475,7 +642,22 @@ export default function WikiPage() {
             />
           </div>
 
-          {/* Panel 4: Glossary */}
+          {/* Panel 4: Variance Report */}
+          <div id="variance-report" style={{ scrollMarginTop: HEADER_OFFSET }}>
+            <Collapse
+              defaultActiveKey={['1']}
+              items={[
+                {
+                  key: '1',
+                  label: <PanelLabel>Variance Report</PanelLabel>,
+                  children: <VarianceSection />,
+                  forceRender: true,
+                },
+              ]}
+            />
+          </div>
+
+          {/* Panel 5: Glossary */}
           <div id="glossary" style={{ scrollMarginTop: HEADER_OFFSET }}>
             <Collapse
               defaultActiveKey={['1']}
